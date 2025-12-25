@@ -169,7 +169,9 @@ class VectorStore(ABC):
     def add(self, questions: list[Question]) -> None: ...
 
     @abstractmethod
-    def search(self, embedding: list[float], k: int = 5) -> list[tuple[str, float]]: ...
+    def search(self, embedding: list[float], k: int = 5) -> list[tuple[Question, float]]:
+        """Search for similar questions. Returns (Question, score) pairs ordered by relevance."""
+        ...
 
     @abstractmethod
     def delete_by_chunk_ids(self, chunk_ids: list[str]) -> None: ...
@@ -196,6 +198,12 @@ class DocStore(ABC):
 
     @abstractmethod
     def get_by_source(self, source: str) -> list[Chunk]: ...
+
+
+**Storage notes:**
+- VectorStore stores Question objects (embeddings + metadata including chunk_id)
+- DocStore stores Chunk objects (content + source + metadata)
+- Atoms are transient (used during ingestion, not persisted)
 
 
 # atomizer/base.py
@@ -297,14 +305,16 @@ Atomize (via Atomizer) ← break chunks into atomic statements
     ↓
 Generate Questions (per atom)
     ↓
-[Question Diversity Dedup] ← remove similar questions (cosine threshold)
-    ↓
 Embed Questions
+    ↓
+[Question Diversity Dedup] ← remove similar questions (cosine threshold)
     ↓
 Store (VectorStore for questions, DocStore for chunks)
 ```
 
 **Question Diversity Deduplication:**
+
+Applied after embedding to remove redundant questions using cosine similarity.
 
 ```python
 # llm/generator.py
@@ -312,9 +322,12 @@ def deduplicate_questions(
     questions: list[Question],
     embeddings: list[list[float]],
     threshold: float = 0.85
-) -> list[Question]:
+) -> tuple[list[Question], list[list[float]]]:
     """
     Remove questions with pairwise cosine similarity above threshold.
+
+    Called after embedding (requires embeddings for similarity computation).
+    Returns filtered questions and their corresponding embeddings.
 
     Paper finding: Retaining 50% of questions maintains max performance.
     Even 20% retention shows minimal degradation.
