@@ -4,16 +4,24 @@
 **Package:** `isotopedb`
 **CLI:** `isotope`
 **Date:** 2025-12-25
+**Updated:** 2025-12-25 (Paper review: atomic decomposition, question diversity)
 
 ## Overview
 
-Isotope is a "Reverse RAG" system that indexes anticipated questions rather than content chunks. Traditional RAG indexes answers and hopes they match user questions. Isotope inverts this by generating atomic questions for each chunk and indexing those instead, achieving higher semantic alignment during retrieval.
+Isotope is a "Reverse RAG" system that indexes anticipated questions rather than content chunks. Traditional RAG indexes answers and hopes they match user questions. Isotope inverts this by decomposing content into atomic statements, generating questions for each atom, and indexing those questions instead—achieving higher semantic alignment during retrieval.
+
+**Reference:** Based on "Question-Based Retrieval Using Atomic Units for Enterprise RAG" (arXiv:2405.12363v2)
 
 ## Core Concept
 
 ```
 Traditional RAG:  User Question → Search Chunks → Hope for match
 Isotope:          User Question → Search Questions → Exact chunk lookup
+```
+
+**Pipeline:**
+```
+Chunk → Atoms → Questions → Embeddings → Index
 ```
 
 **Isotopes:** Generated questions that map back to the same content chunk.
@@ -28,13 +36,14 @@ Isotope:          User Question → Search Questions → Exact chunk lookup
 │  Ingestor                    │   Retriever                  │
 │  ─────────                   │   ─────────                  │
 │  • Load files                │   • Search questions         │
-│  • Generate questions        │   • Fetch chunks             │
-│  • Embed & index             │   • Synthesize answer        │
+│  • Atomize chunks            │   • Fetch chunks             │
+│  • Generate questions        │   • Synthesize answer        │
+│  • Deduplicate questions     │                              │
+│  • Embed & index             │                              │
 ├──────────────────────────────┴──────────────────────────────┤
 │  VectorStore (ABC)           │   DocStore (ABC)             │
 │  ──────────────────          │   ──────────────             │
 │  • ChromaDB (MVP)            │   • SQLite (MVP)             │
-│  • Vespa, OpenSearch (future)│   • S3, DynamoDB (future)    │
 ├─────────────────────────────────────────────────────────────┤
 │  LiteLLM                                                    │
 │  • Question generation (any provider)                       │
@@ -56,7 +65,7 @@ isotopedb/
 │       │
 │       ├── models/                  # Pydantic data models
 │       │   ├── __init__.py
-│       │   ├── chunk.py             # Chunk, Question
+│       │   ├── chunk.py             # Chunk, Atom, Question
 │       │   └── results.py           # SearchResult, QueryResponse
 │       │
 │       ├── stores/                  # Storage abstractions
@@ -65,7 +74,13 @@ isotopedb/
 │       │   ├── chroma.py            # ChromaDB implementation
 │       │   └── sqlite.py            # SQLite doc store
 │       │
-│       ├── dedup/                   # Deduplication strategies
+│       ├── atomizer/                # Atomic decomposition
+│       │   ├── __init__.py
+│       │   ├── base.py              # Atomizer ABC
+│       │   ├── sentence.py          # Sentence-based atomization
+│       │   └── llm.py               # LLM-based atomic fact extraction
+│       │
+│       ├── dedup/                   # Re-ingestion deduplication
 │       │   ├── __init__.py
 │       │   ├── base.py              # Deduplicator ABC
 │       │   ├── none.py              # NoDedup
@@ -78,7 +93,7 @@ isotopedb/
 │       │
 │       ├── llm/                     # LLM integration
 │       │   ├── __init__.py
-│       │   ├── generator.py         # Question generation
+│       │   ├── generator.py         # Question generation + diversity dedup
 │       │   └── embedder.py          # Embedding wrapper
 │       │
 │       ├── ingestor.py              # Ingestion pipeline
@@ -97,6 +112,7 @@ isotopedb/
 from pydantic import BaseModel, Field
 from uuid import uuid4
 
+
 class Chunk(BaseModel):
     """A piece of content that can answer questions."""
     id: str = Field(default_factory=lambda: str(uuid4()))
@@ -105,11 +121,19 @@ class Chunk(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class Atom(BaseModel):
+    """An atomic statement extracted from a chunk."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    content: str                     # the atomic statement
+    chunk_id: str                    # references Chunk.id
+
+
 class Question(BaseModel):
-    """An atomic question that a chunk answers."""
+    """An atomic question that an atom/chunk answers."""
     id: str = Field(default_factory=lambda: str(uuid4()))
     text: str                        # the question itself
-    chunk_id: str                    # references Chunk.id
+    chunk_id: str                    # references Chunk.id (for retrieval)
+    atom_id: str | None = None       # references Atom.id (for tracing)
     embedding: list[float] | None = None
 
 
@@ -174,8 +198,15 @@ class DocStore(ABC):
     def get_by_source(self, source: str) -> list[Chunk]: ...
 
 
+# atomizer/base.py
+class Atomizer(ABC):
+    @abstractmethod
+    def atomize(self, chunk: Chunk) -> list[Atom]: ...
+
+
 # dedup/base.py
 class Deduplicator(ABC):
+    """Handles re-ingestion of sources (not question diversity)."""
     @abstractmethod
     def get_chunks_to_remove(
         self,
@@ -198,6 +229,7 @@ class Loader(ABC):
 ```python
 # config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -212,16 +244,22 @@ class Settings(BaseSettings):
     # Embeddings
     embedding_model: str = "text-embedding-3-small"
 
+    # Atomization
+    atomizer: Literal["sentence", "llm"] = "sentence"
+
     # Question generation
-    questions_per_chunk: int = 5
+    questions_per_atom: int = 5
     question_prompt: str | None = None  # None = use default
+
+    # Question diversity deduplication
+    question_diversity_threshold: float | None = 0.85  # None = disabled
 
     # Storage
     data_dir: str = "./isotope_data"
     vector_store: Literal["chroma"] = "chroma"
     doc_store: Literal["sqlite"] = "sqlite"
 
-    # Deduplication
+    # Re-ingestion deduplication
     dedup_strategy: Literal["none", "source_aware"] = "source_aware"
 
     # Retrieval
@@ -234,7 +272,9 @@ class Settings(BaseSettings):
 # Isotope config
 ISOTOPE_LLM_MODEL=gemini/gemini-1.5-flash
 ISOTOPE_EMBEDDING_MODEL=gemini/text-embedding-004
-ISOTOPE_QUESTIONS_PER_CHUNK=7
+ISOTOPE_ATOMIZER=sentence
+ISOTOPE_QUESTIONS_PER_ATOM=5
+ISOTOPE_QUESTION_DIVERSITY_THRESHOLD=0.85
 
 # Provider API keys (LiteLLM convention)
 OPENAI_API_KEY=sk-...
@@ -242,6 +282,62 @@ GEMINI_API_KEY=...
 ANTHROPIC_API_KEY=...
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
+```
+
+## Ingestion Pipeline
+
+```
+Load File (via Loader)
+    ↓
+Chunk content
+    ↓
+[Source-Aware Dedup] ← if re-ingesting, remove old chunks first
+    ↓
+Atomize (via Atomizer) ← break chunks into atomic statements
+    ↓
+Generate Questions (per atom)
+    ↓
+[Question Diversity Dedup] ← remove similar questions (cosine threshold)
+    ↓
+Embed Questions
+    ↓
+Store (VectorStore for questions, DocStore for chunks)
+```
+
+**Question Diversity Deduplication:**
+
+```python
+# llm/generator.py
+def deduplicate_questions(
+    questions: list[Question],
+    embeddings: list[list[float]],
+    threshold: float = 0.85
+) -> list[Question]:
+    """
+    Remove questions with pairwise cosine similarity above threshold.
+
+    Paper finding: Retaining 50% of questions maintains max performance.
+    Even 20% retention shows minimal degradation.
+    """
+    ...
+```
+
+## Retrieval Pipeline
+
+```
+User Query
+    ↓
+Embed Query
+    ↓
+Search Question Index (VectorStore)
+    ↓
+Get chunk_ids from matched questions
+    ↓
+Fetch Chunks (DocStore)
+    ↓
+[Optional] Synthesize Answer (LLM)
+    ↓
+Return QueryResponse
 ```
 
 ## CLI Commands
@@ -298,7 +394,7 @@ pip install isotopedb[unstructured]    # + file parsing
 
 ### Phase 1: Core Foundation
 - Project setup (pyproject.toml, src layout)
-- Pydantic models (Chunk, Question, SearchResult, QueryResponse)
+- Pydantic models (Chunk, Atom, Question, SearchResult, QueryResponse)
 - Settings/config
 - Abstract base classes
 
@@ -307,39 +403,38 @@ pip install isotopedb[unstructured]    # + file parsing
 - SQLite doc store
 - NoDedup and SourceAwareDedup
 
-### Phase 3: LLM Integration
+### Phase 3: Atomization
+- Sentence-based atomizer (default)
+- LLM-based atomizer (optional)
+
+### Phase 4: LLM Integration
 - Question generation with LiteLLM
+- Question diversity deduplication
 - Embedding with LiteLLM
 - Default prompt template
 
-### Phase 4: Pipelines
+### Phase 5: Pipelines
 - Ingestor (ingest files, ingest_chunks)
 - Retriever (search, query with synthesis)
 
-### Phase 5: File Loading
+### Phase 6: File Loading
 - Basic text/markdown loader (built-in)
 - Unstructured loader (optional dep)
 
-### Phase 6: CLI
+### Phase 7: CLI
 - All commands (ingest, query, list, delete, status, config)
 - Rich output + plain mode
 
-### Phase 7: Polish
+### Phase 8: Polish
 - Tests
 - README with examples
 - Error handling and validation
 
-## Future Considerations
+## Known Limitations
 
-**Additional vector stores:**
-- Vespa, OpenSearch, PGVector, FAISS, Pinecone
+**Single-hop queries only (MVP):**
+- Isotope handles queries where the answer exists in a single chunk
+- Multi-hop queries (requiring information from multiple chunks) are not optimized
+- Future: Hybrid retrieval or iterative retrieval approaches
 
-**Additional doc stores:**
-- S3, DynamoDB, Redis
-
-**Additional dedup strategies:**
-- Hash-based exact dedup
-- Semantic dedup (vector similarity on chunks)
-
-**Make ChromaDB optional:**
-- When multiple backends exist, let users choose
+**See also:** `docs/plans/2025-12-25-isotope-future.md` for deferred considerations.
