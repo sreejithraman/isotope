@@ -3,14 +3,14 @@
 
 from abc import ABC, abstractmethod
 
-from isotopedb.models import Chunk, Question
+from isotopedb.models import Chunk, EmbeddedQuestion, Question
 
 
 class VectorStore(ABC):
     """Abstract base class for vector storage."""
 
     @abstractmethod
-    def add(self, questions: list[Question]) -> None:
+    def add(self, questions: list[EmbeddedQuestion]) -> None:
         """Add questions with embeddings to the store."""
         ...
 

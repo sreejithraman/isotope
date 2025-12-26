@@ -30,4 +30,10 @@ class Question(BaseModel):
     text: str
     chunk_id: str
     atom_id: str | None = None
-    embedding: list[float] | None = None
+
+
+class EmbeddedQuestion(BaseModel):
+    """A Question paired with its embedding vector. Used during ingestion."""
+
+    question: Question
+    embedding: list[float]
