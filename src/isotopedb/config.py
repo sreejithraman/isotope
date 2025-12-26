@@ -12,21 +12,20 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="ISOTOPE_",
-        env_file=".env",
         extra="ignore",
     )
 
     # LLM (question generation)
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = "gemini/gemini-2.0-flash-exp"
 
     # Embeddings
-    embedding_model: str = "text-embedding-3-small"
+    embedding_model: str = "gemini/text-embedding-004"
 
     # Atomization
     atomizer: Literal["sentence", "llm"] = "sentence"
 
     # Question generation
-    questions_per_atom: int = 5
+    questions_per_atom: int = 15
     question_prompt: str | None = None
 
     # Question diversity deduplication

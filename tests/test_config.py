@@ -9,10 +9,10 @@ from isotopedb.config import Settings
 class TestSettings:
     def test_default_settings(self):
         settings = Settings()
-        assert settings.llm_model == "gpt-4o-mini"
-        assert settings.embedding_model == "text-embedding-3-small"
+        assert settings.llm_model == "gemini/gemini-2.0-flash-exp"
+        assert settings.embedding_model == "gemini/text-embedding-004"
         assert settings.atomizer == "sentence"
-        assert settings.questions_per_atom == 5
+        assert settings.questions_per_atom == 15
         assert settings.question_diversity_threshold == 0.85
         assert settings.data_dir == "./isotope_data"
         assert settings.vector_store == "chroma"
