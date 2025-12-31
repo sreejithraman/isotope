@@ -153,3 +153,42 @@ class TestIngestChunks:
         assert result["chunks"] == 0
         assert result["atoms"] == 0
         assert result["questions"] == 0
+
+
+class TestIngestorProgress:
+    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
+    @patch("isotopedb.generator.question_generator.litellm.completion")
+    def test_progress_callback_called(self, mock_completion, mock_embedding, stores):
+        mock_completion.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
+        )
+        mock_embedding.return_value = MagicMock(
+            data=[{"embedding": [0.1, 0.2, 0.3], "index": 0}]
+        )
+
+        ingestor = Ingestor(
+            vector_store=stores["vector_store"],
+            doc_store=stores["doc_store"],
+            atom_store=stores["atom_store"],
+            atomizer=SentenceAtomizer(),
+            embedder=Embedder(model="test-model"),
+            generator=QuestionGenerator(),
+            deduplicator=NoDedup(),
+        )
+
+        progress_events = []
+
+        def on_progress(event: str, current: int, total: int, message: str):
+            progress_events.append((event, current, total, message))
+
+        chunks = [
+            Chunk(content="First sentence.", source="a.md"),
+            Chunk(content="Second sentence.", source="b.md"),
+        ]
+        ingestor.ingest_chunks(chunks, on_progress=on_progress)
+
+        # Should have progress events
+        assert len(progress_events) > 0
+        # Should include different phases
+        phases = {e[0] for e in progress_events}
+        assert "atomizing" in phases or "generating" in phases or "embedding" in phases
