@@ -192,3 +192,13 @@ class TestIngestorProgress:
         # Should include different phases
         phases = {e[0] for e in progress_events}
         assert "atomizing" in phases or "generating" in phases or "embedding" in phases
+
+
+class TestExports:
+    def test_ingestor_exported(self):
+        from isotopedb import Ingestor
+        assert Ingestor is not None
+
+    def test_retriever_exported(self):
+        from isotopedb import Retriever
+        assert Retriever is not None
