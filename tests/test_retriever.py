@@ -122,3 +122,78 @@ class TestRetrieverSearch:
 
         results = retriever.search("any query")
         assert results == []
+
+
+class TestRetrieverQuery:
+    @patch("isotopedb.retriever.litellm.completion")
+    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
+    def test_query_returns_response(self, mock_embedding, mock_completion, stores):
+        mock_embedding.return_value = MagicMock(
+            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
+        )
+        mock_completion.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Python is a programming language."))]
+        )
+
+        # Setup
+        chunk = Chunk(content="Python is a programming language.", source="test.md")
+        stores["doc_store"].put(chunk)
+        q = Question(text="What is Python?", chunk_id=chunk.id)
+        stores["vector_store"].add([EmbeddedQuestion(question=q, embedding=[1.0, 0.0, 0.0])])
+
+        retriever = Retriever(
+            vector_store=stores["vector_store"],
+            doc_store=stores["doc_store"],
+            embedder=Embedder(model="test-model"),
+            llm_model="gemini/gemini-2.0-flash-exp",
+        )
+
+        from isotopedb.models import QueryResponse
+        response = retriever.query("What is Python?")
+
+        assert isinstance(response, QueryResponse)
+        assert response.query == "What is Python?"
+        assert response.answer is not None
+        assert len(response.results) > 0
+
+    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
+    def test_query_raw_mode(self, mock_embedding, stores):
+        mock_embedding.return_value = MagicMock(
+            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
+        )
+
+        chunk = Chunk(content="Python is a programming language.", source="test.md")
+        stores["doc_store"].put(chunk)
+        q = Question(text="What is Python?", chunk_id=chunk.id)
+        stores["vector_store"].add([EmbeddedQuestion(question=q, embedding=[1.0, 0.0, 0.0])])
+
+        retriever = Retriever(
+            vector_store=stores["vector_store"],
+            doc_store=stores["doc_store"],
+            embedder=Embedder(model="test-model"),
+        )
+
+        from isotopedb.models import QueryResponse
+        response = retriever.query("What is Python?", synthesize=False)
+
+        assert isinstance(response, QueryResponse)
+        assert response.answer is None  # No synthesis
+        assert len(response.results) > 0
+
+    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
+    def test_query_no_results(self, mock_embedding, stores):
+        mock_embedding.return_value = MagicMock(
+            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
+        )
+
+        retriever = Retriever(
+            vector_store=stores["vector_store"],
+            doc_store=stores["doc_store"],
+            embedder=Embedder(model="test-model"),
+        )
+
+        from isotopedb.models import QueryResponse
+        response = retriever.query("anything")
+
+        assert response.answer is None
+        assert response.results == []

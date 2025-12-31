@@ -1,19 +1,25 @@
 """Retrieval pipeline for Isotope."""
 
+import litellm
+
 from isotopedb.embedder import Embedder
-from isotopedb.models import SearchResult
+from isotopedb.models import QueryResponse, SearchResult
 from isotopedb.stores import DocStore, VectorStore
 
 
-class Retriever:
-    """Orchestrates the retrieval pipeline.
+SYNTHESIS_PROMPT = """Based on the following context, answer the user's question.
+If the context doesn't contain enough information to answer, say so.
 
-    Pipeline:
-    1. Embed query
-    2. Search vector store for similar questions
-    3. Fetch corresponding chunks from doc store
-    4. Return SearchResults with question, chunk, and score
-    """
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
+
+
+class Retriever:
+    """Orchestrates the retrieval pipeline."""
 
     def __init__(
         self,
@@ -21,6 +27,8 @@ class Retriever:
         doc_store: DocStore,
         embedder: Embedder,
         default_k: int = 5,
+        llm_model: str | None = None,
+        synthesis_prompt: str | None = None,
     ) -> None:
         """Initialize the retriever.
 
@@ -29,11 +37,15 @@ class Retriever:
             doc_store: Document store for chunk retrieval
             embedder: Embedder for query embedding
             default_k: Default number of results to return
+            llm_model: LLM model for answer synthesis (optional)
+            synthesis_prompt: Custom synthesis prompt template
         """
         self.vector_store = vector_store
         self.doc_store = doc_store
         self.embedder = embedder
         self.default_k = default_k
+        self.llm_model = llm_model
+        self.synthesis_prompt = synthesis_prompt or SYNTHESIS_PROMPT
 
     def search(self, query: str, k: int | None = None) -> list[SearchResult]:
         """Search for relevant chunks matching the query.
@@ -68,3 +80,52 @@ class Retriever:
                 ))
 
         return results
+
+    def query(
+        self,
+        query: str,
+        k: int | None = None,
+        synthesize: bool = True,
+    ) -> QueryResponse:
+        """Query the database and optionally synthesize an answer.
+
+        Args:
+            query: User's question
+            k: Number of results to retrieve
+            synthesize: Whether to generate an LLM answer (default: True)
+
+        Returns:
+            QueryResponse with results and optional synthesized answer
+        """
+        results = self.search(query, k=k)
+
+        answer = None
+        if synthesize and results and self.llm_model:
+            answer = self._synthesize_answer(query, results)
+
+        return QueryResponse(
+            query=query,
+            answer=answer,
+            results=results,
+        )
+
+    def _synthesize_answer(self, query: str, results: list[SearchResult]) -> str:
+        """Synthesize an answer from the search results using an LLM."""
+        # Build context from results
+        context_parts = []
+        for i, result in enumerate(results, 1):
+            context_parts.append(f"[{i}] {result.chunk.content}")
+
+        context = "\n\n".join(context_parts)
+
+        prompt = self.synthesis_prompt.format(
+            context=context,
+            query=query,
+        )
+
+        response = litellm.completion(
+            model=self.llm_model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        return response.choices[0].message.content.strip()
