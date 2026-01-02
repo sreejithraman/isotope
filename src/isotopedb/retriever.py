@@ -1,10 +1,8 @@
 """Retrieval pipeline for Isotope."""
 
-import litellm
-
 from isotopedb.embedder import Embedder
 from isotopedb.models import QueryResponse, SearchResult
-from isotopedb.stores import DocStore, VectorStore
+from isotopedb.stores import AtomStore, DocStore, VectorStore
 
 
 SYNTHESIS_PROMPT = """Based on the following context, answer the user's question.
@@ -25,6 +23,7 @@ class Retriever:
         self,
         vector_store: VectorStore,
         doc_store: DocStore,
+        atom_store: AtomStore,
         embedder: Embedder,
         default_k: int = 5,
         llm_model: str | None = None,
@@ -35,6 +34,7 @@ class Retriever:
         Args:
             vector_store: Vector store for question search
             doc_store: Document store for chunk retrieval
+            atom_store: Atom store for atom retrieval
             embedder: Embedder for query embedding
             default_k: Default number of results to return
             llm_model: LLM model for answer synthesis (optional)
@@ -42,13 +42,14 @@ class Retriever:
         """
         self.vector_store = vector_store
         self.doc_store = doc_store
+        self.atom_store = atom_store
         self.embedder = embedder
         self.default_k = default_k
         self.llm_model = llm_model
         self.synthesis_prompt = synthesis_prompt or SYNTHESIS_PROMPT
 
-    def search(self, query: str, k: int | None = None) -> list[SearchResult]:
-        """Search for relevant chunks matching the query.
+    def get_context(self, query: str, k: int | None = None) -> list[SearchResult]:
+        """Get relevant context (chunks/atoms) for a query.
 
         Args:
             query: User's search query
@@ -68,39 +69,39 @@ class Retriever:
         if not question_scores:
             return []
 
-        # Step 3: Fetch chunks
+        # Step 3: Fetch chunks and atoms
         results = []
         for question, score in question_scores:
             chunk = self.doc_store.get(question.chunk_id)
-            if chunk:
+            atom = self.atom_store.get(question.atom_id)
+
+            if chunk and atom:
                 results.append(SearchResult(
                     question=question,
                     chunk=chunk,
                     score=score,
+                    atom=atom,
                 ))
 
         return results
 
-    def query(
-        self,
-        query: str,
-        k: int | None = None,
-        synthesize: bool = True,
-    ) -> QueryResponse:
-        """Query the database and optionally synthesize an answer.
+    def get_answer(self, query: str, k: int | None = None) -> QueryResponse:
+        """Get an answer to a query using retrieved context.
+
+        If llm_model is configured, synthesizes an answer from the context.
+        Otherwise, returns QueryResponse with answer=None.
 
         Args:
             query: User's question
             k: Number of results to retrieve
-            synthesize: Whether to generate an LLM answer (default: True)
 
         Returns:
-            QueryResponse with results and optional synthesized answer
+            QueryResponse with results and synthesized answer (if llm_model set)
         """
-        results = self.search(query, k=k)
+        results = self.get_context(query, k=k)
 
         answer = None
-        if synthesize and results and self.llm_model:
+        if results and self.llm_model:
             answer = self._synthesize_answer(query, results)
 
         return QueryResponse(
@@ -111,6 +112,14 @@ class Retriever:
 
     def _synthesize_answer(self, query: str, results: list[SearchResult]) -> str:
         """Synthesize an answer from the search results using an LLM."""
+        try:
+            import litellm
+        except ImportError:
+            raise ImportError(
+                "Answer synthesis requires the 'litellm' package. "
+                "Install it with: pip install isotopedb[litellm]"
+            ) from None
+
         # Build context from results
         context_parts = []
         for i, result in enumerate(results, 1):

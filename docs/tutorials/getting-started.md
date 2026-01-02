@@ -1,0 +1,279 @@
+# Getting Started with IsotopeDB
+
+This tutorial walks you through ingesting your first document and querying it with IsotopeDB. You'll be up and running in under 10 minutes.
+
+## Prerequisites
+
+- Python 3.10+
+- An API key for your LLM provider (Gemini, OpenAI, Anthropic, etc.)
+
+## Installation
+
+```bash
+pip install isotopedb
+```
+
+## Set Up Your API Key
+
+IsotopeDB uses LiteLLM under the hood, so it works with any major LLM provider. Set the API key for your provider:
+
+```bash
+# For Gemini (default)
+export GOOGLE_API_KEY="your-api-key"
+
+# For OpenAI
+export OPENAI_API_KEY="your-api-key"
+
+# For Anthropic
+export ANTHROPIC_API_KEY="your-api-key"
+```
+
+See [Configuration Guide](../guides/configuration.md) for all supported providers.
+
+## The Simple Way: Using `Isotope`
+
+The `Isotope` class is the easiest way to get started. It handles all the configuration and wiring for you.
+
+### Step 1: Create Some Content
+
+Create a file called `python-intro.txt`:
+
+```text
+Python is a high-level programming language created by Guido van Rossum.
+It was first released in 1991. Python emphasizes code readability and
+uses significant indentation. It supports multiple programming paradigms
+including procedural, object-oriented, and functional programming.
+```
+
+### Step 2: Ingest It
+
+```python
+from isotopedb import Isotope, Chunk
+
+# Create an Isotope instance (uses sensible defaults)
+iso = Isotope(data_dir="./my_isotope_data")
+
+# Load your content
+with open("python-intro.txt") as f:
+    content = f.read()
+
+chunk = Chunk(content=content, source="python-intro.txt")
+
+# Ingest it
+ingestor = iso.ingestor()
+result = ingestor.ingest_chunks([chunk])
+
+print(f"Ingested {result['chunks']} chunks")
+print(f"Created {result['atoms']} atoms")
+print(f"Generated {result['questions']} questions")
+```
+
+That's it! Isotope automatically:
+- Broke your content into atomic facts (sentences)
+- Generated ~15 questions for each fact
+- Embedded and indexed those questions
+- Stored everything for retrieval
+
+### Step 3: Query It
+
+```python
+# Create a retriever
+retriever = iso.retriever()
+
+# Ask a question
+response = retriever.get_answer("Who invented Python?")
+
+# Get the LLM-synthesized answer
+print(f"Answer: {response.answer}")
+
+# See the source chunks with scores
+for result in response.results:
+    print(f"  [{result.score:.2f}] {result.chunk.content[:80]}...")
+```
+
+Output:
+```
+Answer: Python was created by Guido van Rossum. It was first released in 1991.
+
+  [0.92] Python is a high-level programming language created by Guido van Rossum...
+```
+
+### Step 4: Query Without LLM Synthesis (Optional)
+
+If you just want the raw chunks without an LLM-generated answer, use `get_context()`:
+
+```python
+results = retriever.get_context("What paradigms does Python support?")
+
+# Just the matching results, no LLM synthesis
+for result in results:
+    print(f"  [{result.score:.2f}] {result.question.text}")
+    print(f"           → {result.chunk.content[:60]}...")
+```
+
+## Using the CLI
+
+Isotope also has a command-line interface for quick workflows:
+
+```bash
+# Ingest a file or directory
+isotope ingest python-intro.txt
+
+# Query the database
+isotope query "Who created Python?"
+
+# Query without LLM synthesis
+isotope query "Who created Python?" --raw
+
+# See what's indexed
+isotope status
+
+# List all sources
+isotope list
+
+# Remove a source
+isotope delete python-intro.txt
+```
+
+See [CLI Reference](../guides/cli.md) for all commands.
+
+## Complete Example
+
+Here's everything in one script:
+
+```python
+from isotopedb import Isotope, Chunk
+
+# 1. Setup
+iso = Isotope(data_dir="./my_data")
+
+# 2. Load and ingest content
+with open("python-intro.txt") as f:
+    content = f.read()
+
+chunk = Chunk(content=content, source="python-intro.txt")
+
+ingestor = iso.ingestor()
+result = ingestor.ingest_chunks([chunk])
+print(f"Indexed {result['questions']} questions from {result['atoms']} atoms")
+
+# 3. Query
+retriever = iso.retriever()
+response = retriever.get_answer("Who created Python?")
+print(f"\nAnswer: {response.answer}")
+```
+
+## What Just Happened?
+
+Under the hood, Isotope:
+
+1. **Atomized** your content into individual facts (sentences)
+2. **Generated questions** for each fact (~15 per atom by default)
+3. **Embedded** those questions using your configured embedding model
+4. **Filtered** near-duplicate questions (85% similarity threshold)
+5. **Indexed** everything in a vector store (ChromaDB by default)
+
+When you queried:
+
+1. Your question was **embedded** using the same model
+2. It was **matched** against the indexed questions (question-to-question!)
+3. The matching chunks were **retrieved**
+4. An LLM **synthesized** an answer from those chunks
+
+This is the "Reverse RAG" approach—see [Reverse RAG Explained](../concepts/reverse-rag.md) for the theory.
+
+## Customizing the Pipeline
+
+The `Isotope` class uses sensible defaults, but you can customize everything:
+
+```python
+iso = Isotope(
+    data_dir="./my_data",
+    embedding_model="openai/text-embedding-3-small",  # Different embedding model
+    llm_model="openai/gpt-4",                         # Different LLM
+)
+
+# Or customize the ingestor
+ingestor = iso.ingestor(
+    use_diversity_filter=False,  # Keep all questions
+)
+
+# Or customize the retriever
+retriever = iso.retriever(
+    llm_model="",  # Disable synthesis entirely
+    default_k=10,  # Return more results
+)
+```
+
+See [Configuration Guide](../guides/configuration.md) for all options.
+
+## Going Deeper
+
+Want to understand or customize individual components?
+
+<details>
+<summary>Click to see the manual pipeline approach</summary>
+
+If you need full control, you can use the components directly:
+
+```python
+from isotopedb import (
+    Chunk,
+    SentenceAtomizer,
+    LiteLLMQuestionGenerator,
+    LiteLLMEmbedder,
+    DiversityFilter,
+    ChromaVectorStore,
+    SQLiteDocStore,
+    SQLiteAtomStore,
+)
+
+# Create stores
+vector_store = ChromaVectorStore("./data/chroma")
+doc_store = SQLiteDocStore("./data/docs.db")
+atom_store = SQLiteAtomStore("./data/atoms.db")
+
+# Create components
+atomizer = SentenceAtomizer()
+embedder = LiteLLMEmbedder(model="gemini/text-embedding-004")
+generator = LiteLLMQuestionGenerator(model="gemini/gemini-3-flash-preview", num_questions=10)
+diversity_filter = DiversityFilter(threshold=0.85)
+
+# Load content
+chunk = Chunk(content="Python was created by Guido van Rossum.", source="wiki")
+
+# Atomize
+atoms = atomizer.atomize(chunk)
+
+# Generate questions
+questions = generator.generate_batch(atoms)
+
+# Embed
+embedded = embedder.embed_questions(questions)
+
+# Filter
+filtered = diversity_filter.filter(embedded)
+
+# Store
+doc_store.put(chunk)
+atom_store.put_many(atoms)
+vector_store.add(filtered)
+
+# Query
+query_embedding = embedder.embed_text("Who made Python?")
+results = vector_store.search(query_embedding, k=3)
+
+for question, score in results:
+    chunk = doc_store.get(question.chunk_id)
+    print(f"[{score:.2f}] {chunk.content}")
+```
+
+</details>
+
+## Next Steps
+
+- [Configuration Guide](../guides/configuration.md) - All settings and environment variables
+- [Atomization Guide](../guides/atomization.md) - Sentence vs LLM atomization strategies
+- [CLI Reference](../guides/cli.md) - Command-line interface
+- [Architecture](../concepts/architecture.md) - How the components fit together
+- [Reverse RAG Explained](../concepts/reverse-rag.md) - The theory behind Isotope

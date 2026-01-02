@@ -33,7 +33,7 @@ class ChromaVectorStore(VectorStore):
                 {
                     "text": eq.question.text,
                     "chunk_id": eq.question.chunk_id,
-                    "atom_id": eq.question.atom_id or "",
+                    "atom_id": eq.question.atom_id,
                 }
                 for eq in questions
             ],
@@ -60,7 +60,7 @@ class ChromaVectorStore(VectorStore):
                 id=qid,
                 text=meta["text"],
                 chunk_id=meta["chunk_id"],
-                atom_id=meta["atom_id"] if meta["atom_id"] else None,
+                atom_id=meta["atom_id"],
             )
             # ChromaDB returns distance; convert to similarity score
             # For cosine distance: similarity = 1 - distance

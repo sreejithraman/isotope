@@ -2,7 +2,8 @@
 """Tests for Chunk and Atom models."""
 
 import pytest
-from isotopedb.models.chunk import Chunk, Atom
+from isotopedb.models.atom import Atom
+from isotopedb.models.chunk import Chunk
 
 
 class TestChunk:
@@ -39,3 +40,13 @@ class TestAtom:
         a1 = Atom(content="fact", chunk_id="c1")
         a2 = Atom(content="fact", chunk_id="c1")
         assert a1.id != a2.id
+
+    def test_create_atom_with_index(self):
+        atom = Atom(content="First fact.", chunk_id="c1", index=0)
+        assert atom.index == 0
+        atom2 = Atom(content="Second fact.", chunk_id="c1", index=1)
+        assert atom2.index == 1
+
+    def test_atom_default_index_is_zero(self):
+        atom = Atom(content="A fact.", chunk_id="c1")
+        assert atom.index == 0

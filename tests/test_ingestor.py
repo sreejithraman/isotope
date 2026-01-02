@@ -1,34 +1,14 @@
 """Tests for the Ingestor pipeline."""
 
 import pytest
-import tempfile
-import os
 from unittest.mock import MagicMock, patch
 
 from isotopedb.ingestor import Ingestor
-from isotopedb.stores import ChromaVectorStore, SQLiteDocStore, SQLiteAtomStore
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
-from isotopedb.embedder import Embedder
-from isotopedb.generator import QuestionGenerator, DiversityFilter
+from isotopedb.embedder import LiteLLMEmbedder
+from isotopedb.generator import LiteLLMQuestionGenerator, DiversityFilter
 from isotopedb.models import Chunk
-
-
-@pytest.fixture
-def temp_dir():
-    """Create a temporary directory for stores."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
-
-
-@pytest.fixture
-def stores(temp_dir):
-    """Create store instances."""
-    return {
-        "vector_store": ChromaVectorStore(os.path.join(temp_dir, "chroma")),
-        "doc_store": SQLiteDocStore(os.path.join(temp_dir, "docs.db")),
-        "atom_store": SQLiteAtomStore(os.path.join(temp_dir, "atoms.db")),
-    }
 
 
 class TestIngestorInit:
@@ -38,8 +18,8 @@ class TestIngestorInit:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=Embedder(model="gemini/text-embedding-004"),
-            generator=QuestionGenerator(),
+            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
+            generator=LiteLLMQuestionGenerator(),
             deduplicator=NoDedup(),
         )
         assert ingestor is not None
@@ -50,8 +30,8 @@ class TestIngestorInit:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=Embedder(model="gemini/text-embedding-004"),
-            generator=QuestionGenerator(),
+            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
+            generator=LiteLLMQuestionGenerator(),
             deduplicator=NoDedup(),
             diversity_filter=DiversityFilter(threshold=0.85),
         )
@@ -59,6 +39,7 @@ class TestIngestorInit:
 
 
 class TestIngestChunks:
+    @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_ingest_single_chunk(self, mock_completion, mock_embedding, stores):
@@ -79,8 +60,8 @@ class TestIngestChunks:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=Embedder(model="test-model"),
-            generator=QuestionGenerator(),
+            embedder=LiteLLMEmbedder(model="test-model"),
+            generator=LiteLLMQuestionGenerator(),
             deduplicator=NoDedup(),
         )
 
@@ -100,6 +81,7 @@ class TestIngestChunks:
         assert "questions" in result
         assert result["chunks"] == 1
 
+    @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_ingest_with_deduplication(self, mock_completion, mock_embedding, stores):
@@ -117,8 +99,8 @@ class TestIngestChunks:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=Embedder(model="test-model"),
-            generator=QuestionGenerator(),
+            embedder=LiteLLMEmbedder(model="test-model"),
+            generator=LiteLLMQuestionGenerator(),
             deduplicator=SourceAwareDedup(),
         )
 
@@ -136,6 +118,7 @@ class TestIngestChunks:
         assert stores["doc_store"].get(chunk2.id) is not None
         assert result["chunks_removed"] == 1
 
+    @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_ingest_empty_list(self, mock_completion, mock_embedding, stores):
@@ -144,8 +127,8 @@ class TestIngestChunks:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=Embedder(model="test-model"),
-            generator=QuestionGenerator(),
+            embedder=LiteLLMEmbedder(model="test-model"),
+            generator=LiteLLMQuestionGenerator(),
             deduplicator=NoDedup(),
         )
 
@@ -156,23 +139,30 @@ class TestIngestChunks:
 
 
 class TestIngestorProgress:
+    @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_progress_callback_called(self, mock_completion, mock_embedding, stores):
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
         )
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [0.1, 0.2, 0.3], "index": 0}]
-        )
+        # Return one embedding per input text
+        def make_embeddings(*args, **kwargs):
+            input_texts = kwargs.get("input", args[1] if len(args) > 1 else [])
+            if isinstance(input_texts, str):
+                input_texts = [input_texts]
+            return MagicMock(
+                data=[{"embedding": [0.1, 0.2, 0.3], "index": i} for i in range(len(input_texts))]
+            )
+        mock_embedding.side_effect = make_embeddings
 
         ingestor = Ingestor(
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=Embedder(model="test-model"),
-            generator=QuestionGenerator(),
+            embedder=LiteLLMEmbedder(model="test-model"),
+            generator=LiteLLMQuestionGenerator(),
             deduplicator=NoDedup(),
         )
 
@@ -194,11 +184,3 @@ class TestIngestorProgress:
         assert "atomizing" in phases or "generating" in phases or "embedding" in phases
 
 
-class TestExports:
-    def test_ingestor_exported(self):
-        from isotopedb import Ingestor
-        assert Ingestor is not None
-
-    def test_retriever_exported(self):
-        from isotopedb import Retriever
-        assert Retriever is not None

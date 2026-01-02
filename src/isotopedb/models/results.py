@@ -3,15 +3,18 @@
 
 from pydantic import BaseModel
 
-from isotopedb.models.chunk import Chunk, Question
+from isotopedb.models.atom import Atom
+from isotopedb.models.chunk import Chunk
+from isotopedb.models.question import Question
 
 
 class SearchResult(BaseModel):
-    """A single matched question + its chunk."""
+    """A single matched question + its chunk + atom."""
 
     question: Question
     chunk: Chunk
     score: float
+    atom: Atom  # Required - every result includes its atom
 
 
 class QueryResponse(BaseModel):

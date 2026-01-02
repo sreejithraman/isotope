@@ -3,7 +3,7 @@
 
 from abc import ABC, abstractmethod
 
-from isotopedb.models import Chunk, EmbeddedQuestion, Question
+from isotopedb.models import Atom, Chunk, EmbeddedQuestion, Question
 
 
 class VectorStore(ABC):
@@ -61,4 +61,38 @@ class DocStore(ABC):
     @abstractmethod
     def get_by_source(self, source: str) -> list[Chunk]:
         """Get all chunks from a specific source."""
+        ...
+
+
+class AtomStore(ABC):
+    """Abstract base class for atom storage."""
+
+    @abstractmethod
+    def put(self, atom: Atom) -> None:
+        """Store an atom."""
+        ...
+
+    @abstractmethod
+    def put_many(self, atoms: list[Atom]) -> None:
+        """Store multiple atoms."""
+        ...
+
+    @abstractmethod
+    def get(self, atom_id: str) -> Atom | None:
+        """Retrieve an atom by ID."""
+        ...
+
+    @abstractmethod
+    def get_by_chunk(self, chunk_id: str) -> list[Atom]:
+        """Get all atoms from a chunk, ordered by index."""
+        ...
+
+    @abstractmethod
+    def delete_by_chunk_ids(self, chunk_ids: list[str]) -> None:
+        """Delete all atoms for given chunks."""
+        ...
+
+    @abstractmethod
+    def list_chunk_ids(self) -> set[str]:
+        """List all unique chunk IDs with atoms."""
         ...

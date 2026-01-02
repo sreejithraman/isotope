@@ -4,13 +4,14 @@
 import os
 import pytest
 from isotopedb.config import Settings
+from isotopedb.llm_models import ChatModels, EmbeddingModels
 
 
 class TestSettings:
     def test_default_settings(self):
         settings = Settings()
-        assert settings.llm_model == "gemini/gemini-2.0-flash-exp"
-        assert settings.embedding_model == "gemini/text-embedding-004"
+        assert settings.llm_model == ChatModels.GEMINI_3_FLASH
+        assert settings.embedding_model == EmbeddingModels.GEMINI_004
         assert settings.atomizer == "sentence"
         assert settings.questions_per_atom == 15
         assert settings.question_diversity_threshold == 0.85
@@ -33,8 +34,8 @@ class TestSettings:
     def test_question_diversity_threshold_none(self, monkeypatch):
         monkeypatch.setenv("ISOTOPE_QUESTION_DIVERSITY_THRESHOLD", "")
         settings = Settings()
-        # Empty string should be treated as None/disabled
-        # We'll handle this with a validator
+        # Empty string should be treated as None/disabled via the validator
+        assert settings.question_diversity_threshold is None
 
     def test_custom_question_prompt(self, monkeypatch):
         custom_prompt = "Generate questions about: {atom}"

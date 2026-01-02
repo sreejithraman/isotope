@@ -1,52 +1,130 @@
 # Isotope
 
-Reverse RAG database - index questions, not chunks.
+**Your RAG is searching for answers. It should be matching questions.**
+
+Traditional RAG embeds your documents and hopes user questions land nearby. But questions and statements live in different semantic spaces—you're matching apples to oranges.
+
+Isotope breaks your documents into **atomic facts**, generates the **questions each fact answers**, then indexes *those questions*. When users ask something, they match question-to-question. Same semantic space. Tighter matches. Better retrieval.
+
+## Why "Isotope"?
+
+In chemistry, isotopes are variants of the same element—same core identity, different configurations. Isotope does the same for your knowledge: it takes each atomic fact and generates multiple question "isotopes"—different phrasings that all point back to the same truth.
+
+One fact. Many questions. All paths lead to the right answer.
+
+## The 30-Second Pitch
+
+```
+Traditional RAG:  "Who created Python?" → search chunks → hope for the best
+                   ↓
+                   Semantic gap between questions and statements
+
+Isotope:          "Who created Python?" → search questions → get "Who created Python?"
+                   ↓
+                   Same semantic space = confident matches
+```
+
+## Installation
+
+```bash
+pip install isotopedb[default]
+```
+
+This installs Isotope with ChromaDB (vector store) and CLI tools. For LLM-powered features (answer synthesis, LLM atomization), also install:
+
+```bash
+pip install isotopedb[default,litellm]
+```
+
+## Quick Start
+
+```python
+from isotopedb import Isotope, Chunk
+
+# One-line setup
+iso = Isotope(data_dir="./my_data")
+
+# Ingest
+ingestor = iso.ingestor()
+chunks = [Chunk(content="Python was created by Guido van Rossum in 1991.", source="wiki")]
+ingestor.ingest_chunks(chunks)
+
+# Query
+retriever = iso.retriever()
+response = retriever.get_answer("Who invented Python?")
+print(response.answer)  # LLM-synthesized answer
+print(response.results)  # Source chunks with confidence scores
+```
+
+Or use the CLI:
+
+```bash
+# Ingest your docs
+isotope ingest docs/
+
+# Ask questions
+isotope query "How do I authenticate?"
+
+# See what's indexed
+isotope status
+```
 
 ## How It Works
 
-Traditional RAG indexes document chunks and hopes user queries semantically match those chunks. Isotope flips this:
+```
+┌──────────┐    ┌────────┐    ┌───────┐    ┌───────────┐    ┌─────────┐
+│ Document │───▶│ Chunks │───▶│ Atoms │───▶│ Questions │───▶│  Index  │
+└──────────┘    └────────┘    └───────┘    └───────────┘    └─────────┘
+                                                                  │
+┌──────────┐    ┌────────┐    ┌───────────────────────────────────┘
+│  Answer  │◀───│ Chunks │◀───│ Match user query against questions
+└──────────┘    └────────┘
+```
 
-1. **Ingest** → Break documents into chunks → Atomize into facts → Generate questions each fact answers
-2. **Index** → Embed and store the *questions*, not the chunks
-3. **Query** → User's question matches against pre-generated questions → Return the chunks that answer those questions
+1. **Atomize** → Break content into atomic facts
+2. **Generate** → Create questions each fact answers (15 per atom by default)
+3. **Embed & Index** → Store question embeddings
+4. **Query** → User questions match against indexed questions
+5. **Retrieve** → Return the chunks that answer matched questions
 
-The insight: question-to-question similarity is tighter than question-to-chunk similarity.
+Based on ["Question-Based Retrieval using Atomic Units for Enterprise RAG"](https://arxiv.org/abs/2405.12363)
 
-## Limitations & Trade-offs
+## Documentation
 
-### The Coverage Gap
+- **Concepts**
+  - [Reverse RAG Explained](docs/concepts/reverse-rag.md) - The paper and core insight
+  - [Architecture](docs/concepts/architecture.md) - System design and components
+- **Guides**
+  - [Configuration](docs/guides/configuration.md) - Settings and environment variables
+  - [Atomization](docs/guides/atomization.md) - Sentence vs LLM atomization
+  - [CLI Reference](docs/guides/cli.md) - Command-line usage
+- **Tutorials**
+  - [Getting Started](docs/tutorials/getting-started.md) - Your first 10 minutes
 
-Isotope trades recall for precision. If a user asks a question you didn't anticipate generating, retrieval quality degrades.
+## When to Use Isotope
 
-**Example:**
-- Chunk: "Python was created by Guido van Rossum in 1991 at CWI in the Netherlands."
-- Generated questions: "Who created Python?", "When was Python created?", "Where was Python created?"
-- User asks: "What programming languages were invented in the Netherlands?"
-- Result: Low similarity scores. The chunk *might* surface, but with low confidence.
+**Great fit:**
+- FAQ-style content where questions are predictable
+- Technical docs, knowledge bases, support content
+- When precision matters more than recall
+- When you want confidence scores you can trust
 
-**What happens at query time:**
-- Queries always return results with similarity scores
-- High scores (>0.8): confident match
-- Medium scores (0.5-0.8): uncertain, might be relevant
-- Low scores (<0.5): likely no good match exists
+**Consider traditional RAG when:**
+- Queries are exploratory and unpredictable
+- You can't afford to miss any relevant content
+- Content doesn't map naturally to Q&A format
 
-The system doesn't "fail" - it returns best-effort matches. The scores encode confidence.
+## Trade-offs
 
-### When This Approach Works Well
+Isotope trades recall for precision. If users ask questions you didn't anticipate, scores will be low. But you'll *know* they're low—the confidence scores are meaningful.
 
-- Question space is somewhat predictable
-- High precision matters more than exhaustive recall
-- Documents have clear, factual content that maps to natural questions
+**Mitigation strategies:**
+- Hybrid retrieval (fall back to chunk search for low scores)
+- Query expansion (rephrase queries before search)
+- Re-ranking with cross-encoders
 
-### When Traditional RAG May Be Better
+See [Limitations](docs/concepts/reverse-rag.md#the-trade-off) for details.
 
-- Exploratory queries with unpredictable phrasing
-- Content that doesn't decompose into question-answerable facts
-- Recall is critical (can't afford to miss relevant content)
+## License
 
-### Mitigation Strategies
-
-For production use, consider:
-- **Hybrid retrieval**: Fall back to chunk embedding search when question scores are low
-- **Query expansion**: Use LLM to rephrase user query in multiple ways before search
-- **Lower thresholds + re-ranking**: Accept more candidates, then re-rank with a cross-encoder
+MIT

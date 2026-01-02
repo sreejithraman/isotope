@@ -4,6 +4,8 @@
 import pytest
 import tempfile
 
+pytest.importorskip("chromadb", reason="Tests require chromadb package")
+
 from isotopedb.stores.chroma import ChromaVectorStore
 from isotopedb.stores.base import VectorStore
 from isotopedb.models import EmbeddedQuestion, Question
@@ -22,7 +24,7 @@ def vector_store(temp_dir):
     return ChromaVectorStore(temp_dir)
 
 
-def make_embedded(text: str, chunk_id: str, embedding: list[float], atom_id: str | None = None) -> EmbeddedQuestion:
+def make_embedded(text: str, chunk_id: str, embedding: list[float], atom_id: str = "a1") -> EmbeddedQuestion:
     """Helper to create EmbeddedQuestion."""
     return EmbeddedQuestion(
         question=Question(text=text, chunk_id=chunk_id, atom_id=atom_id),

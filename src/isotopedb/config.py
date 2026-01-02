@@ -6,6 +6,8 @@ from typing import Literal
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from isotopedb.llm_models import ChatModels, EmbeddingModels
+
 
 class Settings(BaseSettings):
     """Isotope configuration settings."""
@@ -16,10 +18,10 @@ class Settings(BaseSettings):
     )
 
     # LLM (question generation)
-    llm_model: str = "gemini/gemini-2.0-flash-exp"
+    llm_model: str = ChatModels.GEMINI_3_FLASH
 
     # Embeddings
-    embedding_model: str = "gemini/text-embedding-004"
+    embedding_model: str = EmbeddingModels.GEMINI_004
 
     # Atomization
     atomizer: Literal["sentence", "llm"] = "sentence"

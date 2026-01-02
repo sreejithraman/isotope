@@ -1,0 +1,64 @@
+# src/isotopedb/loaders/pypdf_loader.py
+"""PDF loader using pypdf - lightweight, pure Python."""
+
+from pathlib import Path
+
+from isotopedb.loaders.base import Loader
+from isotopedb.models import Chunk
+
+
+class PyPDFLoader(Loader):
+    """Load PDF files using pypdf.
+
+    A lightweight, pure Python PDF loader suitable for basic text extraction.
+    For documents with tables or complex layouts, consider PDFPlumberLoader.
+
+    Requires: pip install isotopedb[pdf-text]
+    """
+
+    SUPPORTED_EXTENSIONS = {".pdf"}
+
+    def supports(self, path: str) -> bool:
+        """Check if this loader supports the given file."""
+        return Path(path).suffix.lower() in self.SUPPORTED_EXTENSIONS
+
+    def load(self, path: str) -> list[Chunk]:
+        """Load a PDF file and return chunks (one per page).
+
+        Args:
+            path: Path to the PDF file
+
+        Returns:
+            List of Chunk objects, one per page with content
+
+        Raises:
+            ImportError: If pypdf is not installed
+            FileNotFoundError: If file does not exist
+        """
+        try:
+            from pypdf import PdfReader
+        except ImportError:
+            raise ImportError(
+                "pypdf is required for PDF text extraction. "
+                "Install with: pip install isotopedb[pdf-text]"
+            ) from None
+
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {path}")
+
+        chunks = []
+        reader = PdfReader(path)
+
+        for page_num, page in enumerate(reader.pages, start=1):
+            text = page.extract_text() or ""
+            if text.strip():
+                chunks.append(
+                    Chunk(
+                        content=text.strip(),
+                        source=path,
+                        metadata={"type": "pdf", "page": page_num},
+                    )
+                )
+
+        return chunks

@@ -125,6 +125,11 @@ class Ingestor:
             embeddings = self.embedder.embed_texts(question_texts)
             progress("embedding", 1, 1, "Embedding complete")
 
+            if len(all_questions) != len(embeddings):
+                raise RuntimeError(
+                    f"Embedding count mismatch: {len(all_questions)} questions, "
+                    f"{len(embeddings)} embeddings"
+                )
             embedded_questions = [
                 EmbeddedQuestion(question=q, embedding=e)
                 for q, e in zip(all_questions, embeddings)
