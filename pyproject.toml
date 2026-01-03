@@ -28,16 +28,16 @@ dependencies = [
 # Individual components
 chromadb = ["chromadb>=0.4"]
 litellm = ["litellm>=1.0"]
-cli = ["typer>=0.9", "rich>=13.0"]
+cli = ["typer>=0.9", "rich>=13.0", "pyyaml>=6.0"]
 # Document loaders
 pdf = ["pdfplumber>=0.11"]           # Full PDF support (text + tables)
 pdf-text = ["pypdf>=4.0"]            # Text extraction only (lightweight)
 html = ["beautifulsoup4>=4.12", "markdownify>=0.13"]
 # Bundles (flattened to avoid self-referential extras)
-default = ["chromadb>=0.4", "litellm>=1.0", "typer>=0.9", "rich>=13.0"]
+local = ["chromadb>=0.4", "litellm>=1.0", "typer>=0.9", "rich>=13.0", "pyyaml>=6.0"]
 loaders = ["pdfplumber>=0.11", "beautifulsoup4>=4.12", "markdownify>=0.13"]
 all = [
-    "chromadb>=0.4", "litellm>=1.0", "typer>=0.9", "rich>=13.0",
+    "chromadb>=0.4", "litellm>=1.0", "typer>=0.9", "rich>=13.0", "pyyaml>=6.0",
     "pdfplumber>=0.11", "beautifulsoup4>=4.12", "markdownify>=0.13",
 ]
 dev = [

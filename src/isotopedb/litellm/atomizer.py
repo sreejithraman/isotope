@@ -76,7 +76,12 @@ class LiteLLMAtomizer(Atomizer):
 
         response = litellm.completion(**completion_kwargs)
 
-        response_text = response.choices[0].message.content.strip()
+        if not response.choices:
+            raise ValueError(f"LLM returned no choices for model {self.model}")
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError(f"LLM returned None content for model {self.model}")
+        response_text = content.strip()
 
         # Parse JSON response
         try:

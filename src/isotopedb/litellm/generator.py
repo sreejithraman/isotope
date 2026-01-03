@@ -157,8 +157,14 @@ class LiteLLMGenerator(QuestionGenerator):
         prompt = self._build_prompt(atom, chunk_content)
         completion_kwargs = self._build_completion_kwargs(prompt)
         response = litellm.completion(**completion_kwargs)
-        response_text = response.choices[0].message.content
-        return self._parse_response(response_text, atom)
+
+        if not response.choices:
+            raise ValueError(f"LLM returned no choices for model {self.model}")
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError(f"LLM returned None content for model {self.model}")
+
+        return self._parse_response(content, atom)
 
     def generate_batch(
         self,

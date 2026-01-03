@@ -128,9 +128,16 @@ class Isotope:
         doc_store = SQLiteDocStore(os.path.join(data_dir, "docs.db"))
         atom_store = SQLiteAtomStore(os.path.join(data_dir, "atoms.db"))
 
+        # Load behavioral settings for generator
+        settings = Settings()
+
         # Create LiteLLM components
         embedder = LiteLLMEmbedder(model=embedding_model)
-        generator = LiteLLMGenerator(model=llm_model)
+        generator = LiteLLMGenerator(
+            model=llm_model,
+            num_questions=settings.questions_per_atom,
+            prompt_template=settings.question_prompt,
+        )
 
         if use_sentence_atomizer:
             atomizer: Atomizer = SentenceAtomizer()

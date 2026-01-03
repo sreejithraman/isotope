@@ -27,14 +27,10 @@ Isotope:          "Who created Python?" → search questions → get "Who create
 ## Installation
 
 ```bash
-pip install isotopedb[default]
+pip install isotopedb[local]
 ```
 
-This installs Isotope with ChromaDB (vector store) and CLI tools. For LLM-powered features (answer synthesis, LLM atomization), also install:
-
-```bash
-pip install isotopedb[default,litellm]
-```
+This installs Isotope with ChromaDB (local vector store), LiteLLM, and CLI tools—everything needed for local development.
 
 ## Quick Start
 

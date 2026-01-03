@@ -4,7 +4,7 @@ A question-based retrieval system using atomic units for enterprise RAG.
 Aligns with arXiv:2405.12363.
 
 Quick Start (LiteLLM):
-    from isotopedb import Isotope
+    from isotopedb import Isotope, LoaderRegistry
 
     iso = Isotope.with_litellm(
         llm_model="openai/gpt-4o",
@@ -13,7 +13,8 @@ Quick Start (LiteLLM):
 
     # Ingest documents
     ingestor = iso.ingestor()
-    ingestor.ingest_file("document.pdf")
+    chunks = LoaderRegistry.default().load("document.pdf")
+    ingestor.ingest_chunks(chunks)
 
     # Query
     retriever = iso.retriever()

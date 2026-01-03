@@ -136,6 +136,7 @@ class Retriever:
         response = litellm.completion(
             model=self.llm_model,
             messages=[{"role": "user", "content": prompt}],
+            drop_params=True,
         )
 
         content = response.choices[0].message.content

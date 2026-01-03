@@ -124,10 +124,13 @@ class Ingestor:
 
         # Step 4: Generate questions
         progress("generating", 0, len(all_atoms), "Generating questions...")
+
+        # Build chunk lookup from input to avoid N database reads
+        chunk_content_map = {chunk.id: chunk.content for chunk in chunks}
+
         all_questions = []
         for i, atom in enumerate(all_atoms):
-            parent_chunk = self.doc_store.get(atom.chunk_id)
-            chunk_content = parent_chunk.content if parent_chunk else ""
+            chunk_content = chunk_content_map.get(atom.chunk_id, "")
             questions = self.generator.generate(atom, chunk_content)
             all_questions.extend(questions)
             progress(

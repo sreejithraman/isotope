@@ -32,7 +32,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          pip install -e ".[dev,default]"
+          pip install -e ".[dev,local]"
       - name: Run mypy
         run: mypy src
 
@@ -48,6 +48,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install -e ".[dev,default]"
+          pip install -e ".[dev,local]"
       - name: Run tests
         run: pytest
+
+  test-loaders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies with loaders
+        run: |
+          pip install -e ".[dev,all]"
+      - name: Run loader tests
+        run: pytest tests/loaders/
