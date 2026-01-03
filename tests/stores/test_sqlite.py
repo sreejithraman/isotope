@@ -1,14 +1,14 @@
 # tests/stores/test_sqlite.py
 """Tests for SQLite document store."""
 
-import pytest
-import tempfile
 import os
-from pathlib import Path
+import tempfile
 
-from isotopedb.stores.sqlite import SQLiteDocStore
-from isotopedb.stores.base import DocStore
+import pytest
+
 from isotopedb.models import Chunk
+from isotopedb.stores.base import DocStore
+from isotopedb.stores.sqlite import SQLiteDocStore
 
 
 @pytest.fixture

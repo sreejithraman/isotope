@@ -14,10 +14,7 @@ from isotopedb.models import EmbeddedQuestion, Question
 def mock_embedding_response(embeddings: list[list[float]]):
     """Create a mock LiteLLM embedding response."""
     mock_response = MagicMock()
-    mock_response.data = [
-        {"index": i, "embedding": emb}
-        for i, emb in enumerate(embeddings)
-    ]
+    mock_response.data = [{"index": i, "embedding": emb} for i, emb in enumerate(embeddings)]
     return mock_response
 
 
@@ -52,10 +49,12 @@ class TestLiteLLMEmbedder:
 
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_embed_texts_batch(self, mock_embedding, embedder):
-        mock_embedding.return_value = mock_embedding_response([
-            [1.0, 0.0],
-            [0.0, 1.0],
-        ])
+        mock_embedding.return_value = mock_embedding_response(
+            [
+                [1.0, 0.0],
+                [0.0, 1.0],
+            ]
+        )
 
         result = embedder.embed_texts(["Text 1", "Text 2"])
 
@@ -99,10 +98,12 @@ class TestLiteLLMEmbedder:
 
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_embed_questions_batch(self, mock_embedding, embedder):
-        mock_embedding.return_value = mock_embedding_response([
-            [1.0, 0.0],
-            [0.0, 1.0],
-        ])
+        mock_embedding.return_value = mock_embedding_response(
+            [
+                [1.0, 0.0],
+                [0.0, 1.0],
+            ]
+        )
 
         questions = [
             Question(text="Q1?", chunk_id="c1", atom_id="a1"),

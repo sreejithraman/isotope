@@ -28,7 +28,7 @@ class ChromaVectorStore(VectorStore):
 
         self._collection.add(
             ids=[eq.question.id for eq in questions],
-            embeddings=[eq.embedding for eq in questions],
+            embeddings=[eq.embedding for eq in questions],  # type: ignore[arg-type]
             metadatas=[
                 {
                     "text": eq.question.text,
@@ -45,17 +45,17 @@ class ChromaVectorStore(VectorStore):
             return []
 
         results = self._collection.query(
-            query_embeddings=[embedding],
+            query_embeddings=[embedding],  # type: ignore[arg-type]
             n_results=min(k, self._collection.count()),
             include=["metadatas", "distances"],
         )
 
         questions_with_scores = []
         ids = results["ids"][0]
-        metadatas = results["metadatas"][0]
-        distances = results["distances"][0]
+        metadatas = results["metadatas"][0]  # type: ignore[index]
+        distances = results["distances"][0]  # type: ignore[index]
 
-        for qid, meta, dist in zip(ids, metadatas, distances):
+        for qid, meta, dist in zip(ids, metadatas, distances, strict=True):
             question = Question(
                 id=qid,
                 text=meta["text"],
@@ -74,7 +74,7 @@ class ChromaVectorStore(VectorStore):
         if not chunk_ids:
             return
 
-        self._collection.delete(where={"chunk_id": {"$in": chunk_ids}})
+        self._collection.delete(where={"chunk_id": {"$in": chunk_ids}})  # type: ignore[dict-item]
 
     def list_chunk_ids(self) -> set[str]:
         """List all unique chunk IDs in the store."""
@@ -82,7 +82,8 @@ class ChromaVectorStore(VectorStore):
             return set()
 
         results = self._collection.get(include=["metadatas"])
-        return {meta["chunk_id"] for meta in results["metadatas"]}
+        metadatas = results["metadatas"] or []
+        return {str(meta["chunk_id"]) for meta in metadatas}
 
     def count_questions(self) -> int:
         """Count the total number of questions in the store."""

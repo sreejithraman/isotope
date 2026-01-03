@@ -1,6 +1,7 @@
 """Tests for the Atom model."""
 
 import pytest
+from pydantic import ValidationError
 
 from isotopedb.models import Atom
 
@@ -27,11 +28,11 @@ class TestAtom:
         assert a1.id != a2.id
 
     def test_atom_requires_content(self):
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(ValidationError):
             Atom(chunk_id="c1")
 
     def test_atom_requires_chunk_id(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Atom(content="Test")
 
     def test_atom_serialization(self):

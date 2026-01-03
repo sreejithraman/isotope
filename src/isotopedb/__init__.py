@@ -7,30 +7,11 @@ Aligns with arXiv:2405.12363.
 __version__ = "0.1.0"
 
 # Core models
-from isotopedb.models import (
-    Atom,
-    Chunk,
-    EmbeddedQuestion,
-    QueryResponse,
-    Question,
-    SearchResult,
-)
+# Atomization
+from isotopedb.atomizer import Atomizer, LiteLLMAtomizer, LLMAtomizer, SentenceAtomizer
 
 # Configuration
 from isotopedb.config import Settings
-
-# Storage ABCs
-from isotopedb.stores import (
-    AtomStore,
-    ChromaVectorStore,
-    DocStore,
-    SQLiteAtomStore,
-    SQLiteDocStore,
-    VectorStore,
-)
-
-# Atomization
-from isotopedb.atomizer import Atomizer, LiteLLMAtomizer, LLMAtomizer, SentenceAtomizer
 
 # Deduplication
 from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
@@ -45,18 +26,36 @@ from isotopedb.generator import (
     QuestionGenerator,
 )
 
-# LLM model constants
-from isotopedb.llm_models import ChatModels, EmbeddingModels
-
 # Pipelines
 from isotopedb.ingestor import Ingestor
-from isotopedb.retriever import Retriever
 
 # Central configuration
 from isotopedb.isotope import Isotope
 
+# LLM model constants
+from isotopedb.llm_models import ChatModels, EmbeddingModels
+
 # File loading
 from isotopedb.loaders import Loader, LoaderRegistry, TextLoader
+from isotopedb.models import (
+    Atom,
+    Chunk,
+    EmbeddedQuestion,
+    QueryResponse,
+    Question,
+    SearchResult,
+)
+from isotopedb.retriever import Retriever
+
+# Storage ABCs
+from isotopedb.stores import (
+    AtomStore,
+    ChromaVectorStore,
+    DocStore,
+    SQLiteAtomStore,
+    SQLiteDocStore,
+    VectorStore,
+)
 
 __all__ = [
     # Version

@@ -1,9 +1,10 @@
 # tests/dedup/test_strategies.py
 """Tests for deduplication strategies."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
 
 from isotopedb.dedup.base import Deduplicator
 from isotopedb.dedup.strategies import NoDedup, SourceAwareDedup

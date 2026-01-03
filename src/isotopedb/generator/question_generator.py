@@ -110,9 +110,9 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
         except json.JSONDecodeError:
             # Fallback: treat each line as a question, stripping list markers
             question_texts = [
-                re.sub(r"^\s*[\d.\-*]+\s*", "", line.strip())
+                re.sub(r"^\s*(?:[-*]|\d+[.)])\s+", "", line.strip())
                 for line in response_text.split("\n")
-                if line.strip() and "?" in line
+                if line.strip()
             ]
 
         questions = []

@@ -1,9 +1,10 @@
 # tests/test_cli.py
 """Tests for the CLI."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
 
 pytest.importorskip("typer", reason="Tests require typer package (pip install isotopedb[cli])")
 

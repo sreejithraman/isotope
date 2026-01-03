@@ -1,13 +1,14 @@
 # tests/stores/test_sqlite_atom.py
 """Tests for SQLite atom store."""
 
-import pytest
-import tempfile
 import os
+import tempfile
 
-from isotopedb.stores.sqlite_atom import SQLiteAtomStore
-from isotopedb.stores.base import AtomStore
+import pytest
+
 from isotopedb.models import Atom
+from isotopedb.stores.base import AtomStore
+from isotopedb.stores.sqlite_atom import SQLiteAtomStore
 
 
 @pytest.fixture

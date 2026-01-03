@@ -1,21 +1,15 @@
 # tests/loaders/test_pdfplumber.py
 """Tests for PDFPlumberLoader."""
 
-import os
+# Check if pdfplumber is available
+import importlib.util
 import tempfile
 
 import pytest
 
 from isotopedb.loaders.base import Loader
-from isotopedb.models import Chunk
 
-# Check if pdfplumber is available
-try:
-    import pdfplumber
-
-    HAS_PDFPLUMBER = True
-except ImportError:
-    HAS_PDFPLUMBER = False
+HAS_PDFPLUMBER = importlib.util.find_spec("pdfplumber") is not None
 
 pytestmark = pytest.mark.skipif(not HAS_PDFPLUMBER, reason="pdfplumber not installed")
 

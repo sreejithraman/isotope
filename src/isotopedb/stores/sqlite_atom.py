@@ -78,7 +78,8 @@ class SQLiteAtomStore(AtomStore):
         """Get all atoms from a chunk, ordered by index."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
-                "SELECT id, content, chunk_id, atom_index FROM atoms WHERE chunk_id = ? ORDER BY atom_index",
+                "SELECT id, content, chunk_id, atom_index FROM atoms "
+                "WHERE chunk_id = ? ORDER BY atom_index",
                 (chunk_id,),
             )
             return [

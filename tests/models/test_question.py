@@ -2,6 +2,8 @@
 """Tests for Question and EmbeddedQuestion models."""
 
 import pytest
+from pydantic import ValidationError
+
 from isotopedb.models.question import EmbeddedQuestion, Question
 
 
@@ -18,7 +20,7 @@ class TestQuestion:
         assert q.id  # auto-generated
 
     def test_question_requires_atom_id(self):
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(ValidationError):
             Question(text="What is Python?", chunk_id="chunk-123")
 
     def test_question_id_is_unique(self):
@@ -41,7 +43,7 @@ class TestEmbeddedQuestion:
 
     def test_embedded_question_requires_embedding(self):
         q = Question(text="What is Python?", chunk_id="chunk-123", atom_id="atom-456")
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(ValidationError):
             EmbeddedQuestion(question=q)
 
     def test_embedded_question_preserves_question_id(self):

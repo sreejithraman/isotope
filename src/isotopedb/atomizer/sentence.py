@@ -39,7 +39,7 @@ class SentenceAtomizer(Atomizer):
         # Use pySBD for robust sentence boundary detection
         sentences = self.segmenter.segment(content)
 
-        atoms = []
+        atoms: list[Atom] = []
         for sentence in sentences:
             sentence = sentence.strip()
             # Skip empty or too-short sentences

@@ -10,7 +10,9 @@ try:
 except ImportError:
     from isotopedb._optional import _create_missing_dependency_class
 
-    ChromaVectorStore = _create_missing_dependency_class("ChromaVectorStore", "chromadb")
+    ChromaVectorStore = _create_missing_dependency_class(  # type: ignore[misc,assignment]
+        "ChromaVectorStore", "chromadb"
+    )
 
 __all__ = [
     "VectorStore",

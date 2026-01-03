@@ -2,8 +2,6 @@
 
 import os
 
-import pytest
-
 from isotopedb.isotope import Isotope
 from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
 
@@ -32,7 +30,7 @@ class TestIsotopeInit:
         """Test that Isotope creates the data directory if it doesn't exist."""
         new_dir = os.path.join(temp_dir, "new_data")
 
-        iso = Isotope(data_dir=new_dir)
+        Isotope(data_dir=new_dir)
 
         assert os.path.isdir(new_dir)
 

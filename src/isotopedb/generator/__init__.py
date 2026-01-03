@@ -9,7 +9,7 @@ try:
 except ImportError:
     from isotopedb._optional import _create_missing_dependency_class
 
-    LiteLLMQuestionGenerator = _create_missing_dependency_class(
+    LiteLLMQuestionGenerator = _create_missing_dependency_class(  # type: ignore[misc,assignment]
         "LiteLLMQuestionGenerator", "litellm"
     )
 

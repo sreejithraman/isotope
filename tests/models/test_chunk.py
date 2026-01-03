@@ -1,7 +1,6 @@
 # tests/models/test_chunk.py
 """Tests for Chunk and Atom models."""
 
-import pytest
 from isotopedb.models.atom import Atom
 from isotopedb.models.chunk import Chunk
 

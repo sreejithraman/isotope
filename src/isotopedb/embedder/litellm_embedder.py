@@ -29,7 +29,7 @@ class LiteLLMEmbedder(Embedder):
             model=self.model,
             input=[text],
         )
-        return response.data[0]["embedding"]
+        return response.data[0]["embedding"]  # type: ignore[no-any-return]
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Generate embedding vectors for multiple texts (batched)."""
@@ -59,5 +59,5 @@ class LiteLLMEmbedder(Embedder):
 
         return [
             EmbeddedQuestion(question=q, embedding=emb)
-            for q, emb in zip(questions, embeddings)
+            for q, emb in zip(questions, embeddings, strict=True)
         ]

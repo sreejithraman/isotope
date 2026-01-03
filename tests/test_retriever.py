@@ -1,11 +1,12 @@
 """Tests for the Retriever pipeline."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from isotopedb.retriever import Retriever
+import pytest
+
 from isotopedb.embedder import LiteLLMEmbedder
-from isotopedb.models import Atom, Chunk, Question, EmbeddedQuestion, SearchResult
+from isotopedb.models import Atom, Chunk, EmbeddedQuestion, Question, SearchResult
+from isotopedb.retriever import Retriever
 
 
 def create_test_data(stores):
@@ -57,9 +58,7 @@ class TestRetrieverGetContext:
     @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_get_context_returns_results(self, mock_embedding, stores):
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         chunk, atom, question = create_test_data(stores)
 
@@ -82,9 +81,7 @@ class TestRetrieverGetContext:
     @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_get_context_respects_k(self, mock_embedding, stores):
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         # Add multiple questions
         chunk = Chunk(content="Content", source="test.md")
@@ -112,9 +109,7 @@ class TestRetrieverGetContext:
     @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_get_context_empty_store(self, mock_embedding, stores):
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
@@ -130,9 +125,7 @@ class TestRetrieverGetContext:
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_get_context_includes_atom(self, mock_embedding, stores):
         """Test that get_context includes atoms in results."""
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         chunk, atom, question = create_test_data(stores)
 
@@ -156,10 +149,10 @@ class TestRetrieverGetAnswer:
     @pytest.mark.mock_integration
     @patch("litellm.completion")
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
-    def test_get_answer_returns_response_with_synthesis(self, mock_embedding, mock_completion, stores):
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+    def test_get_answer_returns_response_with_synthesis(
+        self, mock_embedding, mock_completion, stores
+    ):
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content="Python is a programming language."))]
         )
@@ -175,6 +168,7 @@ class TestRetrieverGetAnswer:
         )
 
         from isotopedb.models import QueryResponse
+
         response = retriever.get_answer("What is Python?")
 
         assert isinstance(response, QueryResponse)
@@ -186,9 +180,7 @@ class TestRetrieverGetAnswer:
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_get_answer_no_synthesis_without_llm(self, mock_embedding, stores):
         """Test that get_answer() returns no answer when llm_model is not set."""
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         chunk, atom, question = create_test_data(stores)
 
@@ -201,6 +193,7 @@ class TestRetrieverGetAnswer:
         )
 
         from isotopedb.models import QueryResponse
+
         response = retriever.get_answer("What is Python?")
 
         assert isinstance(response, QueryResponse)
@@ -210,9 +203,7 @@ class TestRetrieverGetAnswer:
     @pytest.mark.mock_integration
     @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
     def test_get_answer_no_results(self, mock_embedding, stores):
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
@@ -221,7 +212,6 @@ class TestRetrieverGetAnswer:
             embedder=LiteLLMEmbedder(model="test-model"),
         )
 
-        from isotopedb.models import QueryResponse
         response = retriever.get_answer("anything")
 
         assert response.answer is None

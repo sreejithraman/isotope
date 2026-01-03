@@ -1,9 +1,10 @@
 # tests/loaders/test_registry.py
 """Tests for loader registry."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
 
 from isotopedb.loaders.registry import LoaderRegistry
 from isotopedb.loaders.text import TextLoader

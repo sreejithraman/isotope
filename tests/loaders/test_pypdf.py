@@ -1,6 +1,8 @@
 # tests/loaders/test_pypdf.py
 """Tests for PyPDFLoader."""
 
+# Check if pypdf is available
+import importlib.util
 import os
 import tempfile
 
@@ -9,13 +11,7 @@ import pytest
 from isotopedb.loaders.base import Loader
 from isotopedb.models import Chunk
 
-# Check if pypdf is available
-try:
-    import pypdf
-
-    HAS_PYPDF = True
-except ImportError:
-    HAS_PYPDF = False
+HAS_PYPDF = importlib.util.find_spec("pypdf") is not None
 
 pytestmark = pytest.mark.skipif(not HAS_PYPDF, reason="pypdf not installed")
 

@@ -1,12 +1,13 @@
 # tests/loaders/test_text.py
 """Tests for text/markdown file loader."""
 
-import pytest
-import tempfile
 import os
+import tempfile
 
-from isotopedb.loaders.text import TextLoader
+import pytest
+
 from isotopedb.loaders.base import Loader
+from isotopedb.loaders.text import TextLoader
 from isotopedb.models import Chunk
 
 

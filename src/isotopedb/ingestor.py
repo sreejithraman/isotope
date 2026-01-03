@@ -1,6 +1,6 @@
 """Ingestion pipeline for Isotope."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from isotopedb.atomizer import Atomizer
 from isotopedb.dedup import Deduplicator
@@ -66,6 +66,7 @@ class Ingestor:
             - questions: number of questions generated
             - questions_filtered: number of questions removed by diversity filter
         """
+
         def progress(event: str, current: int, total: int, message: str = "") -> None:
             if on_progress:
                 on_progress(event, current, total, message)
@@ -108,11 +109,16 @@ class Ingestor:
         progress("generating", 0, len(all_atoms), "Generating questions...")
         all_questions = []
         for i, atom in enumerate(all_atoms):
-            chunk = self.doc_store.get(atom.chunk_id)
-            chunk_content = chunk.content if chunk else ""
+            parent_chunk = self.doc_store.get(atom.chunk_id)
+            chunk_content = parent_chunk.content if parent_chunk else ""
             questions = self.generator.generate(atom, chunk_content)
             all_questions.extend(questions)
-            progress("generating", i + 1, len(all_atoms), f"Generated questions for {i + 1}/{len(all_atoms)} atoms")
+            progress(
+                "generating",
+                i + 1,
+                len(all_atoms),
+                f"Generated questions for {i + 1}/{len(all_atoms)} atoms",
+            )
 
         # Step 5: Embed questions
         if all_questions:
@@ -128,7 +134,7 @@ class Ingestor:
                 )
             embedded_questions = [
                 EmbeddedQuestion(question=q, embedding=e)
-                for q, e in zip(all_questions, embeddings)
+                for q, e in zip(all_questions, embeddings, strict=True)
             ]
 
             # Step 6: Diversity filter

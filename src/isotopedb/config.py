@@ -46,7 +46,7 @@ class Settings(BaseSettings):
 
     @field_validator("question_diversity_threshold", mode="before")
     @classmethod
-    def parse_threshold(cls, v):
+    def parse_threshold(cls, v: object) -> float | None:
         if v == "" or v is None:
             return None
-        return float(v)
+        return float(v)  # type: ignore[arg-type]

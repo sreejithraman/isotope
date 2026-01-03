@@ -1,6 +1,8 @@
 # tests/loaders/test_html.py
 """Tests for HTMLLoader."""
 
+# Check if dependencies are available
+import importlib.util
 import os
 import tempfile
 
@@ -9,16 +11,14 @@ import pytest
 from isotopedb.loaders.base import Loader
 from isotopedb.models import Chunk
 
-# Check if dependencies are available
-try:
-    from bs4 import BeautifulSoup
-    from markdownify import markdownify
+HAS_HTML_DEPS = (
+    importlib.util.find_spec("bs4") is not None
+    and importlib.util.find_spec("markdownify") is not None
+)
 
-    HAS_HTML_DEPS = True
-except ImportError:
-    HAS_HTML_DEPS = False
-
-pytestmark = pytest.mark.skipif(not HAS_HTML_DEPS, reason="beautifulsoup4/markdownify not installed")
+pytestmark = pytest.mark.skipif(
+    not HAS_HTML_DEPS, reason="beautifulsoup4/markdownify not installed"
+)
 
 
 @pytest.fixture

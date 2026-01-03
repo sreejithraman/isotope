@@ -2,6 +2,8 @@
 """Tests for SearchResult and QueryResponse models."""
 
 import pytest
+from pydantic import ValidationError
+
 from isotopedb.models.atom import Atom
 from isotopedb.models.chunk import Chunk
 from isotopedb.models.question import Question
@@ -25,7 +27,7 @@ class TestSearchResult:
         atom = Atom(content="Python is great", chunk_id=chunk.id)
         question = Question(text="What is Python?", chunk_id=chunk.id, atom_id=atom.id)
 
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(ValidationError):
             SearchResult(question=question, chunk=chunk, score=0.95)  # Missing atom
 
 

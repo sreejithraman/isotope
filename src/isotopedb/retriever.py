@@ -4,7 +4,6 @@ from isotopedb.embedder import Embedder
 from isotopedb.models import QueryResponse, SearchResult
 from isotopedb.stores import AtomStore, DocStore, VectorStore
 
-
 SYNTHESIS_PROMPT = """Based on the following context, answer the user's question.
 If the context doesn't contain enough information to answer, say so.
 
@@ -58,7 +57,7 @@ class Retriever:
         Returns:
             List of SearchResult objects ordered by relevance
         """
-        k = k or self.default_k
+        k = self.default_k if k is None else k
 
         # Step 1: Embed query
         query_embedding = self.embedder.embed_text(query)
@@ -76,12 +75,14 @@ class Retriever:
             atom = self.atom_store.get(question.atom_id)
 
             if chunk and atom:
-                results.append(SearchResult(
-                    question=question,
-                    chunk=chunk,
-                    score=score,
-                    atom=atom,
-                ))
+                results.append(
+                    SearchResult(
+                        question=question,
+                        chunk=chunk,
+                        score=score,
+                        atom=atom,
+                    )
+                )
 
         return results
 
@@ -137,4 +138,5 @@ class Retriever:
             messages=[{"role": "user", "content": prompt}],
         )
 
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        return str(content).strip() if content else ""

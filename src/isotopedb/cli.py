@@ -1,7 +1,13 @@
 # src/isotopedb/cli.py
 """Command-line interface for Isotope."""
 
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from isotopedb.isotope import Isotope
 
 try:
     import typer
@@ -12,8 +18,7 @@ try:
     from rich.table import Table
 except ImportError as e:
     raise SystemExit(
-        "CLI requires additional dependencies.\n"
-        "Install with: pip install isotopedb[cli]"
+        "CLI requires additional dependencies.\nInstall with: pip install isotopedb[cli]"
     ) from e
 
 from isotopedb import __version__
@@ -48,7 +53,7 @@ def main(
     pass
 
 
-def get_isotope(data_dir: str | None = None):
+def get_isotope(data_dir: str | None = None) -> Isotope:
     """Create an Isotope instance for the given data directory."""
     from isotopedb.isotope import Isotope
 
@@ -68,9 +73,10 @@ def config() -> None:
     table.add_row("embedding_model", settings.embedding_model)
     table.add_row("atomizer", settings.atomizer)
     table.add_row("questions_per_atom", str(settings.questions_per_atom))
+    threshold = settings.question_diversity_threshold
     table.add_row(
         "question_diversity_threshold",
-        str(settings.question_diversity_threshold) if settings.question_diversity_threshold is not None else "disabled",
+        str(threshold) if threshold is not None else "disabled",
     )
     table.add_row("data_dir", settings.data_dir)
     table.add_row("vector_store", settings.vector_store)
@@ -155,7 +161,7 @@ def ingest(
         ) as progress:
             task = progress.add_task("Ingesting...", total=None)
 
-            def on_progress(event: str, current: int, total: int, message: str):
+            def on_progress(event: str, current: int, total: int, message: str) -> None:
                 progress.update(task, description=f"{event}: {message}")
 
             result = ingestor.ingest_chunks(all_chunks, on_progress=on_progress)
@@ -236,18 +242,19 @@ def query(
     else:
         # Rich output
         if response.answer:
-            console.print(Panel(
-                Markdown(response.answer),
-                title="Answer",
-                border_style="green",
-            ))
+            console.print(
+                Panel(
+                    Markdown(response.answer),
+                    title="Answer",
+                    border_style="green",
+                )
+            )
             console.print()
 
         console.print("[bold]Sources:[/bold]")
         for i, result in enumerate(response.results, 1):
             console.print(
-                f"  [{i}] [cyan]{result.chunk.source}[/cyan] "
-                f"[dim](score: {result.score:.3f})[/dim]"
+                f"  [{i}] [cyan]{result.chunk.source}[/cyan] [dim](score: {result.score:.3f})[/dim]"
             )
             # Show first 100 chars of content
             preview = result.chunk.content[:100].replace("\n", " ")

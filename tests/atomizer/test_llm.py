@@ -33,10 +33,12 @@ class TestLiteLLMAtomizer:
 
     @patch("isotopedb.atomizer.llm.litellm.completion")
     def test_extracts_atomic_facts(self, mock_completion, atomizer):
-        mock_completion.return_value = mock_completion_response([
-            "Python was created by Guido.",
-            "Python is interpreted.",
-        ])
+        mock_completion.return_value = mock_completion_response(
+            [
+                "Python was created by Guido.",
+                "Python is interpreted.",
+            ]
+        )
 
         chunk = Chunk(
             content="Python was created by Guido. It's an interpreted language.",
@@ -61,11 +63,13 @@ class TestLiteLLMAtomizer:
 
     @patch("isotopedb.atomizer.llm.litellm.completion")
     def test_assigns_sequential_index(self, mock_completion, atomizer):
-        mock_completion.return_value = mock_completion_response([
-            "First fact",
-            "Second fact",
-            "Third fact",
-        ])
+        mock_completion.return_value = mock_completion_response(
+            [
+                "First fact",
+                "Second fact",
+                "Third fact",
+            ]
+        )
 
         chunk = Chunk(content="Content", source="test.md")
         atoms = atomizer.atomize(chunk)
@@ -114,12 +118,14 @@ class TestLiteLLMAtomizer:
 
     @patch("isotopedb.atomizer.llm.litellm.completion")
     def test_filters_empty_facts(self, mock_completion, atomizer):
-        mock_completion.return_value = mock_completion_response([
-            "Valid fact",
-            "",
-            "  ",
-            "Another valid fact",
-        ])
+        mock_completion.return_value = mock_completion_response(
+            [
+                "Valid fact",
+                "",
+                "  ",
+                "Another valid fact",
+            ]
+        )
 
         chunk = Chunk(content="Content", source="test.md")
         atoms = atomizer.atomize(chunk)

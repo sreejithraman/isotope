@@ -60,10 +60,12 @@ class TestLiteLLMQuestionGenerator:
 
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_generate_questions(self, mock_completion, generator, sample_atom):
-        mock_completion.return_value = mock_completion_response([
-            "Who created Python?",
-            "What programming language did Guido create?",
-        ])
+        mock_completion.return_value = mock_completion_response(
+            [
+                "Who created Python?",
+                "What programming language did Guido create?",
+            ]
+        )
 
         questions = generator.generate(sample_atom)
 
@@ -123,9 +125,11 @@ class TestLiteLLMQuestionGenerator:
 
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_adds_question_mark_if_missing(self, mock_completion, generator, sample_atom):
-        mock_completion.return_value = mock_completion_response([
-            "Who created Python",  # Missing ?
-        ])
+        mock_completion.return_value = mock_completion_response(
+            [
+                "Who created Python",  # Missing ?
+            ]
+        )
 
         questions = generator.generate(sample_atom)
 
@@ -133,12 +137,14 @@ class TestLiteLLMQuestionGenerator:
 
     @patch("isotopedb.generator.question_generator.litellm.completion")
     def test_filters_empty_questions(self, mock_completion, generator, sample_atom):
-        mock_completion.return_value = mock_completion_response([
-            "Q1?",
-            "",
-            "  ",
-            "Q2?",
-        ])
+        mock_completion.return_value = mock_completion_response(
+            [
+                "Q1?",
+                "",
+                "  ",
+                "Q2?",
+            ]
+        )
 
         questions = generator.generate(sample_atom)
 

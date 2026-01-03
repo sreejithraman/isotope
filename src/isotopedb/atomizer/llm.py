@@ -15,10 +15,10 @@ Each fact should be a single, self-contained statement that can be understood wi
 Return your response as a JSON array of strings, where each string is one atomic fact.
 
 Example input:
-"Python was created by Guido van Rossum in 1991. It emphasizes code readability and uses significant indentation."
+"Python was created by Guido van Rossum in 1991."
 
 Example output:
-["Guido van Rossum created Python.", "Python was created in 1991.", "Python emphasizes code readability.", "Python uses significant indentation."]
+["Guido van Rossum created Python.", "Python was created in 1991."]
 
 Paragraph to atomize:
 {content}
@@ -90,7 +90,7 @@ class LiteLLMAtomizer(Atomizer):
         except json.JSONDecodeError:
             # Fallback: treat each line as a fact, stripping list markers
             lines = (line.strip() for line in response_text.split("\n") if line.strip())
-            facts = [re.sub(r"^\s*[\d.\-*]+\s*", "", line) for line in lines]
+            facts = [re.sub(r"^\s*(?:[-*]|\d+[.)])\s+", "", line) for line in lines]
 
         atoms = []
         for index, fact in enumerate(facts):

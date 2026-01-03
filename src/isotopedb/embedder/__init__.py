@@ -8,6 +8,8 @@ try:
 except ImportError:
     from isotopedb._optional import _create_missing_dependency_class
 
-    LiteLLMEmbedder = _create_missing_dependency_class("LiteLLMEmbedder", "litellm")
+    LiteLLMEmbedder = _create_missing_dependency_class(  # type: ignore[misc,assignment]
+        "LiteLLMEmbedder", "litellm"
+    )
 
 __all__ = ["Embedder", "LiteLLMEmbedder"]

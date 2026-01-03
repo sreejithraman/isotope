@@ -1,8 +1,6 @@
 # tests/test_config.py
 """Tests for configuration."""
 
-import os
-import pytest
 from isotopedb.config import Settings
 from isotopedb.llm_models import ChatModels, EmbeddingModels
 

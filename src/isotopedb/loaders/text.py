@@ -96,7 +96,7 @@ class TextLoader(Loader):
                 # Start new chunk with overlap
                 if self.chunk_overlap > 0 and current_chunk:
                     # Take last chunk_overlap chars from current chunk
-                    overlap_text = current_chunk[-self.chunk_overlap:]
+                    overlap_text = current_chunk[-self.chunk_overlap :]
                     current_chunk = overlap_text + "\n\n" + para
                 else:
                     current_chunk = para
@@ -115,7 +115,6 @@ class TextLoader(Loader):
     def _split_long_text(self, text: str) -> list[str]:
         """Split a long text that exceeds chunk_size."""
         pieces = []
-        effective_size = self.chunk_size - self.chunk_overlap
 
         start = 0
         while start < len(text):

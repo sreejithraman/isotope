@@ -9,7 +9,9 @@ try:
 except ImportError:
     from isotopedb._optional import _create_missing_dependency_class
 
-    LiteLLMAtomizer = _create_missing_dependency_class("LiteLLMAtomizer", "litellm")
+    LiteLLMAtomizer = _create_missing_dependency_class(  # type: ignore[misc,assignment]
+        "LiteLLMAtomizer", "litellm"
+    )
 
 # Backwards compatibility alias (deprecated)
 LLMAtomizer = LiteLLMAtomizer

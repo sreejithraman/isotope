@@ -1,13 +1,14 @@
 """Tests for the Ingestor pipeline."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from isotopedb.ingestor import Ingestor
+import pytest
+
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
 from isotopedb.embedder import LiteLLMEmbedder
-from isotopedb.generator import LiteLLMQuestionGenerator, DiversityFilter
+from isotopedb.generator import DiversityFilter, LiteLLMQuestionGenerator
+from isotopedb.ingestor import Ingestor
 from isotopedb.models import Chunk
 
 
@@ -88,9 +89,7 @@ class TestIngestChunks:
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
         )
-        mock_embedding.return_value = MagicMock(
-            data=[{"embedding": [0.1, 0.2, 0.3], "index": 0}]
-        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [0.1, 0.2, 0.3], "index": 0}])
 
         from isotopedb.dedup import SourceAwareDedup
 
@@ -146,6 +145,7 @@ class TestIngestorProgress:
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
         )
+
         # Return one embedding per input text
         def make_embeddings(*args, **kwargs):
             input_texts = kwargs.get("input", args[1] if len(args) > 1 else [])
@@ -154,6 +154,7 @@ class TestIngestorProgress:
             return MagicMock(
                 data=[{"embedding": [0.1, 0.2, 0.3], "index": i} for i in range(len(input_texts))]
             )
+
         mock_embedding.side_effect = make_embeddings
 
         ingestor = Ingestor(
@@ -182,5 +183,3 @@ class TestIngestorProgress:
         # Should include different phases
         phases = {e[0] for e in progress_events}
         assert "atomizing" in phases or "generating" in phases or "embedding" in phases
-
-

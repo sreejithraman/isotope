@@ -38,7 +38,7 @@ class SourceAwareDedup(Deduplicator):
         sources = {chunk.source for chunk in new_chunks}
 
         # Find all existing chunk IDs from those sources
-        chunk_ids_to_remove = []
+        chunk_ids_to_remove: list[str] = []
         for source in sources:
             existing_chunks = doc_store.get_by_source(source)
             chunk_ids_to_remove.extend(chunk.id for chunk in existing_chunks)

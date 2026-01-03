@@ -16,10 +16,13 @@ pytest tests/test_retriever.py
 # Run a specific test
 pytest tests/test_retriever.py::test_query_synthesis -v
 
-# Linting
-ruff check src tests
+# Format code
+ruff format src tests
 
-# Type checking (strict mode)
+# Linting (auto-fix)
+ruff check --fix src tests
+
+# Type checking
 mypy src
 
 # Skip integration tests that mock LLM APIs
@@ -102,10 +105,35 @@ isotope delete <source>     # Delete a source from the database
 4. `src/isotopedb/config.py` - All configuration options
 5. `README.md` - Concept overview and limitations
 
+## Before PR
+
+### Pre-commit hooks (recommended)
+
+Set up once, runs ruff format + lint on every commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+### CI checks (automatic)
+
+GitHub Actions runs on every PR:
+- `ruff format --check` - code formatting
+- `ruff check` - linting
+- `mypy src` - type checking
+- `pytest` - tests on Python 3.11 and 3.12
+
+### Manual checks
+
+```bash
+ruff format src tests       # Format code
+ruff check --fix src tests  # Auto-fix import sorting, etc.
+mypy src                    # Must pass with no errors
+pytest                      # All tests must pass
+```
+
 ## Common Tasks
 
-- **Run tests**: `pytest`
-- **Run linter**: `ruff check src tests`
-- **Check types**: `mypy src`
 - **Add new config option**: Edit `config.py`, add `ISOTOPE_` prefixed env var
 - **Update exports**: Edit `src/isotopedb/__init__.py` and module `__init__.py` files

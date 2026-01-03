@@ -7,7 +7,9 @@ from isotopedb.generator import DiversityFilter
 from isotopedb.models import EmbeddedQuestion, Question
 
 
-def make_eq(text: str, embedding: list[float], chunk_id: str = "c1", atom_id: str = "a1") -> EmbeddedQuestion:
+def make_eq(
+    text: str, embedding: list[float], chunk_id: str = "c1", atom_id: str = "a1"
+) -> EmbeddedQuestion:
     """Helper to create an EmbeddedQuestion."""
     return EmbeddedQuestion(
         question=Question(text=text, chunk_id=chunk_id, atom_id=atom_id),
