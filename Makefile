@@ -1,21 +1,29 @@
 .PHONY: help install dev-setup lint format fix test typecheck clean
 
+ORANGE := \033[38;5;208m
+BOLD := \033[1m
+DIM := \033[2m
+RESET := \033[0m
+
 help:
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "Setup:"
-	@echo "  dev-setup   Install deps + pre-commit hooks (recommended)"
-	@echo "  install     Install deps only"
-	@echo ""
-	@echo "Development:"
-	@echo "  fix         Auto-fix lint/format issues"
-	@echo "  lint        Check for lint/format issues"
-	@echo "  format      Format code with ruff"
-	@echo "  test        Run tests"
-	@echo "  typecheck   Run mypy"
-	@echo ""
-	@echo "Cleanup:"
-	@echo "  clean       Remove build artifacts and caches"
+	@printf "$(ORANGE)◆ isotope$(RESET)\n"
+	@printf "\n"
+	@printf "$(DIM)╭─$(RESET)$(ORANGE) Setup $(RESET)$(DIM)────────────────────────────────────╮$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)dev-setup$(RESET)    Install + pre-commit hooks   $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)install$(RESET)      Install deps only            $(DIM)│$(RESET)\n"
+	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
+	@printf "\n"
+	@printf "$(DIM)╭─$(RESET)$(ORANGE) Development $(RESET)$(DIM)──────────────────────────────╮$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)fix$(RESET)          Auto-fix lint/format issues  $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)lint$(RESET)         Check for issues             $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)format$(RESET)       Format code with ruff        $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)test$(RESET)         Run tests                    $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)typecheck$(RESET)    Run mypy                     $(DIM)│$(RESET)\n"
+	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
+	@printf "\n"
+	@printf "$(DIM)╭─$(RESET)$(ORANGE) Cleanup $(RESET)$(DIM)──────────────────────────────────╮$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)clean$(RESET)        Remove build artifacts       $(DIM)│$(RESET)\n"
+	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 
 install:
 	pip install -e ".[dev,default]"
