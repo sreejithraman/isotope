@@ -20,15 +20,18 @@ Quick Start (LiteLLM):
     response = retriever.get_answer("What is...?")
 
 Custom Implementations:
-    from isotopedb import Isotope, Embedder, QuestionGenerator, Atomizer
-    from isotopedb.litellm import LiteLLMEmbedder  # Or your own implementation
+    from isotopedb import Isotope
+    from isotopedb.litellm import LiteLLMEmbedder, LiteLLMAtomizer, LiteLLMGenerator
 
     iso = Isotope(
         vector_store=my_vector_store,
         doc_store=my_doc_store,
         atom_store=my_atom_store,
         embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
+        atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
+        generator=LiteLLMGenerator(model="openai/gpt-4o"),
     )
+    ingestor = iso.ingestor()  # All components configured at init
 """
 
 __version__ = "0.1.0"

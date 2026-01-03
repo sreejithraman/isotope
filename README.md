@@ -41,8 +41,12 @@ pip install isotopedb[default,litellm]
 ```python
 from isotopedb import Isotope, Chunk
 
-# One-line setup
-iso = Isotope(data_dir="./my_data")
+# Quick setup with LiteLLM
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
+    embedding_model="openai/text-embedding-3-small",
+    data_dir="./my_data",
+)
 
 # Ingest
 ingestor = iso.ingestor()

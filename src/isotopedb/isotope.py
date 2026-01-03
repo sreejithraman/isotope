@@ -47,11 +47,10 @@ class Isotope:
             doc_store=my_doc_store,
             atom_store=my_atom_store,
             embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
-        )
-        ingestor = iso.ingestor(
             atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
             generator=LiteLLMGenerator(model="openai/gpt-4o"),
         )
+        ingestor = iso.ingestor()  # All components configured at init
     """
 
     def __init__(
@@ -61,8 +60,8 @@ class Isotope:
         doc_store: DocStore,
         atom_store: AtomStore,
         embedder: Embedder,
-        atomizer: Atomizer | None = None,
-        generator: QuestionGenerator | None = None,
+        atomizer: Atomizer,
+        generator: QuestionGenerator,
     ) -> None:
         """Create an Isotope instance.
 
@@ -71,8 +70,8 @@ class Isotope:
             doc_store: Document store for chunks (required)
             atom_store: Atom store for atomic statements (required)
             embedder: Embedder for creating embeddings (required)
-            atomizer: Default atomizer for ingestor (optional, can be provided to ingestor())
-            generator: Default generator for ingestor (optional, can be provided to ingestor())
+            atomizer: Atomizer for breaking chunks into atoms (required)
+            generator: Question generator for creating synthetic questions (required)
         """
         # Load behavioral settings from env vars
         self._settings = Settings()
@@ -83,7 +82,7 @@ class Isotope:
         self.atom_store = atom_store
         self.embedder = embedder
 
-        # Optional default components for ingestor
+        # Required components for ingestor
         self._atomizer = atomizer
         self._generator = generator
 
@@ -152,8 +151,8 @@ class Isotope:
         cls,
         *,
         embedder: Embedder,
-        atomizer: Atomizer | None = None,
-        generator: QuestionGenerator | None = None,
+        atomizer: Atomizer,
+        generator: QuestionGenerator,
         data_dir: str = "./isotope_data",
     ) -> "Isotope":
         """Create Isotope with local stores (Chroma + SQLite).
@@ -163,8 +162,8 @@ class Isotope:
 
         Args:
             embedder: Embedder implementation (required)
-            atomizer: Atomizer implementation (optional)
-            generator: Question generator implementation (optional)
+            atomizer: Atomizer implementation (required)
+            generator: Question generator implementation (required)
             data_dir: Base directory for all stores.
 
         Returns:
@@ -234,8 +233,6 @@ class Isotope:
     def ingestor(
         self,
         *,
-        atomizer: Atomizer | None = None,
-        generator: QuestionGenerator | None = None,
         deduplicator: Deduplicator | None = None,
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
@@ -244,10 +241,6 @@ class Isotope:
         """Create an Ingestor using this instance's stores.
 
         Args:
-            atomizer: Atomizer for breaking chunks into atoms.
-                      If None, uses the atomizer provided at Isotope init.
-            generator: Question generator for creating synthetic questions.
-                       If None, uses the generator provided at Isotope init.
             deduplicator: Custom deduplicator. If None, created from settings.
             diversity_filter: Custom diversity filter. If None and
                               use_diversity_filter is True, created from settings.
@@ -260,29 +253,10 @@ class Isotope:
                 If None, uses settings default.
 
         Returns:
-            Configured Ingestor instance.
-
-        Raises:
-            ValueError: If atomizer or generator is not provided and was not
-                        set at Isotope initialization.
+            Configured Ingestor instance using the atomizer and generator
+            provided at Isotope initialization.
         """
         from isotopedb.ingestor import Ingestor
-
-        # Resolve atomizer
-        effective_atomizer = atomizer or self._atomizer
-        if effective_atomizer is None:
-            raise ValueError(
-                "atomizer is required. Either provide it to ingestor() or "
-                "set it when creating the Isotope instance."
-            )
-
-        # Resolve generator
-        effective_generator = generator or self._generator
-        if effective_generator is None:
-            raise ValueError(
-                "generator is required. Either provide it to ingestor() or "
-                "set it when creating the Isotope instance."
-            )
 
         # Create deduplicator from settings if not provided
         effective_deduplicator = deduplicator or self._create_deduplicator()
@@ -303,9 +277,9 @@ class Isotope:
             vector_store=self.vector_store,
             doc_store=self.doc_store,
             atom_store=self.atom_store,
-            atomizer=effective_atomizer,
+            atomizer=self._atomizer,
             embedder=self.embedder,
-            generator=effective_generator,
+            generator=self._generator,
             deduplicator=effective_deduplicator,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,

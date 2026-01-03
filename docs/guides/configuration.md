@@ -69,7 +69,6 @@ For enterprise deployments or custom implementations:
 ```python
 from isotopedb import Isotope
 from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
-from isotopedb.atomizer import SentenceAtomizer
 
 # Bring your own stores
 from my_company.stores import PineconeStore, PostgresDocStore, PostgresAtomStore
@@ -79,13 +78,12 @@ iso = Isotope(
     doc_store=PostgresDocStore(...),
     atom_store=PostgresAtomStore(...),
     embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
-)
-
-# Provide atomizer and generator when creating ingestor
-ingestor = iso.ingestor(
     atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
     generator=LiteLLMGenerator(model="openai/gpt-4o"),
 )
+
+# All components configured - ingestor is a simple call
+ingestor = iso.ingestor()
 ```
 
 ### Path 3: Local Stores with Custom Embedder
