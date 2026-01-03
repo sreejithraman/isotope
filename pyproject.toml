@@ -9,7 +9,7 @@ description = "Reverse RAG database - index questions, not chunks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{ name = "Sree Raman", email = "sreejithraman@example.com" }]
+authors = [{ name = "Sree Raman" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
