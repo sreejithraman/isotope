@@ -4,12 +4,18 @@
 This module exports:
 - Atomizer: Abstract base class for atomizers
 - SentenceAtomizer: Simple sentence-based atomizer (no LLM required)
+- LLMAtomizer: LLM-based atomizer (requires LLMClient)
 
-For the LiteLLM-based atomizer, use:
-    from isotopedb.litellm import LiteLLMAtomizer
+Example:
+    from isotopedb.providers.litellm import LiteLLMClient
+    from isotopedb.atomizer import LLMAtomizer
+
+    client = LiteLLMClient(model="openai/gpt-4o")
+    atomizer = LLMAtomizer(llm_client=client)
 """
 
 from isotopedb.atomizer.base import Atomizer
+from isotopedb.atomizer.llm import LLMAtomizer
 from isotopedb.atomizer.sentence import SentenceAtomizer
 
-__all__ = ["Atomizer", "SentenceAtomizer"]
+__all__ = ["Atomizer", "SentenceAtomizer", "LLMAtomizer"]

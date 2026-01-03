@@ -40,13 +40,13 @@ class Isotope:
     2. Explicit path (custom/enterprise):
         Bring your own components:
 
-        from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+        from isotopedb.providers import LiteClientEmbedder, LiteLLMGenerator, LiteLLMAtomizer
 
         iso = Isotope(
             vector_store=my_vector_store,
             doc_store=my_doc_store,
             atom_store=my_atom_store,
-            embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
+            embedder=LiteClientEmbedder(model="openai/text-embedding-3-small"),
             atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
             generator=LiteLLMGenerator(model="openai/gpt-4o"),
         )
@@ -118,8 +118,10 @@ class Isotope:
             )
             ingestor = iso.ingestor()
         """
-        from isotopedb.atomizer import SentenceAtomizer
-        from isotopedb.litellm import LiteLLMAtomizer, LiteLLMEmbedder, LiteLLMGenerator
+        from isotopedb.atomizer import LLMAtomizer, SentenceAtomizer
+        from isotopedb.embedder import ClientEmbedder
+        from isotopedb.generator import ClientQuestionGenerator
+        from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
         from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
 
         # Create local stores
@@ -131,10 +133,14 @@ class Isotope:
         # Load behavioral settings for generator
         settings = Settings()
 
-        # Create LiteLLM components
-        embedder = LiteLLMEmbedder(model=embedding_model)
-        generator = LiteLLMGenerator(
-            model=llm_model,
+        # Create LiteLLM clients
+        llm_client = LiteLLMClient(model=llm_model)
+        embedding_client = LiteLLMEmbeddingClient(model=embedding_model)
+
+        # Create components with injected clients
+        embedder = ClientEmbedder(embedding_client=embedding_client)
+        generator = ClientQuestionGenerator(
+            llm_client=llm_client,
             num_questions=settings.questions_per_atom,
             prompt_template=settings.question_prompt,
         )
@@ -142,7 +148,7 @@ class Isotope:
         if use_sentence_atomizer:
             atomizer: Atomizer = SentenceAtomizer()
         else:
-            atomizer = LiteLLMAtomizer(model=llm_model)
+            atomizer = LLMAtomizer(llm_client=llm_client)
 
         return cls(
             vector_store=vector_store,

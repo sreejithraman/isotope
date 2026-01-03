@@ -1,14 +1,12 @@
-# src/isotopedb/litellm/atomizer.py
-"""LiteLLM-based atomizer implementation."""
+# src/isotopedb/atomizer/llm.py
+"""LLM-based atomizer implementation."""
 
 import json
 import re
 
-import litellm
-
 from isotopedb.atomizer.base import Atomizer
-from isotopedb.litellm.models import ChatModels
 from isotopedb.models import Atom, Chunk
+from isotopedb.providers.base import LLMClient
 
 DEFAULT_PROMPT = """Please breakdown the following paragraph into stand-alone atomic facts.
 Each fact should be a single, self-contained statement that can be understood without context.
@@ -27,34 +25,34 @@ Paragraph to atomize:
 Return ONLY the JSON array, no other text."""
 
 
-class LiteLLMAtomizer(Atomizer):
-    """LiteLLM-based atomizer for extracting atomic facts.
+class LLMAtomizer(Atomizer):
+    """LLM-based atomizer for extracting atomic facts.
 
     This is the "unstructured" atomization approach from the paper.
-    Uses an LLM via LiteLLM to extract semantic atomic statements from the chunk.
+    Uses any LLMClient to extract semantic atomic statements from the chunk.
 
     Example:
-        from isotopedb.litellm import LiteLLMAtomizer, ChatModels
+        from isotopedb.providers.litellm import LiteLLMClient
+        from isotopedb.atomizer import LLMAtomizer
 
-        atomizer = LiteLLMAtomizer(model=ChatModels.GEMINI_3_FLASH)
-        # or
-        atomizer = LiteLLMAtomizer(model="openai/gpt-4o")
+        client = LiteLLMClient(model="openai/gpt-4o")
+        atomizer = LLMAtomizer(llm_client=client)
     """
 
     def __init__(
         self,
-        model: str = ChatModels.GEMINI_3_FLASH,
+        llm_client: LLMClient,
         prompt_template: str | None = None,
         temperature: float | None = 0.0,
     ) -> None:
         """Initialize the LLM atomizer.
 
         Args:
-            model: LiteLLM model identifier (default: gemini/gemini-3-flash-preview)
+            llm_client: Any LLMClient implementation
             prompt_template: Custom prompt template with {content} placeholder
             temperature: LLM temperature (0.0-1.0). None to use model default.
         """
-        self.model = model
+        self._client = llm_client
         self.prompt_template = prompt_template or DEFAULT_PROMPT
         self.temperature = temperature
 
@@ -65,23 +63,11 @@ class LiteLLMAtomizer(Atomizer):
             return []
 
         prompt = self.prompt_template.format(content=content)
-
-        completion_kwargs = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "drop_params": True,
-        }
-        if self.temperature is not None:
-            completion_kwargs["temperature"] = self.temperature
-
-        response = litellm.completion(**completion_kwargs)
-
-        if not response.choices:
-            raise ValueError(f"LLM returned no choices for model {self.model}")
-        content = response.choices[0].message.content
-        if content is None:
-            raise ValueError(f"LLM returned None content for model {self.model}")
-        response_text = content.strip()
+        response_text = self._client.complete(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=self.temperature,
+        )
+        response_text = response_text.strip()
 
         # Parse JSON response
         try:

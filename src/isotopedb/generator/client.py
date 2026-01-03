@@ -1,14 +1,12 @@
-# src/isotopedb/litellm/generator.py
-"""LiteLLM-based question generator implementation."""
+# src/isotopedb/generator/client.py
+"""Client-based question generator implementation."""
 
 import json
 import re
 
-import litellm
-
 from isotopedb.generator.base import QuestionGenerator
-from isotopedb.litellm.models import ChatModels
 from isotopedb.models import Atom, Question
+from isotopedb.providers.base import LLMClient
 
 DEFAULT_PROMPT = """Generate {num_questions} diverse questions that this atomic fact answers.
 The questions should be natural queries a user might ask when searching for this information.
@@ -31,25 +29,20 @@ Example output:
 Return ONLY the JSON array, no other text."""
 
 
-class LiteLLMGenerator(QuestionGenerator):
-    """LiteLLM-based question generator.
-
-    Generates synthetic questions from atoms using an LLM via LiteLLM.
-    This is the core of the reverse-RAG approach: instead of embedding
-    the content, we generate questions that the content answers, then
-    embed those questions.
+class ClientQuestionGenerator(QuestionGenerator):
+    """Question generator that uses an LLMClient.
 
     Example:
-        from isotopedb.litellm import LiteLLMGenerator, ChatModels
+        from isotopedb.providers.litellm import LiteLLMClient
+        from isotopedb.generator import ClientQuestionGenerator
 
-        generator = LiteLLMGenerator(model=ChatModels.GEMINI_3_FLASH)
-        # or
-        generator = LiteLLMGenerator(model="openai/gpt-4o")
+        client = LiteLLMClient(model="openai/gpt-4o")
+        generator = ClientQuestionGenerator(llm_client=client)
     """
 
     def __init__(
         self,
-        model: str = ChatModels.GEMINI_3_FLASH,
+        llm_client: LLMClient,
         num_questions: int = 15,
         prompt_template: str | None = None,
         temperature: float | None = 0.7,
@@ -57,31 +50,21 @@ class LiteLLMGenerator(QuestionGenerator):
         """Initialize the question generator.
 
         Args:
-            model: LiteLLM model identifier (default: gemini/gemini-3-flash-preview)
+            llm_client: Any LLMClient implementation
             num_questions: Number of questions to generate per atom
             prompt_template: Custom prompt with {num_questions}, {atom_content}, {chunk_content}
             temperature: LLM temperature (0.0-1.0). None to use model default.
         """
-        self.model = model
+        self._client = llm_client
         self.num_questions = num_questions
         self.prompt_template = prompt_template or DEFAULT_PROMPT
         self.temperature = temperature
 
     def _parse_response(self, response_text: str, atom: Atom) -> list[Question]:
-        """Parse LLM response text into Question objects.
-
-        Args:
-            response_text: Raw response text from the LLM
-            atom: The atom these questions are for
-
-        Returns:
-            List of Question objects
-        """
+        """Parse LLM response text into Question objects."""
         response_text = response_text.strip()
 
-        # Parse JSON response
         try:
-            # Handle potential markdown code blocks
             if response_text.startswith("```"):
                 lines = response_text.split("\n")
                 json_lines = []
@@ -96,7 +79,6 @@ class LiteLLMGenerator(QuestionGenerator):
 
             question_texts = json.loads(response_text)
         except json.JSONDecodeError:
-            # Fallback: treat each line as a question, stripping list markers
             question_texts = [
                 re.sub(r"^\s*(?:[-*]|\d+[.)])\s+", "", line.strip())
                 for line in response_text.split("\n")
@@ -106,9 +88,7 @@ class LiteLLMGenerator(QuestionGenerator):
         questions = []
         for text in question_texts:
             if isinstance(text, str) and text.strip():
-                # Clean up the question text
                 text = text.strip()
-                # Ensure it ends with a question mark
                 if not text.endswith("?"):
                     text += "?"
                 questions.append(
@@ -129,63 +109,19 @@ class LiteLLMGenerator(QuestionGenerator):
             chunk_content=chunk_content or "(no additional context)",
         )
 
-    def _build_completion_kwargs(self, prompt: str) -> dict:
-        """Build kwargs for litellm completion call."""
-        kwargs = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "drop_params": True,
-        }
-        if self.temperature is not None:
-            kwargs["temperature"] = self.temperature
-        return kwargs
-
-    def generate(
-        self,
-        atom: Atom,
-        chunk_content: str = "",
-    ) -> list[Question]:
-        """Generate questions for a single atom.
-
-        Args:
-            atom: The atom to generate questions for
-            chunk_content: Optional context from the parent chunk
-
-        Returns:
-            List of Question objects
-        """
+    def generate(self, atom: Atom, chunk_content: str = "") -> list[Question]:
+        """Generate questions for a single atom."""
         prompt = self._build_prompt(atom, chunk_content)
-        completion_kwargs = self._build_completion_kwargs(prompt)
-        response = litellm.completion(**completion_kwargs)
+        response_text = self._client.complete(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=self.temperature,
+        )
+        return self._parse_response(response_text, atom)
 
-        if not response.choices:
-            raise ValueError(f"LLM returned no choices for model {self.model}")
-        content = response.choices[0].message.content
-        if content is None:
-            raise ValueError(f"LLM returned None content for model {self.model}")
-
-        return self._parse_response(content, atom)
-
-    def generate_batch(
-        self,
-        atoms: list[Atom],
-        chunk_content: str = "",
-    ) -> list[Question]:
-        """Generate questions for multiple atoms.
-
-        Args:
-            atoms: List of atoms to generate questions for
-            chunk_content: Optional context from the parent chunk
-
-        Returns:
-            Flat list of all generated Question objects
-        """
+    def generate_batch(self, atoms: list[Atom], chunk_content: str = "") -> list[Question]:
+        """Generate questions for multiple atoms."""
         all_questions = []
         for atom in atoms:
             questions = self.generate(atom, chunk_content)
             all_questions.extend(questions)
         return all_questions
-
-
-# Backwards compatibility alias
-LiteLLMQuestionGenerator = LiteLLMGenerator

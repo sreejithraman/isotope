@@ -95,7 +95,7 @@ class TestIsotopeWithLiteLLM:
     def test_with_litellm_creates_embedder(self, temp_dir):
         """Test that with_litellm creates LiteLLM embedder."""
         pytest.importorskip("litellm", reason="This test requires litellm package")
-        from isotopedb.litellm import LiteLLMEmbedder
+        from isotopedb.embedder import ClientEmbedder
 
         iso = Isotope.with_litellm(
             data_dir=temp_dir,
@@ -103,13 +103,12 @@ class TestIsotopeWithLiteLLM:
             embedding_model="openai/text-embedding-3-small",
         )
 
-        assert isinstance(iso.embedder, LiteLLMEmbedder)
-        assert iso.embedder.model == "openai/text-embedding-3-small"
+        assert isinstance(iso.embedder, ClientEmbedder)
 
     def test_with_litellm_creates_llm_atomizer_by_default(self, temp_dir):
         """Test that with_litellm creates LLM atomizer by default."""
         pytest.importorskip("litellm", reason="This test requires litellm package")
-        from isotopedb.litellm import LiteLLMAtomizer
+        from isotopedb.atomizer import LLMAtomizer
 
         iso = Isotope.with_litellm(
             data_dir=temp_dir,
@@ -117,7 +116,7 @@ class TestIsotopeWithLiteLLM:
             embedding_model="openai/text-embedding-3-small",
         )
 
-        assert isinstance(iso._atomizer, LiteLLMAtomizer)
+        assert isinstance(iso._atomizer, LLMAtomizer)
 
     def test_with_litellm_can_use_sentence_atomizer(self, temp_dir):
         """Test that with_litellm can use sentence atomizer."""

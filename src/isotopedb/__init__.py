@@ -22,13 +22,13 @@ Quick Start (LiteLLM):
 
 Custom Implementations:
     from isotopedb import Isotope
-    from isotopedb.litellm import LiteLLMEmbedder, LiteLLMAtomizer, LiteLLMGenerator
+    from isotopedb.providers import LiteClientEmbedder, LiteLLMAtomizer, LiteLLMGenerator
 
     iso = Isotope(
         vector_store=my_vector_store,
         doc_store=my_doc_store,
         atom_store=my_atom_store,
-        embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
+        embedder=LiteClientEmbedder(model="openai/text-embedding-3-small"),
         atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
         generator=LiteLLMGenerator(model="openai/gpt-4o"),
     )
@@ -63,6 +63,9 @@ from isotopedb.models import (
     Question,
     SearchResult,
 )
+
+# Provider ABCs
+from isotopedb.providers import EmbeddingClient, LLMClient
 from isotopedb.retriever import Retriever
 
 # Storage ABCs
@@ -107,6 +110,9 @@ __all__ = [
     "DiversityFilter",
     "FilterScope",
     "QuestionGenerator",
+    # Provider ABCs
+    "LLMClient",
+    "EmbeddingClient",
     # Pipelines
     "Ingestor",
     "Retriever",

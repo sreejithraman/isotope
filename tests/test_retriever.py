@@ -4,8 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from isotopedb.litellm import LiteLLMEmbedder
+from isotopedb.embedder import ClientEmbedder
 from isotopedb.models import Atom, Chunk, EmbeddedQuestion, Question, SearchResult
+from isotopedb.providers.litellm import LiteLLMEmbeddingClient
 from isotopedb.retriever import Retriever
 
 
@@ -30,7 +31,7 @@ class TestRetrieverInit:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
         assert retriever is not None
 
@@ -39,7 +40,7 @@ class TestRetrieverInit:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
         assert retriever.default_k == 5
 
@@ -48,7 +49,7 @@ class TestRetrieverInit:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             default_k=10,
         )
         assert retriever.default_k == 10
@@ -56,7 +57,7 @@ class TestRetrieverInit:
 
 class TestRetrieverGetContext:
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_context_returns_results(self, mock_embedding, stores):
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
@@ -66,7 +67,7 @@ class TestRetrieverGetContext:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
 
         results = retriever.get_context("What is Python?")
@@ -79,7 +80,7 @@ class TestRetrieverGetContext:
         assert results[0].score > 0
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_context_respects_k(self, mock_embedding, stores):
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
@@ -99,7 +100,7 @@ class TestRetrieverGetContext:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             default_k=3,
         )
 
@@ -107,7 +108,7 @@ class TestRetrieverGetContext:
         assert len(results) == 3
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_context_empty_store(self, mock_embedding, stores):
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
@@ -115,14 +116,14 @@ class TestRetrieverGetContext:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
 
         results = retriever.get_context("any query")
         assert results == []
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_context_includes_atom(self, mock_embedding, stores):
         """Test that get_context includes atoms in results."""
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
@@ -133,7 +134,7 @@ class TestRetrieverGetContext:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
 
         results = retriever.get_context("What is Python?")
@@ -148,7 +149,7 @@ class TestRetrieverGetContext:
 class TestRetrieverGetAnswer:
     @pytest.mark.mock_integration
     @patch("litellm.completion")
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_answer_returns_response_with_synthesis(
         self, mock_embedding, mock_completion, stores
     ):
@@ -163,7 +164,7 @@ class TestRetrieverGetAnswer:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             llm_model="gemini/gemini-2.0-flash-exp",
         )
 
@@ -177,7 +178,7 @@ class TestRetrieverGetAnswer:
         assert len(response.results) > 0
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_answer_no_synthesis_without_llm(self, mock_embedding, stores):
         """Test that get_answer() returns no answer when llm_model is not set."""
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
@@ -188,7 +189,7 @@ class TestRetrieverGetAnswer:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             # No llm_model - so no synthesis
         )
 
@@ -201,7 +202,7 @@ class TestRetrieverGetAnswer:
         assert len(response.results) > 0
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
     def test_get_answer_no_results(self, mock_embedding, stores):
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
@@ -209,7 +210,7 @@ class TestRetrieverGetAnswer:
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
-            embedder=LiteLLMEmbedder(model="test-model"),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
 
         response = retriever.get_answer("anything")

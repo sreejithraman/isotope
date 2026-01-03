@@ -6,10 +6,11 @@ import pytest
 
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
-from isotopedb.generator import DiversityFilter
+from isotopedb.embedder import ClientEmbedder
+from isotopedb.generator import ClientQuestionGenerator, DiversityFilter
 from isotopedb.ingestor import Ingestor
-from isotopedb.litellm import LiteLLMEmbedder, LiteLLMQuestionGenerator
 from isotopedb.models import Chunk
+from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
 
 
 class TestIngestorInit:
@@ -19,8 +20,8 @@ class TestIngestorInit:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
-            generator=LiteLLMQuestionGenerator(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
         assert ingestor is not None
@@ -31,8 +32,8 @@ class TestIngestorInit:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=LiteLLMEmbedder(model="gemini/text-embedding-004"),
-            generator=LiteLLMQuestionGenerator(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
             diversity_filter=DiversityFilter(threshold=0.85),
         )
@@ -41,8 +42,8 @@ class TestIngestorInit:
 
 class TestIngestChunks:
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
-    @patch("isotopedb.litellm.generator.litellm.completion")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.completion")
     def test_ingest_single_chunk(self, mock_completion, mock_embedding, stores):
         # Setup mocks
         mock_completion.return_value = MagicMock(
@@ -61,8 +62,8 @@ class TestIngestChunks:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=LiteLLMEmbedder(model="test-model"),
-            generator=LiteLLMQuestionGenerator(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
 
@@ -83,8 +84,8 @@ class TestIngestChunks:
         assert result["chunks"] == 1
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
-    @patch("isotopedb.litellm.generator.litellm.completion")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.completion")
     def test_ingest_with_deduplication(self, mock_completion, mock_embedding, stores):
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
@@ -98,8 +99,8 @@ class TestIngestChunks:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=LiteLLMEmbedder(model="test-model"),
-            generator=LiteLLMQuestionGenerator(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=SourceAwareDedup(),
         )
 
@@ -118,16 +119,16 @@ class TestIngestChunks:
         assert result["chunks_removed"] == 1
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
-    @patch("isotopedb.litellm.generator.litellm.completion")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.completion")
     def test_ingest_empty_list(self, mock_completion, mock_embedding, stores):
         ingestor = Ingestor(
             vector_store=stores["vector_store"],
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=LiteLLMEmbedder(model="test-model"),
-            generator=LiteLLMQuestionGenerator(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
 
@@ -139,8 +140,8 @@ class TestIngestChunks:
 
 class TestIngestorProgress:
     @pytest.mark.mock_integration
-    @patch("isotopedb.litellm.embedder.litellm.embedding")
-    @patch("isotopedb.litellm.generator.litellm.completion")
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotopedb.providers.litellm.client.litellm.completion")
     def test_progress_callback_called(self, mock_completion, mock_embedding, stores):
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
@@ -162,8 +163,8 @@ class TestIngestorProgress:
             doc_store=stores["doc_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
-            embedder=LiteLLMEmbedder(model="test-model"),
-            generator=LiteLLMQuestionGenerator(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
 
