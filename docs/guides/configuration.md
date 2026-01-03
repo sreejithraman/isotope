@@ -1,62 +1,220 @@
 # Configuration Guide
 
-IsotopeDB uses [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) for configuration. All settings can be configured via environment variables (prefixed with `ISOTOPE_`) or programmatically.
+IsotopeDB separates **provider configuration** from **behavioral settings**:
 
-## Environment Variables
+- **Provider configuration**: Which LLM/embedding service to use (LiteLLM, custom, etc.)
+- **Behavioral settings**: How the system operates (questions per atom, diversity threshold, etc.)
+
+## Quick Start
+
+### Using LiteLLM (Recommended)
+
+```python
+from isotopedb import Isotope
+
+# Simple setup with LiteLLM
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
+    embedding_model="openai/text-embedding-3-small",
+    data_dir="./my_data",
+)
+
+# Create ingestor and retriever
+ingestor = iso.ingestor()
+retriever = iso.retriever()
+```
+
+### Using Custom Components (Enterprise)
+
+```python
+from isotopedb import Isotope
+from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+
+# Explicit component configuration
+iso = Isotope(
+    vector_store=MyPineconeStore(...),
+    doc_store=MyPostgresDocStore(...),
+    atom_store=MyPostgresAtomStore(...),
+    embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
+    atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
+    generator=LiteLLMGenerator(model="openai/gpt-4o"),
+)
+```
+
+## Provider Configuration
+
+### Path 1: `Isotope.with_litellm()` Factory
+
+The simplest way to get started:
+
+```python
+from isotopedb import Isotope
+
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",           # LiteLLM model format
+    embedding_model="openai/text-embedding-3-small",
+    data_dir="./isotope_data",            # Optional, defaults to "./isotope_data"
+    use_sentence_atomizer=False,          # Optional, use sentence splitter instead of LLM
+)
+```
+
+This creates:
+- Local stores (ChromaVectorStore, SQLiteDocStore, SQLiteAtomStore)
+- LiteLLM embedder, generator, and atomizer
+
+### Path 2: Explicit Components
+
+For enterprise deployments or custom implementations:
+
+```python
+from isotopedb import Isotope
+from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+from isotopedb.atomizer import SentenceAtomizer
+
+# Bring your own stores
+from my_company.stores import PineconeStore, PostgresDocStore, PostgresAtomStore
+
+iso = Isotope(
+    vector_store=PineconeStore(...),
+    doc_store=PostgresDocStore(...),
+    atom_store=PostgresAtomStore(...),
+    embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
+)
+
+# Provide atomizer and generator when creating ingestor
+ingestor = iso.ingestor(
+    atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
+    generator=LiteLLMGenerator(model="openai/gpt-4o"),
+)
+```
+
+### Path 3: Local Stores with Custom Embedder
+
+Mix local stores with custom embedder:
+
+```python
+from isotopedb import Isotope
+from my_company.embedder import BedrockEmbedder
+
+iso = Isotope.with_local_stores(
+    embedder=BedrockEmbedder(model="amazon.titan-embed-text-v1"),
+    atomizer=my_atomizer,
+    generator=my_generator,
+    data_dir="./isotope_data",
+)
+```
+
+## CLI Configuration
+
+The CLI uses a config file (`isotope.yaml`) for provider configuration.
+
+### Creating a Config File
+
+```bash
+# Create config for LiteLLM
+isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+
+# Or create manually
+```
+
+### Config File Format
+
+```yaml
+# isotope.yaml
+
+# LiteLLM provider
+provider: litellm
+llm_model: openai/gpt-4o
+embedding_model: openai/text-embedding-3-small
+
+# Optional settings
+data_dir: ./isotope_data
+use_sentence_atomizer: false
+```
+
+### Custom Provider
+
+```yaml
+# isotope.yaml
+
+provider: custom
+
+# Python import paths for your classes
+embedder: my_package.BedrockEmbedder
+generator: my_package.BedrockGenerator
+atomizer: my_package.BedrockAtomizer
+
+# Optional kwargs for each class
+embedder_kwargs:
+  region: us-east-1
+generator_kwargs:
+  temperature: 0.7
+atomizer_kwargs: {}
+```
+
+### Environment Variable Override
+
+For LiteLLM, you can also use environment variables:
+
+```bash
+export ISOTOPE_LITELLM_LLM_MODEL=openai/gpt-4o
+export ISOTOPE_LITELLM_EMBEDDING_MODEL=openai/text-embedding-3-small
+```
+
+## Behavioral Settings (Environment Variables)
+
+These settings apply regardless of which provider you use. Configure via environment variables with the `ISOTOPE_` prefix.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ISOTOPE_LLM_MODEL` | `gemini/gemini-3-flash-preview` | LLM for question generation |
-| `ISOTOPE_EMBEDDING_MODEL` | `gemini/text-embedding-004` | Embedding model |
-| `ISOTOPE_ATOMIZER` | `sentence` | Atomization strategy: `sentence` or `llm` |
 | `ISOTOPE_QUESTIONS_PER_ATOM` | `15` | Questions to generate per atom |
 | `ISOTOPE_QUESTION_PROMPT` | (default prompt) | Custom prompt template |
 | `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` | `0.85` | Similarity threshold for dedup (empty = disable) |
-| `ISOTOPE_DATA_DIR` | `./isotope_data` | Storage directory |
-| `ISOTOPE_VECTOR_STORE` | `chroma` | Vector store backend |
-| `ISOTOPE_DOC_STORE` | `sqlite` | Document store backend |
+| `ISOTOPE_DIVERSITY_SCOPE` | `global` | Scope for diversity filter: `global`, `per_chunk`, `per_atom` |
 | `ISOTOPE_DEDUP_STRATEGY` | `source_aware` | Re-ingestion strategy: `none` or `source_aware` |
 | `ISOTOPE_DEFAULT_K` | `5` | Default number of results to return |
-
-## Programmatic Configuration
-
-```python
-from isotopedb import Settings
-
-# Create custom settings
-settings = Settings(
-    llm_model="openai/gpt-4",
-    embedding_model="openai/text-embedding-3-small",
-    atomizer="llm",
-    questions_per_atom=10,
-    question_diversity_threshold=0.9,
-)
-```
 
 ## Provider API Keys
 
 IsotopeDB uses [LiteLLM](https://docs.litellm.ai/) for LLM and embedding calls. Set the appropriate API key for your provider:
 
-### Gemini (default)
+### OpenAI
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+```python
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
+    embedding_model="openai/text-embedding-3-small",
+)
+```
+
+### Gemini
 
 ```bash
 export GOOGLE_API_KEY="your-gemini-api-key"
 ```
 
-### OpenAI
-
-```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export ISOTOPE_LLM_MODEL="openai/gpt-4"
-export ISOTOPE_EMBEDDING_MODEL="openai/text-embedding-3-small"
+```python
+iso = Isotope.with_litellm(
+    llm_model="gemini/gemini-2.0-flash",
+    embedding_model="gemini/text-embedding-004",
+)
 ```
 
 ### Anthropic
 
 ```bash
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
-export ISOTOPE_LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"
-# Note: Anthropic doesn't provide embeddings, use a different provider
+```
+
+```python
+iso = Isotope.with_litellm(
+    llm_model="anthropic/claude-sonnet-4-5-20250929",
+    embedding_model="openai/text-embedding-3-small",  # Anthropic doesn't provide embeddings
+)
 ```
 
 ### Azure OpenAI
@@ -65,66 +223,31 @@ export ISOTOPE_LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"
 export AZURE_API_KEY="your-azure-api-key"
 export AZURE_API_BASE="https://your-resource.openai.azure.com"
 export AZURE_API_VERSION="2024-02-15-preview"
-export ISOTOPE_LLM_MODEL="azure/your-deployment-name"
+```
+
+```python
+iso = Isotope.with_litellm(
+    llm_model="azure/your-deployment-name",
+    embedding_model="azure/your-embedding-deployment",
+)
 ```
 
 See the [LiteLLM provider list](https://docs.litellm.ai/docs/providers) for more options.
 
-## Example .env File
+## Imports
 
-```bash
-# Provider keys
-GOOGLE_API_KEY=your-gemini-api-key
+LiteLLM-specific classes are in the `isotopedb.litellm` module:
 
-# LLM settings
-ISOTOPE_LLM_MODEL=gemini/gemini-3-flash-preview
-ISOTOPE_EMBEDDING_MODEL=gemini/text-embedding-004
+```python
+# LiteLLM implementations
+from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+from isotopedb.litellm import ChatModels, EmbeddingModels
 
-# Atomization
-ISOTOPE_ATOMIZER=sentence
-ISOTOPE_QUESTIONS_PER_ATOM=15
-
-# Question diversity (set empty to disable)
-ISOTOPE_QUESTION_DIVERSITY_THRESHOLD=0.85
-
-# Storage
-ISOTOPE_DATA_DIR=./isotope_data
-
-# Re-ingestion
-ISOTOPE_DEDUP_STRATEGY=source_aware
+# Abstract base classes (for custom implementations)
+from isotopedb import Embedder, QuestionGenerator, Atomizer
 ```
 
 ## Configuration Details
-
-### LLM Model
-
-The `llm_model` setting uses LiteLLM format: `provider/model-name`.
-
-Examples:
-- `gemini/gemini-3-flash-preview` (default, fast and cheap)
-- `openai/gpt-4` (high quality)
-- `anthropic/claude-sonnet-4-5-20250929` (balanced)
-- `anthropic/claude-haiku-4-5-20251001` (fast)
-
-### Embedding Model
-
-The `embedding_model` setting also uses LiteLLM format.
-
-Examples:
-- `gemini/text-embedding-004` (default, 768 dimensions)
-- `openai/text-embedding-3-small` (1536 dimensions)
-- `openai/text-embedding-3-large` (3072 dimensions)
-
-### Atomizer
-
-Choose between two atomization strategies:
-
-| Value | Strategy | Best For |
-|-------|----------|----------|
-| `sentence` | Split by sentence (pysbd) | Structured docs, speed |
-| `llm` | LLM extraction | Semantic extraction, accuracy |
-
-See [Atomization Guide](./atomization.md) for detailed comparison.
 
 ### Question Diversity Threshold
 
@@ -154,8 +277,6 @@ Controls how diversity filtering is applied during question generation:
 
 **Programmatic configuration**:
 ```python
-from isotopedb import Isotope
-
 # Default: global filtering (best quality, slower for large corpora)
 ingestor = iso.ingestor()
 
@@ -165,42 +286,6 @@ ingestor = iso.ingestor(diversity_scope="per_chunk")
 # Maximum speed: filter within atoms only (~1000x faster)
 ingestor = iso.ingestor(diversity_scope="per_atom")
 ```
-
-**How it works**:
-- `global`: Compares every question against every other question (paper-validated)
-- `per_chunk`: Groups questions by chunk_id, filters each group separately
-- `per_atom`: Groups questions by atom_id, filters each group separately
-
-With `per_chunk` or `per_atom`, duplicate questions may remain if they come from different groups. Global filtering catches all duplicates but requires more comparisons.
-
-### Question Generation Concurrency
-
-Controls how many LLM calls can run concurrently during question generation:
-
-**Default**: `1` (sequential, same as current behavior)
-
-**When to increase**:
-- You want faster ingestion and can handle concurrent LLM API calls
-- Your LLM provider supports high rate limits
-- You're ingesting large documents with many atoms
-
-**Programmatic configuration**:
-```python
-from isotopedb import Isotope
-
-# Default: sequential generation (current behavior)
-ingestor = iso.ingestor()
-
-# Concurrent generation: 5 LLM calls at once
-ingestor = iso.ingestor(max_concurrent_generations=5)
-
-# Maximum concurrency (be mindful of rate limits)
-ingestor = iso.ingestor(max_concurrent_generations=10)
-```
-
-**Note**: This setting only affects *concurrency*, not the quality of question generation. Each atom still gets its own LLM call with full chunk context (research-validated approach). Higher values mean faster ingestion at the same cost, but may hit API rate limits.
-
-**Implementation**: Uses `asyncio.Semaphore` to limit concurrent `litellm.acompletion()` calls.
 
 ### Deduplication Strategy
 
@@ -214,15 +299,31 @@ Controls what happens when you re-ingest documents:
 ## Accessing Settings in Code
 
 ```python
-from isotopedb import Settings
+from isotopedb.config import Settings
 
-# Load from environment
+# Load behavioral settings from environment
 settings = Settings()
 
 # Access values
-print(settings.llm_model)
-print(settings.embedding_model)
-print(settings.atomizer)
+print(settings.questions_per_atom)
+print(settings.question_diversity_threshold)
+print(settings.diversity_scope)
+print(settings.dedup_strategy)
+print(settings.default_k)
 ```
 
-Settings are validated on construction. Invalid values raise `ValidationError`.
+## Example .env File
+
+```bash
+# Provider API key
+OPENAI_API_KEY=your-openai-api-key
+
+# Behavioral settings (all optional, shown with defaults)
+ISOTOPE_QUESTIONS_PER_ATOM=15
+ISOTOPE_QUESTION_DIVERSITY_THRESHOLD=0.85
+ISOTOPE_DIVERSITY_SCOPE=global
+ISOTOPE_DEDUP_STRATEGY=source_aware
+ISOTOPE_DEFAULT_K=5
+```
+
+Note: LLM and embedding model configuration is now done via the `Isotope.with_litellm()` call or `isotope.yaml` config file, not environment variables.

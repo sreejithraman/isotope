@@ -6,8 +6,8 @@ import pytest
 
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
-from isotopedb.embedder import LiteLLMEmbedder
-from isotopedb.generator import DiversityFilter, LiteLLMQuestionGenerator
+from isotopedb.generator import DiversityFilter
+from isotopedb.litellm import LiteLLMEmbedder, LiteLLMQuestionGenerator
 from isotopedb.ingestor import Ingestor
 from isotopedb.models import Chunk
 
@@ -41,8 +41,8 @@ class TestIngestorInit:
 
 class TestIngestChunks:
     @pytest.mark.mock_integration
-    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
-    @patch("isotopedb.generator.question_generator.litellm.completion")
+    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.litellm.generator.litellm.completion")
     def test_ingest_single_chunk(self, mock_completion, mock_embedding, stores):
         # Setup mocks
         mock_completion.return_value = MagicMock(
@@ -83,8 +83,8 @@ class TestIngestChunks:
         assert result["chunks"] == 1
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
-    @patch("isotopedb.generator.question_generator.litellm.completion")
+    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.litellm.generator.litellm.completion")
     def test_ingest_with_deduplication(self, mock_completion, mock_embedding, stores):
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
@@ -118,8 +118,8 @@ class TestIngestChunks:
         assert result["chunks_removed"] == 1
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
-    @patch("isotopedb.generator.question_generator.litellm.completion")
+    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.litellm.generator.litellm.completion")
     def test_ingest_empty_list(self, mock_completion, mock_embedding, stores):
         ingestor = Ingestor(
             vector_store=stores["vector_store"],
@@ -139,8 +139,8 @@ class TestIngestChunks:
 
 class TestIngestorProgress:
     @pytest.mark.mock_integration
-    @patch("isotopedb.embedder.litellm_embedder.litellm.embedding")
-    @patch("isotopedb.generator.question_generator.litellm.completion")
+    @patch("isotopedb.litellm.embedder.litellm.embedding")
+    @patch("isotopedb.litellm.generator.litellm.completion")
     def test_progress_callback_called(self, mock_completion, mock_embedding, stores):
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]

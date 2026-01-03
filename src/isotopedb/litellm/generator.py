@@ -1,4 +1,4 @@
-# src/isotopedb/generator/question_generator.py
+# src/isotopedb/litellm/generator.py
 """LiteLLM-based question generator implementation."""
 
 import json
@@ -7,7 +7,7 @@ import re
 import litellm
 
 from isotopedb.generator.base import QuestionGenerator
-from isotopedb.llm_models import ChatModels
+from isotopedb.litellm.models import ChatModels
 from isotopedb.models import Atom, Question
 
 DEFAULT_PROMPT = """Generate {num_questions} diverse questions that this atomic fact answers.
@@ -31,13 +31,20 @@ Example output:
 Return ONLY the JSON array, no other text."""
 
 
-class LiteLLMQuestionGenerator(QuestionGenerator):
+class LiteLLMGenerator(QuestionGenerator):
     """LiteLLM-based question generator.
 
     Generates synthetic questions from atoms using an LLM via LiteLLM.
     This is the core of the reverse-RAG approach: instead of embedding
     the content, we generate questions that the content answers, then
     embed those questions.
+
+    Example:
+        from isotopedb.litellm import LiteLLMGenerator, ChatModels
+
+        generator = LiteLLMGenerator(model=ChatModels.GEMINI_3_FLASH)
+        # or
+        generator = LiteLLMGenerator(model="openai/gpt-4o")
     """
 
     def __init__(
@@ -153,29 +160,6 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
         response_text = response.choices[0].message.content
         return self._parse_response(response_text, atom)
 
-    async def agenerate(
-        self,
-        atom: Atom,
-        chunk_content: str = "",
-    ) -> list[Question]:
-        """Async version of generate for concurrent question generation.
-
-        Uses litellm.acompletion() for async LLM calls, enabling concurrent
-        processing of multiple atoms when used with asyncio.gather().
-
-        Args:
-            atom: The atom to generate questions for
-            chunk_content: Optional context from the parent chunk
-
-        Returns:
-            List of Question objects
-        """
-        prompt = self._build_prompt(atom, chunk_content)
-        completion_kwargs = self._build_completion_kwargs(prompt)
-        response = await litellm.acompletion(**completion_kwargs)
-        response_text = response.choices[0].message.content
-        return self._parse_response(response_text, atom)
-
     def generate_batch(
         self,
         atoms: list[Atom],
@@ -195,3 +179,7 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
             questions = self.generate(atom, chunk_content)
             all_questions.extend(questions)
         return all_questions
+
+
+# Backwards compatibility alias
+LiteLLMQuestionGenerator = LiteLLMGenerator

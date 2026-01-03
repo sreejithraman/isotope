@@ -1,4 +1,4 @@
-# src/isotopedb/embedder/litellm_embedder.py
+# src/isotopedb/litellm/embedder.py
 """LiteLLM-based embedder implementation."""
 
 import litellm
@@ -12,6 +12,13 @@ class LiteLLMEmbedder(Embedder):
 
     Converts Questions into EmbeddedQuestions by adding embedding vectors.
     Uses LiteLLM to support multiple embedding providers.
+
+    Example:
+        from isotopedb.litellm import LiteLLMEmbedder, EmbeddingModels
+
+        embedder = LiteLLMEmbedder(model=EmbeddingModels.TEXT_3_SMALL)
+        # or
+        embedder = LiteLLMEmbedder(model="openai/text-embedding-3-small")
     """
 
     def __init__(self, model: str = "gemini/text-embedding-004") -> None:

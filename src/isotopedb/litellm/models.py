@@ -1,21 +1,22 @@
-# src/isotopedb/llm_models.py
-"""Curated LLM model constants for IDE autocomplete.
+# src/isotopedb/litellm/models.py
+"""Curated LLM model constants for LiteLLM provider.
 
-These are convenience constants - you can always pass any model string directly.
+These are convenience constants for IDE autocomplete when using LiteLLM.
+You can always pass any valid LiteLLM model string directly.
 
 Example:
-    from isotopedb import LLMAtomizer, ChatModels
+    from isotopedb.litellm import LiteLLMAtomizer, ChatModels
 
     # Using constants (IDE autocomplete works)
-    atomizer = LLMAtomizer(model=ChatModels.CLAUDE_SONNET_45)
+    atomizer = LiteLLMAtomizer(model=ChatModels.CLAUDE_SONNET_45)
 
     # Custom models still work
-    atomizer = LLMAtomizer(model="my-custom/model")
+    atomizer = LiteLLMAtomizer(model="my-custom/model")
 """
 
 
 class ChatModels:
-    """Chat/completion models for LLMAtomizer and QuestionGenerator."""
+    """Chat/completion models for LiteLLMAtomizer and LiteLLMGenerator."""
 
     # OpenAI - GPT 5 Series
     GPT_52 = "openai/gpt-5.2"
@@ -46,7 +47,7 @@ class ChatModels:
 
 
 class EmbeddingModels:
-    """Embedding models for Embedder."""
+    """Embedding models for LiteLLMEmbedder."""
 
     # OpenAI
     TEXT_3_SMALL = "openai/text-embedding-3-small"

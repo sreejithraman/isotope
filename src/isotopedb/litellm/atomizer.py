@@ -1,4 +1,4 @@
-# src/isotopedb/atomizer/llm.py
+# src/isotopedb/litellm/atomizer.py
 """LiteLLM-based atomizer implementation."""
 
 import json
@@ -7,7 +7,7 @@ import re
 import litellm
 
 from isotopedb.atomizer.base import Atomizer
-from isotopedb.llm_models import ChatModels
+from isotopedb.litellm.models import ChatModels
 from isotopedb.models import Atom, Chunk
 
 DEFAULT_PROMPT = """Please breakdown the following paragraph into stand-alone atomic facts.
@@ -32,6 +32,13 @@ class LiteLLMAtomizer(Atomizer):
 
     This is the "unstructured" atomization approach from the paper.
     Uses an LLM via LiteLLM to extract semantic atomic statements from the chunk.
+
+    Example:
+        from isotopedb.litellm import LiteLLMAtomizer, ChatModels
+
+        atomizer = LiteLLMAtomizer(model=ChatModels.GEMINI_3_FLASH)
+        # or
+        atomizer = LiteLLMAtomizer(model="openai/gpt-4o")
     """
 
     def __init__(

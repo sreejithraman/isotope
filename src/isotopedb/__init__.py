@@ -1,43 +1,39 @@
-"""Isotope - Reverse RAG database.
+"""IsotopeDB - Reverse RAG database.
 
 A question-based retrieval system using atomic units for enterprise RAG.
 Aligns with arXiv:2405.12363.
+
+Quick Start (LiteLLM):
+    from isotopedb import Isotope
+
+    iso = Isotope.with_litellm(
+        llm_model="openai/gpt-4o",
+        embedding_model="openai/text-embedding-3-small",
+    )
+
+    # Ingest documents
+    ingestor = iso.ingestor()
+    ingestor.ingest_file("document.pdf")
+
+    # Query
+    retriever = iso.retriever()
+    response = retriever.get_answer("What is...?")
+
+Custom Implementations:
+    from isotopedb import Isotope, Embedder, QuestionGenerator, Atomizer
+    from isotopedb.litellm import LiteLLMEmbedder  # Or your own implementation
+
+    iso = Isotope(
+        vector_store=my_vector_store,
+        doc_store=my_doc_store,
+        atom_store=my_atom_store,
+        embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
+    )
 """
 
 __version__ = "0.1.0"
 
 # Core models
-# Atomization
-from isotopedb.atomizer import Atomizer, LiteLLMAtomizer, LLMAtomizer, SentenceAtomizer
-
-# Configuration
-from isotopedb.config import Settings
-
-# Deduplication
-from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
-
-# Embedding
-from isotopedb.embedder import Embedder, LiteLLMEmbedder
-
-# Question generation
-from isotopedb.generator import (
-    DiversityFilter,
-    FilterScope,
-    LiteLLMQuestionGenerator,
-    QuestionGenerator,
-)
-
-# Pipelines
-from isotopedb.ingestor import Ingestor
-
-# Central configuration
-from isotopedb.isotope import Isotope
-
-# LLM model constants
-from isotopedb.llm_models import ChatModels, EmbeddingModels
-
-# File loading
-from isotopedb.loaders import Loader, LoaderRegistry, TextLoader
 from isotopedb.models import (
     Atom,
     Chunk,
@@ -46,7 +42,15 @@ from isotopedb.models import (
     Question,
     SearchResult,
 )
-from isotopedb.retriever import Retriever
+
+# Abstract base classes
+from isotopedb.atomizer import Atomizer, SentenceAtomizer
+from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
+from isotopedb.embedder import Embedder
+from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
+
+# Configuration
+from isotopedb.config import Settings
 
 # Storage ABCs
 from isotopedb.stores import (
@@ -57,6 +61,16 @@ from isotopedb.stores import (
     SQLiteDocStore,
     VectorStore,
 )
+
+# Pipelines
+from isotopedb.ingestor import Ingestor
+from isotopedb.retriever import Retriever
+
+# Central configuration
+from isotopedb.isotope import Isotope
+
+# File loading
+from isotopedb.loaders import Loader, LoaderRegistry, TextLoader
 
 __all__ = [
     # Version
@@ -70,33 +84,26 @@ __all__ = [
     "SearchResult",
     # Config
     "Settings",
-    # Storage
+    # Storage ABCs
     "AtomStore",
     "ChromaVectorStore",
     "DocStore",
     "SQLiteAtomStore",
     "SQLiteDocStore",
     "VectorStore",
-    # Atomization
+    # Atomization ABCs
     "Atomizer",
-    "LiteLLMAtomizer",
-    "LLMAtomizer",  # Backwards compatibility alias
     "SentenceAtomizer",
     # Deduplication
     "Deduplicator",
     "NoDedup",
     "SourceAwareDedup",
-    # Embedding
+    # Embedding ABC
     "Embedder",
-    "LiteLLMEmbedder",
-    # Question generation
+    # Question generation ABC
     "DiversityFilter",
     "FilterScope",
-    "LiteLLMQuestionGenerator",
     "QuestionGenerator",
-    # LLM model constants
-    "ChatModels",
-    "EmbeddingModels",
     # Pipelines
     "Ingestor",
     "Retriever",

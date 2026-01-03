@@ -34,9 +34,9 @@ class TestConfigCommand:
     def test_config_shows_settings(self, runner):
         result = runner.invoke(app, ["config"])
         assert result.exit_code == 0
-        assert "llm_model" in result.output
-        assert "embedding_model" in result.output
-        assert "data_dir" in result.output
+        assert "questions_per_atom" in result.output
+        assert "diversity_scope" in result.output
+        assert "dedup_strategy" in result.output
 
 
 class TestIngestCommand:
