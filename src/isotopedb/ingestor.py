@@ -188,9 +188,7 @@ class Ingestor:
         progress("generating", 0, len(all_atoms), "Generating questions...")
         if self.max_concurrent_generations > 1:
             # Use concurrent generation with async LLM calls
-            all_questions = asyncio.run(
-                self._generate_questions_concurrent(all_atoms, on_progress)
-            )
+            all_questions = asyncio.run(self._generate_questions_concurrent(all_atoms, on_progress))
         else:
             # Sequential generation (default, research-validated behavior)
             all_questions = []
