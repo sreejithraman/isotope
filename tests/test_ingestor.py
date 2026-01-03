@@ -7,10 +7,10 @@ import pytest
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
 from isotopedb.embedder import ClientEmbedder
-from isotopedb.generator import ClientQuestionGenerator, DiversityFilter
 from isotopedb.ingestor import Ingestor
 from isotopedb.models import Chunk
 from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotopedb.question_generator import ClientQuestionGenerator, DiversityFilter
 
 
 class TestIngestorInit:
@@ -21,7 +21,7 @@ class TestIngestorInit:
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
         assert ingestor is not None
@@ -33,7 +33,7 @@ class TestIngestorInit:
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
             diversity_filter=DiversityFilter(threshold=0.85),
         )
@@ -63,7 +63,7 @@ class TestIngestChunks:
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
 
@@ -100,7 +100,7 @@ class TestIngestChunks:
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=SourceAwareDedup(),
         )
 
@@ -128,7 +128,7 @@ class TestIngestChunks:
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
 
@@ -164,7 +164,7 @@ class TestIngestorProgress:
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
             deduplicator=NoDedup(),
         )
 

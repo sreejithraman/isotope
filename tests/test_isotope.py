@@ -22,7 +22,7 @@ class TestIsotopeInit:
             atom_store=atom_store,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
 
         assert iso.vector_store is vector_store
@@ -30,7 +30,7 @@ class TestIsotopeInit:
         assert iso.atom_store is atom_store
         assert iso.embedder is mock_embedder
         assert iso._atomizer is mock_atomizer
-        assert iso._generator is mock_generator
+        assert iso._question_generator is mock_generator
 
     def test_with_local_stores_creates_all(
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator
@@ -40,7 +40,7 @@ class TestIsotopeInit:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
 
         assert isinstance(iso.vector_store, ChromaVectorStore)
@@ -48,7 +48,7 @@ class TestIsotopeInit:
         assert isinstance(iso.atom_store, SQLiteAtomStore)
         assert iso.embedder is mock_embedder
         assert iso._atomizer is mock_atomizer
-        assert iso._generator is mock_generator
+        assert iso._question_generator is mock_generator
 
     def test_with_local_stores_creates_directory(
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator
@@ -60,7 +60,7 @@ class TestIsotopeInit:
             data_dir=new_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
 
         assert os.path.isdir(new_dir)
@@ -144,7 +144,7 @@ class TestIsotopeRetriever:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         retriever = iso.retriever()
 
@@ -164,7 +164,7 @@ class TestIsotopeRetriever:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         retriever = iso.retriever()
 
@@ -176,7 +176,7 @@ class TestIsotopeRetriever:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         retriever = iso.retriever(default_k=20)
 
@@ -190,7 +190,7 @@ class TestIsotopeRetriever:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         retriever = iso.retriever(llm_model="custom/model")
 
@@ -204,7 +204,7 @@ class TestIsotopeRetriever:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         retriever = iso.retriever()
 
@@ -218,7 +218,7 @@ class TestIsotopeRetriever:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         custom_prompt = "Custom prompt: {context}\n{query}"
         retriever = iso.retriever(synthesis_prompt=custom_prompt)
@@ -237,7 +237,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -255,25 +255,25 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
         assert ingestor.atomizer is mock_atomizer
 
-    def test_ingestor_uses_init_generator(
+    def test_ingestor_uses_init_question_generator(
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator
     ):
-        """Test that ingestor uses generator from Isotope init."""
+        """Test that ingestor uses question_generator from Isotope init."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
-        assert ingestor.generator is mock_generator
+        assert ingestor.question_generator is mock_generator
 
     def test_ingestor_uses_env_dedup(
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
@@ -287,7 +287,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -305,7 +305,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -315,7 +315,7 @@ class TestIsotopeIngestor:
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
     ):
         """Test that ingestor creates diversity filter from env var."""
-        from isotopedb.generator import DiversityFilter
+        from isotopedb.question_generator import DiversityFilter
 
         monkeypatch.setenv("ISOTOPE_QUESTION_DIVERSITY_THRESHOLD", "0.9")
 
@@ -323,7 +323,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -334,13 +334,13 @@ class TestIsotopeIngestor:
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator
     ):
         """Test that ingestor has diversity filter by default (threshold=0.85)."""
-        from isotopedb.generator import DiversityFilter
+        from isotopedb.question_generator import DiversityFilter
 
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -358,7 +358,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -374,7 +374,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor(use_diversity_filter=False)
 
@@ -390,7 +390,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor()
 
@@ -406,7 +406,7 @@ class TestIsotopeIngestor:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
         ingestor = iso.ingestor(diversity_scope="per_atom")
 
@@ -422,7 +422,7 @@ class TestIsotopeSharedStores:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
 
         retriever = iso.retriever()
@@ -442,7 +442,7 @@ class TestIsotopeSharedStores:
             data_dir=temp_dir,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
-            generator=mock_generator,
+            question_generator=mock_generator,
         )
 
         r1 = iso.retriever()

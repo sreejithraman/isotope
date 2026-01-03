@@ -1,10 +1,10 @@
-# tests/generator/test_diversity_filter.py
+# tests/question_generator/test_diversity_filter.py
 """Tests for the DiversityFilter."""
 
 import pytest
 
-from isotopedb.generator import DiversityFilter
 from isotopedb.models import EmbeddedQuestion, Question
+from isotopedb.question_generator import DiversityFilter
 
 
 def make_eq(

@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from isotopedb.atomizer import Atomizer
     from isotopedb.dedup import Deduplicator
     from isotopedb.embedder import Embedder
-    from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
     from isotopedb.ingestor import Ingestor
+    from isotopedb.question_generator import DiversityFilter, FilterScope, QuestionGenerator
     from isotopedb.retriever import Retriever
     from isotopedb.stores import AtomStore, DocStore, VectorStore
 
@@ -48,7 +48,7 @@ class Isotope:
             atom_store=my_atom_store,
             embedder=LiteClientEmbedder(model="openai/text-embedding-3-small"),
             atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-            generator=LiteLLMGenerator(model="openai/gpt-4o"),
+            question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
         )
         ingestor = iso.ingestor()  # All components configured at init
     """
@@ -61,7 +61,7 @@ class Isotope:
         atom_store: AtomStore,
         embedder: Embedder,
         atomizer: Atomizer,
-        generator: QuestionGenerator,
+        question_generator: QuestionGenerator,
     ) -> None:
         """Create an Isotope instance.
 
@@ -71,7 +71,7 @@ class Isotope:
             atom_store: Atom store for atomic statements (required)
             embedder: Embedder for creating embeddings (required)
             atomizer: Atomizer for breaking chunks into atoms (required)
-            generator: Question generator for creating synthetic questions (required)
+            question_generator: Question generator for creating synthetic questions (required)
         """
         # Load behavioral settings from env vars
         self._settings = Settings()
@@ -84,7 +84,7 @@ class Isotope:
 
         # Required components for ingestor
         self._atomizer = atomizer
-        self._generator = generator
+        self._question_generator = question_generator
 
     @classmethod
     def with_litellm(
@@ -120,8 +120,8 @@ class Isotope:
         """
         from isotopedb.atomizer import LLMAtomizer, SentenceAtomizer
         from isotopedb.embedder import ClientEmbedder
-        from isotopedb.generator import ClientQuestionGenerator
         from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+        from isotopedb.question_generator import ClientQuestionGenerator
         from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
 
         # Create local stores
@@ -139,10 +139,10 @@ class Isotope:
 
         # Create components with injected clients
         embedder = ClientEmbedder(embedding_client=embedding_client)
-        generator = ClientQuestionGenerator(
+        question_generator = ClientQuestionGenerator(
             llm_client=llm_client,
             num_questions=settings.questions_per_atom,
-            prompt_template=settings.question_prompt,
+            prompt_template=settings.question_generator_prompt,
         )
 
         if use_sentence_atomizer:
@@ -156,7 +156,7 @@ class Isotope:
             atom_store=atom_store,
             embedder=embedder,
             atomizer=atomizer,
-            generator=generator,
+            question_generator=question_generator,
         )
 
     @classmethod
@@ -165,18 +165,18 @@ class Isotope:
         *,
         embedder: Embedder,
         atomizer: Atomizer,
-        generator: QuestionGenerator,
+        question_generator: QuestionGenerator,
         data_dir: str = "./isotope_data",
     ) -> Isotope:
         """Create Isotope with local stores (Chroma + SQLite).
 
-        Use this when you want to bring your own embedder/atomizer/generator
+        Use this when you want to bring your own embedder/atomizer/question_generator
         but use local stores for development.
 
         Args:
             embedder: Embedder implementation (required)
             atomizer: Atomizer implementation (required)
-            generator: Question generator implementation (required)
+            question_generator: Question generator implementation (required)
             data_dir: Base directory for all stores.
 
         Returns:
@@ -192,7 +192,7 @@ class Isotope:
             atom_store=SQLiteAtomStore(os.path.join(data_dir, "atoms.db")),
             embedder=embedder,
             atomizer=atomizer,
-            generator=generator,
+            question_generator=question_generator,
         )
 
     def _create_deduplicator(self) -> Deduplicator:
@@ -209,7 +209,7 @@ class Isotope:
     def _create_diversity_filter(self) -> DiversityFilter | None:
         """Create diversity filter if threshold is set."""
         if self._settings.question_diversity_threshold is not None:
-            from isotopedb.generator import DiversityFilter
+            from isotopedb.question_generator import DiversityFilter
 
             return DiversityFilter(threshold=self._settings.question_diversity_threshold)
         return None
@@ -292,7 +292,7 @@ class Isotope:
             atom_store=self.atom_store,
             atomizer=self._atomizer,
             embedder=self.embedder,
-            generator=self._generator,
+            question_generator=self._question_generator,
             deduplicator=effective_deduplicator,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,

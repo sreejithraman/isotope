@@ -253,7 +253,7 @@ atom_store = SQLiteAtomStore("./data/atoms.db")
 # Create components
 atomizer = SentenceAtomizer()
 embedder = LiteLLMEmbedder(model="gemini/text-embedding-004")
-generator = LiteLLMQuestionGenerator(model="gemini/gemini-3-flash-preview", num_questions=10)
+question_generator = LiteLLMQuestionGenerator(model="gemini/gemini-3-flash-preview", num_questions=10)
 diversity_filter = DiversityFilter(threshold=0.85)
 
 # Load content
@@ -263,7 +263,7 @@ chunk = Chunk(content="Python was created by Guido van Rossum.", source="wiki")
 atoms = atomizer.atomize(chunk)
 
 # Generate questions
-questions = generator.generate_batch(atoms)
+questions = question_generator.generate_batch(atoms)
 
 # Embed
 embedded = embedder.embed_questions(questions)

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Question generation
     questions_per_atom: int = 15
-    question_prompt: str | None = None
+    question_generator_prompt: str | None = None
 
     # Atomization
     atomizer_prompt: str | None = None

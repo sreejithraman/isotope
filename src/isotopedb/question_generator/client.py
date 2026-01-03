@@ -1,12 +1,12 @@
-# src/isotopedb/generator/client.py
+# src/isotopedb/question_generator/client.py
 """Client-based question generator implementation."""
 
 import json
 import re
 
-from isotopedb.generator.base import QuestionGenerator
 from isotopedb.models import Atom, Question
 from isotopedb.providers.base import LLMClient
+from isotopedb.question_generator.base import QuestionGenerator
 
 DEFAULT_PROMPT = """Generate {num_questions} diverse questions that this atomic fact answers.
 The questions should be natural queries a user might ask when searching for this information.
@@ -34,7 +34,7 @@ class ClientQuestionGenerator(QuestionGenerator):
 
     Example:
         from isotopedb.providers.litellm import LiteLLMClient
-        from isotopedb.generator import ClientQuestionGenerator
+        from isotopedb.question_generator import ClientQuestionGenerator
 
         client = LiteLLMClient(model="openai/gpt-4o")
         generator = ClientQuestionGenerator(llm_client=client)

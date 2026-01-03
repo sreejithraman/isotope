@@ -30,7 +30,7 @@ Custom Implementations:
         atom_store=my_atom_store,
         embedder=LiteClientEmbedder(model="openai/text-embedding-3-small"),
         atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-        generator=LiteLLMGenerator(model="openai/gpt-4o"),
+        question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
     )
     ingestor = iso.ingestor()  # All components configured at init
 """
@@ -45,7 +45,6 @@ from isotopedb.atomizer import Atomizer, SentenceAtomizer
 from isotopedb.config import Settings
 from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
 from isotopedb.embedder import Embedder
-from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
 
 # Pipelines
 from isotopedb.ingestor import Ingestor
@@ -66,6 +65,7 @@ from isotopedb.models import (
 
 # Provider ABCs
 from isotopedb.providers import EmbeddingClient, LLMClient
+from isotopedb.question_generator import DiversityFilter, FilterScope, QuestionGenerator
 from isotopedb.retriever import Retriever
 
 # Storage ABCs

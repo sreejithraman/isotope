@@ -5,8 +5,8 @@ from collections.abc import Callable
 from isotopedb.atomizer import Atomizer
 from isotopedb.dedup import Deduplicator
 from isotopedb.embedder import Embedder
-from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
 from isotopedb.models import Chunk, EmbeddedQuestion
+from isotopedb.question_generator import DiversityFilter, FilterScope, QuestionGenerator
 from isotopedb.stores import AtomStore, DocStore, VectorStore
 
 ProgressCallback = Callable[[str, int, int, str], None]
@@ -33,7 +33,7 @@ class Ingestor:
         atom_store: AtomStore,
         atomizer: Atomizer,
         embedder: Embedder,
-        generator: QuestionGenerator,
+        question_generator: QuestionGenerator,
         deduplicator: Deduplicator,
         diversity_filter: DiversityFilter | None = None,
         diversity_scope: FilterScope = "global",
@@ -46,7 +46,7 @@ class Ingestor:
             atom_store: Store for atomic statements
             atomizer: Component to split chunks into atoms
             embedder: Component to embed questions
-            generator: Component to generate questions from atoms
+            question_generator: Component to generate questions from atoms
             deduplicator: Component to handle chunk deduplication
             diversity_filter: Optional filter to remove duplicate questions
             diversity_scope: Scope for diversity filtering. Options:
@@ -59,7 +59,7 @@ class Ingestor:
         self.atom_store = atom_store
         self.atomizer = atomizer
         self.embedder = embedder
-        self.generator = generator
+        self.question_generator = question_generator
         self.deduplicator = deduplicator
         self.diversity_filter = diversity_filter
         self.diversity_scope = diversity_scope
@@ -131,7 +131,7 @@ class Ingestor:
         all_questions = []
         for i, atom in enumerate(all_atoms):
             chunk_content = chunk_content_map.get(atom.chunk_id, "")
-            questions = self.generator.generate(atom, chunk_content)
+            questions = self.question_generator.generate(atom, chunk_content)
             all_questions.extend(questions)
             progress(
                 "generating",

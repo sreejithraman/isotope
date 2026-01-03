@@ -1,4 +1,4 @@
-# tests/generator/test_question_generator.py
+# tests/question_generator/test_question_generator.py
 """Tests for the ClientQuestionGenerator."""
 
 import json
@@ -8,9 +8,9 @@ import pytest
 
 pytest.importorskip("litellm", reason="Tests require litellm package")
 
-from isotopedb.generator import ClientQuestionGenerator, QuestionGenerator
 from isotopedb.models import Atom, Question
 from isotopedb.providers.litellm import LiteLLMClient
+from isotopedb.question_generator import ClientQuestionGenerator, QuestionGenerator
 
 
 def mock_completion_response(questions: list[str]):

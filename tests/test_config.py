@@ -13,7 +13,7 @@ class TestSettings:
         assert settings.diversity_scope == "global"
         assert settings.dedup_strategy == "source_aware"
         assert settings.default_k == 5
-        assert settings.question_prompt is None
+        assert settings.question_generator_prompt is None
 
     def test_settings_from_env(self, monkeypatch):
         """Test settings loaded from environment variables."""
@@ -40,12 +40,12 @@ class TestSettings:
         settings = Settings()
         assert settings.question_diversity_threshold == 0.9
 
-    def test_custom_question_prompt(self, monkeypatch):
-        """Test custom question prompt from env var."""
+    def test_custom_question_generator_prompt(self, monkeypatch):
+        """Test custom question generator prompt from env var."""
         custom_prompt = "Generate questions about: {atom}"
-        monkeypatch.setenv("ISOTOPE_QUESTION_PROMPT", custom_prompt)
+        monkeypatch.setenv("ISOTOPE_QUESTION_GENERATOR_PROMPT", custom_prompt)
         settings = Settings()
-        assert settings.question_prompt == custom_prompt
+        assert settings.question_generator_prompt == custom_prompt
 
     def test_diversity_scope_values(self, monkeypatch):
         """Test all valid diversity_scope values."""

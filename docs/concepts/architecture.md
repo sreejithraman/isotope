@@ -148,7 +148,7 @@ Atomizers break chunks into atomic facts:
 
 See [Atomization Guide](../guides/atomization.md) for when to use each.
 
-### Question Generation (`generator/`)
+### Question Generation (`question_generator/`)
 
 | Component | Purpose |
 |-----------|---------|
@@ -249,6 +249,6 @@ iso = Isotope(
     atom_store=my_atom_store,
     embedder=my_embedder,
     atomizer=my_atomizer,
-    generator=my_generator,
+    question_generator=my_question_generator,
 )
 ```

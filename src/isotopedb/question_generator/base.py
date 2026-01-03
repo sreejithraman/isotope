@@ -1,4 +1,4 @@
-# src/isotopedb/generator/base.py
+# src/isotopedb/question_generator/base.py
 """QuestionGenerator abstract base class."""
 
 from abc import ABC, abstractmethod

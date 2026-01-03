@@ -1,4 +1,4 @@
-# src/isotopedb/generator/diversity_filter.py
+# src/isotopedb/question_generator/diversity_filter.py
 """Question diversity filtering to remove near-duplicates."""
 
 from collections import defaultdict

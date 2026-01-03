@@ -40,7 +40,7 @@ iso = Isotope(
     atom_store=MyPostgresAtomStore(...),
     embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
     atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-    generator=LiteLLMGenerator(model="openai/gpt-4o"),
+    question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
 )
 ```
 
@@ -82,7 +82,7 @@ iso = Isotope(
     atom_store=PostgresAtomStore(...),
     embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
     atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-    generator=LiteLLMGenerator(model="openai/gpt-4o"),
+    question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
 )
 
 # All components configured - ingestor is a simple call
@@ -100,7 +100,7 @@ from my_company.embedder import BedrockEmbedder
 iso = Isotope.with_local_stores(
     embedder=BedrockEmbedder(model="amazon.titan-embed-text-v1"),
     atomizer=my_atomizer,
-    generator=my_generator,
+    question_generator=my_generator,
     data_dir="./isotope_data",
 )
 ```
@@ -144,13 +144,13 @@ provider: custom
 
 # Python import paths for your classes
 embedder: my_package.BedrockEmbedder
-generator: my_package.BedrockGenerator
+question_generator: my_package.BedrockGenerator
 atomizer: my_package.BedrockAtomizer
 
 # Optional kwargs for each class
 embedder_kwargs:
   region: us-east-1
-generator_kwargs:
+question_generator_kwargs:
   temperature: 0.7
 atomizer_kwargs: {}
 ```
@@ -171,7 +171,7 @@ These settings apply regardless of which provider you use. Configure via environ
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ISOTOPE_QUESTIONS_PER_ATOM` | `15` | Questions to generate per atom |
-| `ISOTOPE_QUESTION_PROMPT` | (default prompt) | Custom question generation prompt template |
+| `ISOTOPE_QUESTION_GENERATOR_PROMPT` | (default prompt) | Custom question generation prompt template |
 | `ISOTOPE_ATOMIZER_PROMPT` | (default prompt) | Custom atomization prompt template |
 | `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` | `0.85` | Similarity threshold for dedup (empty = disable) |
 | `ISOTOPE_DIVERSITY_SCOPE` | `global` | Scope for diversity filter: `global`, `per_chunk`, `per_atom` |

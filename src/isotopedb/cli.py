@@ -184,24 +184,25 @@ def get_isotope(
     elif provider == "custom":
         # Custom provider - import classes dynamically
         embedder_class = config.get("embedder")
-        generator_class = config.get("generator")
+        question_generator_class = config.get("question_generator")
         atomizer_class = config.get("atomizer")
 
-        if not all([embedder_class, generator_class, atomizer_class]):
+        if not all([embedder_class, question_generator_class, atomizer_class]):
             console.print(
-                "[red]Error: Custom provider requires embedder, generator, and atomizer.[/red]"
+                "[red]Error: Custom provider requires embedder, "
+                "question_generator, and atomizer.[/red]"
             )
             console.print()
             console.print("Example isotope.yaml:")
             console.print("  provider: custom")
             console.print("  embedder: my_package.MyEmbedder")
-            console.print("  generator: my_package.MyGenerator")
+            console.print("  question_generator: my_package.MyGenerator")
             console.print("  atomizer: my_package.MyAtomizer")
             raise typer.Exit(1)
 
         if (
             not isinstance(embedder_class, str)
-            or not isinstance(generator_class, str)
+            or not isinstance(question_generator_class, str)
             or not isinstance(atomizer_class, str)
         ):
             console.print("[red]Error: Custom provider class paths must be strings.[/red]")
@@ -209,7 +210,7 @@ def get_isotope(
 
         try:
             embedder_cls = import_class(embedder_class)
-            generator_cls = import_class(generator_class)
+            question_generator_cls = import_class(question_generator_class)
             atomizer_cls = import_class(atomizer_class)
         except (ImportError, AttributeError) as e:
             console.print(f"[red]Error importing custom class: {e}[/red]")
@@ -217,17 +218,17 @@ def get_isotope(
 
         # Get kwargs for each class
         embedder_kwargs = config.get("embedder_kwargs", {})
-        generator_kwargs = config.get("generator_kwargs", {})
+        question_generator_kwargs = config.get("question_generator_kwargs", {})
         atomizer_kwargs = config.get("atomizer_kwargs", {})
 
         embedder = embedder_cls(**embedder_kwargs)
-        generator = generator_cls(**generator_kwargs)
+        question_generator = question_generator_cls(**question_generator_kwargs)
         atomizer = atomizer_cls(**atomizer_kwargs)
 
         return Isotope.with_local_stores(
             embedder=embedder,
             atomizer=atomizer,
-            generator=generator,
+            question_generator=question_generator,
             data_dir=effective_data_dir,
         )
 
@@ -746,13 +747,13 @@ provider: custom
 
 # Custom implementation classes (dotted import paths)
 embedder: my_package.MyEmbedder
-generator: my_package.MyGenerator
+question_generator: my_package.MyGenerator
 atomizer: my_package.MyAtomizer
 
 # Optional: kwargs passed to each class
 # embedder_kwargs:
 #   region: us-east-1
-# generator_kwargs: {}
+# question_generator_kwargs: {}
 # atomizer_kwargs: {}
 
 # Optional: Data directory

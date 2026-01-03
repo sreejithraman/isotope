@@ -53,8 +53,8 @@ def mock_embedder():
 @pytest.fixture
 def mock_generator():
     """Create a mock question generator for testing."""
-    from isotopedb.generator import QuestionGenerator
     from isotopedb.models import Atom, Question
+    from isotopedb.question_generator import QuestionGenerator
 
     class MockGenerator(QuestionGenerator):
         """Mock generator that returns fixed questions."""
