@@ -1,7 +1,6 @@
 {
   "enabledPlugins": {
     "ralph-wiggum@claude-plugins-official": true,
-    "superpowers@superpowers-marketplace": true,
-    "context7@claude-plugins-official": true
+    "superpowers@superpowers-marketplace": true
   }
 }
