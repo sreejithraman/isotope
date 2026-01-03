@@ -41,8 +41,14 @@ class TextLoader(Loader):
         """Check if this loader supports the given file."""
         return Path(path).suffix.lower() in self.SUPPORTED_EXTENSIONS
 
-    def load(self, path: str) -> list[Chunk]:
-        """Load a text file and return chunks."""
+    def load(self, path: str, source_id: str | None = None) -> list[Chunk]:
+        """Load a text file and return chunks.
+
+        Args:
+            path: Path to the file to load
+            source_id: Optional custom source identifier. If not provided,
+                      the absolute path will be used as the source.
+        """
         file_path = Path(path)
 
         if not file_path.exists():
@@ -53,11 +59,14 @@ class TextLoader(Loader):
         if not content.strip():
             return []
 
+        # Use source_id if provided, otherwise use absolute path
+        source = source_id or str(file_path.resolve())
+
         # Determine file type
         is_markdown = file_path.suffix.lower() in {".md", ".markdown"}
 
         # Split into chunks
-        chunks = self._split_into_chunks(content, path, is_markdown)
+        chunks = self._split_into_chunks(content, source, is_markdown)
 
         return chunks
 

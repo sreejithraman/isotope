@@ -240,20 +240,24 @@ from isotopedb import (
     SentenceAtomizer,
     DiversityFilter,
     ChromaVectorStore,
-    SQLiteDocStore,
+    SQLiteChunkStore,
     SQLiteAtomStore,
 )
-from isotopedb.litellm import LiteLLMQuestionGenerator, LiteLLMEmbedder
+from isotopedb.embedder import ClientEmbedder
+from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotopedb.question_generator import ClientQuestionGenerator
 
 # Create stores
 vector_store = ChromaVectorStore("./data/chroma")
-doc_store = SQLiteDocStore("./data/docs.db")
+chunk_store = SQLiteChunkStore("./data/chunks.db")
 atom_store = SQLiteAtomStore("./data/atoms.db")
 
 # Create components
 atomizer = SentenceAtomizer()
-embedder = LiteLLMEmbedder(model="gemini/text-embedding-004")
-question_generator = LiteLLMQuestionGenerator(model="gemini/gemini-3-flash-preview", num_questions=10)
+embedding_client = LiteLLMEmbeddingClient(model="gemini/text-embedding-004")
+llm_client = LiteLLMClient(model="gemini/gemini-3-flash-preview")
+embedder = ClientEmbedder(embedding_client=embedding_client)
+question_generator = ClientQuestionGenerator(llm_client=llm_client, num_questions=10)
 diversity_filter = DiversityFilter(threshold=0.85)
 
 # Load content
@@ -272,7 +276,7 @@ embedded = embedder.embed_questions(questions)
 filtered = diversity_filter.filter(embedded)
 
 # Store
-doc_store.put(chunk)
+chunk_store.put(chunk)
 atom_store.put_many(atoms)
 vector_store.add(filtered)
 
@@ -281,7 +285,7 @@ query_embedding = embedder.embed_text("Who made Python?")
 results = vector_store.search(query_embedding, k=3)
 
 for question, score in results:
-    chunk = doc_store.get(question.chunk_id)
+    chunk = chunk_store.get(question.chunk_id)
     print(f"[{score:.2f}] {chunk.content}")
 ```
 

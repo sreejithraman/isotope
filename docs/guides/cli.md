@@ -14,6 +14,9 @@ pip install isotopedb[local]
 pip install isotopedb[cli]
 ```
 
+Note: `isotopedb[cli]` does not include LiteLLM. For LLM-synthesized answers,
+install `isotopedb[litellm]` (or use `isotopedb[local]`), or run queries with `--raw`.
+
 Verify it's working:
 
 ```bash
@@ -191,13 +194,15 @@ isotope list
 ├─────────────────────────────┬───────┤
 │ Source                      │ Chunks│
 ├─────────────────────────────┼───────┤
-│ docs/api.md                 │ 3     │
-│ docs/authentication.md      │ 2     │
-│ docs/getting-started.md     │ 5     │
-│ docs/quickstart.md          │ 1     │
-│ README.md                   │ 12    │
+│ /Users/you/project/docs/api.md            │ 3     │
+│ /Users/you/project/docs/authentication.md │ 2     │
+│ /Users/you/project/docs/getting-started.md│ 5     │
+│ /Users/you/project/docs/quickstart.md     │ 1     │
+│ /Users/you/project/README.md              │ 12    │
 └─────────────────────────────┴───────┘
 ```
+
+Sources are stored as absolute paths by default, so your output will likely show full paths.
 
 ---
 
@@ -222,10 +227,10 @@ isotope delete <source> [options]
 
 ```bash
 # Delete with confirmation
-isotope delete docs/old.md
+isotope delete /Users/you/project/docs/old.md
 
 # Force delete (no confirmation)
-isotope delete docs/old.md --force
+isotope delete /Users/you/project/docs/old.md --force
 ```
 
 **Output:**
@@ -260,7 +265,6 @@ isotope config
 │ questions_per_atom           │ 15                      │ env var     │
 │ question_diversity_threshold │ 0.85                    │ env var     │
 │ diversity_scope              │ global                  │ env var     │
-│ dedup_strategy               │ source_aware            │ env var     │
 │ default_k                    │ 5                       │ env var     │
 └──────────────────────────────┴─────────────────────────┴─────────────┘
 ```
@@ -313,7 +317,6 @@ Key variables:
 - `ISOTOPE_QUESTIONS_PER_ATOM` - Question generation count per atom
 - `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` - Diversity filter threshold
 - `ISOTOPE_DIVERSITY_SCOPE` - Diversity scope (`global`, `per_chunk`, `per_atom`)
-- `ISOTOPE_DEDUP_STRATEGY` - Re-ingestion behavior (`source_aware`, `none`)
 - `ISOTOPE_DEFAULT_K` - Default top-k
 - Provider API keys (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
 
@@ -348,7 +351,7 @@ isotope status
 
 ### Re-ingesting Updated Files
 
-Isotope uses source-aware deduplication by default. Re-ingesting a file replaces the old version:
+Isotope uses content hashes to skip unchanged files. Re-ingesting a file with changes replaces the old version:
 
 ```bash
 # Edit docs/guide.md...

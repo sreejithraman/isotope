@@ -2,7 +2,7 @@
 
 from isotopedb.embedder import Embedder
 from isotopedb.models import QueryResponse, SearchResult
-from isotopedb.stores import AtomStore, DocStore, VectorStore
+from isotopedb.stores import AtomStore, ChunkStore, VectorStore
 
 SYNTHESIS_PROMPT = """Based on the following context, answer the user's question.
 If the context doesn't contain enough information to answer, say so.
@@ -21,7 +21,7 @@ class Retriever:
     def __init__(
         self,
         vector_store: VectorStore,
-        doc_store: DocStore,
+        chunk_store: ChunkStore,
         atom_store: AtomStore,
         embedder: Embedder,
         default_k: int = 5,
@@ -32,7 +32,7 @@ class Retriever:
 
         Args:
             vector_store: Vector store for question search
-            doc_store: Document store for chunk retrieval
+            chunk_store: Chunk store for chunk retrieval
             atom_store: Atom store for atom retrieval
             embedder: Embedder for query embedding
             default_k: Default number of results to return
@@ -40,7 +40,7 @@ class Retriever:
             synthesis_prompt: Custom synthesis prompt template
         """
         self.vector_store = vector_store
-        self.doc_store = doc_store
+        self.chunk_store = chunk_store
         self.atom_store = atom_store
         self.embedder = embedder
         self.default_k = default_k
@@ -71,7 +71,7 @@ class Retriever:
         # Step 3: Fetch chunks and atoms
         results = []
         for question, score in question_scores:
-            chunk = self.doc_store.get(question.chunk_id)
+            chunk = self.chunk_store.get(question.chunk_id)
             atom = self.atom_store.get(question.atom_id)
 
             if chunk and atom:

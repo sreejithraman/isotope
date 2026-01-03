@@ -1,16 +1,16 @@
 # src/isotopedb/stores/sqlite.py
-"""SQLite document store implementation."""
+"""SQLite chunk store implementation."""
 
 import json
 import sqlite3
 from pathlib import Path
 
 from isotopedb.models import Chunk
-from isotopedb.stores.base import DocStore
+from isotopedb.stores.base import ChunkStore
 
 
-class SQLiteDocStore(DocStore):
-    """SQLite-based document store."""
+class SQLiteChunkStore(ChunkStore):
+    """SQLite-based chunk store."""
 
     def __init__(self, db_path: str) -> None:
         """Initialize the SQLite store."""
@@ -129,3 +129,18 @@ class SQLiteDocStore(DocStore):
                 Chunk(id=row[0], content=row[1], source=row[2], metadata=json.loads(row[3]))
                 for row in cursor.fetchall()
             ]
+
+    def get_chunk_ids_by_source(self, source: str) -> list[str]:
+        """Get all chunk IDs for a specific source."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT id FROM chunks WHERE source = ?",
+                (source,),
+            )
+            return [row[0] for row in cursor.fetchall()]
+
+    def delete_by_source(self, source: str) -> None:
+        """Delete all chunks from a specific source."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM chunks WHERE source = ?", (source,))
+            conn.commit()

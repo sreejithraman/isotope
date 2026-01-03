@@ -13,7 +13,7 @@ from isotopedb.retriever import Retriever
 def create_test_data(stores):
     """Helper to create chunk, atom, and question for testing."""
     chunk = Chunk(content="Python is a programming language.", source="test.md")
-    stores["doc_store"].put(chunk)
+    stores["chunk_store"].put(chunk)
 
     atom = Atom(content="Python is a programming language.", chunk_id=chunk.id)
     stores["atom_store"].put(atom)
@@ -29,7 +29,7 @@ class TestRetrieverInit:
     def test_init_with_required_components(self, stores):
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
@@ -38,7 +38,7 @@ class TestRetrieverInit:
     def test_init_with_default_k(self, stores):
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
@@ -47,7 +47,7 @@ class TestRetrieverInit:
     def test_init_with_custom_k(self, stores):
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             default_k=10,
@@ -65,7 +65,7 @@ class TestRetrieverGetContext:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
@@ -86,7 +86,7 @@ class TestRetrieverGetContext:
 
         # Add multiple questions
         chunk = Chunk(content="Content", source="test.md")
-        stores["doc_store"].put(chunk)
+        stores["chunk_store"].put(chunk)
 
         atom = Atom(content="Content", chunk_id=chunk.id)
         stores["atom_store"].put(atom)
@@ -98,7 +98,7 @@ class TestRetrieverGetContext:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             default_k=3,
@@ -114,7 +114,7 @@ class TestRetrieverGetContext:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
@@ -132,7 +132,7 @@ class TestRetrieverGetContext:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )
@@ -162,7 +162,7 @@ class TestRetrieverGetAnswer:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             llm_model="gemini/gemini-2.0-flash-exp",
@@ -187,7 +187,7 @@ class TestRetrieverGetAnswer:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
             # No llm_model - so no synthesis
@@ -208,7 +208,7 @@ class TestRetrieverGetAnswer:
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
-            doc_store=stores["doc_store"],
+            chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
         )

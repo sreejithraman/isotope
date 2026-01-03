@@ -3,7 +3,7 @@
 
 This module contains behavioral settings that apply regardless of which
 LLM provider is used. Provider-specific configuration (model names, API keys)
-is handled by the provider modules (e.g., isotopedb.litellm).
+is handled by the provider modules (e.g., isotopedb.providers.litellm).
 """
 
 from typing import Literal, cast
@@ -39,9 +39,6 @@ class Settings(BaseSettings):
     # Question diversity deduplication
     question_diversity_threshold: float | None = 0.85
     diversity_scope: Literal["global", "per_chunk", "per_atom"] = "global"
-
-    # Re-ingestion deduplication
-    dedup_strategy: Literal["none", "source_aware"] = "source_aware"
 
     # Retrieval
     default_k: int = 5

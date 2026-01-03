@@ -3,11 +3,10 @@
 from collections.abc import Callable
 
 from isotopedb.atomizer import Atomizer
-from isotopedb.dedup import Deduplicator
 from isotopedb.embedder import Embedder
 from isotopedb.models import Chunk, EmbeddedQuestion
 from isotopedb.question_generator import DiversityFilter, FilterScope, QuestionGenerator
-from isotopedb.stores import AtomStore, DocStore, VectorStore
+from isotopedb.stores import AtomStore, ChunkStore, VectorStore
 
 ProgressCallback = Callable[[str, int, int, str], None]
 
@@ -16,25 +15,26 @@ class Ingestor:
     """Orchestrates the ingestion pipeline.
 
     Pipeline:
-    1. Deduplicate (remove old chunks for re-ingested sources)
-    2. Store chunks in DocStore
-    3. Atomize chunks into atomic statements
-    4. Store atoms in AtomStore
-    5. Generate questions for each atom
-    6. Embed questions
-    7. Apply diversity filtering (optional)
-    8. Store embedded questions in VectorStore
+    1. Store chunks in ChunkStore
+    2. Atomize chunks into atomic statements
+    3. Store atoms in AtomStore
+    4. Generate questions for each atom
+    5. Embed questions
+    6. Apply diversity filtering (optional)
+    7. Store embedded questions in VectorStore
+
+    Note: Source-level deduplication (re-ingestion) is handled by Isotope.ingest_file(),
+    not by the Ingestor. The Ingestor simply processes whatever chunks it receives.
     """
 
     def __init__(
         self,
         vector_store: VectorStore,
-        doc_store: DocStore,
+        chunk_store: ChunkStore,
         atom_store: AtomStore,
         atomizer: Atomizer,
         embedder: Embedder,
         question_generator: QuestionGenerator,
-        deduplicator: Deduplicator,
         diversity_filter: DiversityFilter | None = None,
         diversity_scope: FilterScope = "global",
     ) -> None:
@@ -42,12 +42,11 @@ class Ingestor:
 
         Args:
             vector_store: Store for question embeddings
-            doc_store: Store for document chunks
+            chunk_store: Store for chunks
             atom_store: Store for atomic statements
             atomizer: Component to split chunks into atoms
             embedder: Component to embed questions
             question_generator: Component to generate questions from atoms
-            deduplicator: Component to handle chunk deduplication
             diversity_filter: Optional filter to remove duplicate questions
             diversity_scope: Scope for diversity filtering. Options:
                 - "global": Filter across all questions (default, paper-validated)
@@ -55,12 +54,11 @@ class Ingestor:
                 - "per_atom": Filter within each atom (~1000x faster)
         """
         self.vector_store = vector_store
-        self.doc_store = doc_store
+        self.chunk_store = chunk_store
         self.atom_store = atom_store
         self.atomizer = atomizer
         self.embedder = embedder
         self.question_generator = question_generator
-        self.deduplicator = deduplicator
         self.diversity_filter = diversity_filter
         self.diversity_scope = diversity_scope
 
@@ -78,7 +76,6 @@ class Ingestor:
         Returns:
             Dict with ingestion statistics:
             - chunks: number of chunks ingested
-            - chunks_removed: number of old chunks removed (dedup)
             - atoms: number of atoms created
             - questions: number of questions generated
             - questions_filtered: number of questions removed by diversity filter
@@ -91,26 +88,14 @@ class Ingestor:
         if not chunks:
             return {
                 "chunks": 0,
-                "chunks_removed": 0,
                 "atoms": 0,
                 "questions": 0,
                 "questions_filtered": 0,
             }
 
-        # Step 1: Deduplication
-        progress("deduplicating", 0, 1, "Checking for existing chunks...")
-        chunk_ids_to_remove = self.deduplicator.get_chunks_to_remove(chunks, self.doc_store)
-        chunks_removed = len(chunk_ids_to_remove)
-
-        if chunk_ids_to_remove:
-            self.vector_store.delete_by_chunk_ids(chunk_ids_to_remove)
-            self.atom_store.delete_by_chunk_ids(chunk_ids_to_remove)
-            self.doc_store.delete_many(chunk_ids_to_remove)
-        progress("deduplicating", 1, 1, f"Removed {chunks_removed} old chunks")
-
-        # Step 2: Store chunks
+        # Step 1: Store chunks
         progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
-        self.doc_store.put_many(chunks)
+        self.chunk_store.put_many(chunks)
         progress("storing", 1, 1, "Storing chunks complete")
 
         # Step 3: Atomize
@@ -179,7 +164,6 @@ class Ingestor:
 
         return {
             "chunks": len(chunks),
-            "chunks_removed": chunks_removed,
             "atoms": len(all_atoms),
             "questions": len(embedded_questions),
             "questions_filtered": questions_filtered,

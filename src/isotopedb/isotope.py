@@ -3,18 +3,19 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from isotopedb.atomizer import Atomizer
-    from isotopedb.dedup import Deduplicator
     from isotopedb.embedder import Embedder
     from isotopedb.ingestor import Ingestor
+    from isotopedb.loaders import LoaderRegistry
     from isotopedb.question_generator import DiversityFilter, FilterScope, QuestionGenerator
     from isotopedb.retriever import Retriever
-    from isotopedb.stores import AtomStore, DocStore, VectorStore
+    from isotopedb.stores import AtomStore, ChunkStore, SourceRegistry, VectorStore
 
 from isotopedb.config import Settings
 
@@ -40,15 +41,21 @@ class Isotope:
     2. Explicit path (custom/enterprise):
         Bring your own components:
 
-        from isotopedb.providers import LiteClientEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+        from isotopedb.atomizer import LLMAtomizer
+        from isotopedb.embedder import ClientEmbedder
+        from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+        from isotopedb.question_generator import ClientQuestionGenerator
+
+        llm_client = LiteLLMClient(model="openai/gpt-4o")
+        embedding_client = LiteLLMEmbeddingClient(model="openai/text-embedding-3-small")
 
         iso = Isotope(
             vector_store=my_vector_store,
-            doc_store=my_doc_store,
+            chunk_store=my_chunk_store,
             atom_store=my_atom_store,
-            embedder=LiteClientEmbedder(model="openai/text-embedding-3-small"),
-            atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-            question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
+            embedder=ClientEmbedder(embedding_client=embedding_client),
+            atomizer=LLMAtomizer(llm_client=llm_client),
+            question_generator=ClientQuestionGenerator(llm_client=llm_client),
         )
         ingestor = iso.ingestor()  # All components configured at init
     """
@@ -57,34 +64,42 @@ class Isotope:
         self,
         *,
         vector_store: VectorStore,
-        doc_store: DocStore,
+        chunk_store: ChunkStore,
         atom_store: AtomStore,
+        source_registry: SourceRegistry,
         embedder: Embedder,
         atomizer: Atomizer,
         question_generator: QuestionGenerator,
+        loader_registry: LoaderRegistry | None = None,
     ) -> None:
         """Create an Isotope instance.
 
         Args:
             vector_store: Vector store for question embeddings (required)
-            doc_store: Document store for chunks (required)
+            chunk_store: Chunk store for chunks (required)
             atom_store: Atom store for atomic statements (required)
+            source_registry: Registry for tracking source content hashes (required)
             embedder: Embedder for creating embeddings (required)
             atomizer: Atomizer for breaking chunks into atoms (required)
             question_generator: Question generator for creating synthetic questions (required)
+            loader_registry: Optional loader registry for file loading. If None, uses default.
         """
         # Load behavioral settings from env vars
         self._settings = Settings()
 
         # Store references
         self.vector_store = vector_store
-        self.doc_store = doc_store
+        self.chunk_store = chunk_store
         self.atom_store = atom_store
+        self._source_registry = source_registry
         self.embedder = embedder
 
         # Required components for ingestor
         self._atomizer = atomizer
         self._question_generator = question_generator
+
+        # Loader registry (lazily created if not provided)
+        self._loader_registry = loader_registry
 
     @classmethod
     def with_litellm(
@@ -122,13 +137,19 @@ class Isotope:
         from isotopedb.embedder import ClientEmbedder
         from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
         from isotopedb.question_generator import ClientQuestionGenerator
-        from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
+        from isotopedb.stores import (
+            ChromaVectorStore,
+            SQLiteAtomStore,
+            SQLiteChunkStore,
+            SQLiteSourceRegistry,
+        )
 
         # Create local stores
         Path(data_dir).mkdir(parents=True, exist_ok=True)
         vector_store = ChromaVectorStore(os.path.join(data_dir, "chroma"))
-        doc_store = SQLiteDocStore(os.path.join(data_dir, "docs.db"))
+        chunk_store = SQLiteChunkStore(os.path.join(data_dir, "chunks.db"))
         atom_store = SQLiteAtomStore(os.path.join(data_dir, "atoms.db"))
+        source_registry = SQLiteSourceRegistry(os.path.join(data_dir, "sources.db"))
 
         # Load behavioral settings for generator
         settings = Settings()
@@ -152,8 +173,9 @@ class Isotope:
 
         return cls(
             vector_store=vector_store,
-            doc_store=doc_store,
+            chunk_store=chunk_store,
             atom_store=atom_store,
+            source_registry=source_registry,
             embedder=embedder,
             atomizer=atomizer,
             question_generator=question_generator,
@@ -182,29 +204,32 @@ class Isotope:
         Returns:
             Configured Isotope instance with local stores.
         """
-        from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
+        from isotopedb.stores import (
+            ChromaVectorStore,
+            SQLiteAtomStore,
+            SQLiteChunkStore,
+            SQLiteSourceRegistry,
+        )
 
         Path(data_dir).mkdir(parents=True, exist_ok=True)
 
         return cls(
             vector_store=ChromaVectorStore(os.path.join(data_dir, "chroma")),
-            doc_store=SQLiteDocStore(os.path.join(data_dir, "docs.db")),
+            chunk_store=SQLiteChunkStore(os.path.join(data_dir, "chunks.db")),
             atom_store=SQLiteAtomStore(os.path.join(data_dir, "atoms.db")),
+            source_registry=SQLiteSourceRegistry(os.path.join(data_dir, "sources.db")),
             embedder=embedder,
             atomizer=atomizer,
             question_generator=question_generator,
         )
 
-    def _create_deduplicator(self) -> Deduplicator:
-        """Create deduplicator based on settings."""
-        if self._settings.dedup_strategy == "source_aware":
-            from isotopedb.dedup import SourceAwareDedup
+    def _get_loader_registry(self) -> LoaderRegistry:
+        """Get or create the loader registry."""
+        if self._loader_registry is None:
+            from isotopedb.loaders import LoaderRegistry
 
-            return SourceAwareDedup()
-        else:
-            from isotopedb.dedup import NoDedup
-
-            return NoDedup()
+            self._loader_registry = LoaderRegistry.default()
+        return self._loader_registry
 
     def _create_diversity_filter(self) -> DiversityFilter | None:
         """Create diversity filter if threshold is set."""
@@ -235,7 +260,7 @@ class Isotope:
 
         return Retriever(
             vector_store=self.vector_store,
-            doc_store=self.doc_store,
+            chunk_store=self.chunk_store,
             atom_store=self.atom_store,
             embedder=self.embedder,
             default_k=default_k if default_k is not None else self._settings.default_k,
@@ -246,7 +271,6 @@ class Isotope:
     def ingestor(
         self,
         *,
-        deduplicator: Deduplicator | None = None,
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
@@ -254,7 +278,6 @@ class Isotope:
         """Create an Ingestor using this instance's stores.
 
         Args:
-            deduplicator: Custom deduplicator. If None, created from settings.
             diversity_filter: Custom diversity filter. If None and
                               use_diversity_filter is True, created from settings.
             use_diversity_filter: Whether to use diversity filter. Set False to
@@ -271,9 +294,6 @@ class Isotope:
         """
         from isotopedb.ingestor import Ingestor
 
-        # Create deduplicator from settings if not provided
-        effective_deduplicator = deduplicator or self._create_deduplicator()
-
         # Handle diversity filter
         effective_diversity_filter: DiversityFilter | None
         if diversity_filter is not None:
@@ -288,12 +308,105 @@ class Isotope:
 
         return Ingestor(
             vector_store=self.vector_store,
-            doc_store=self.doc_store,
+            chunk_store=self.chunk_store,
             atom_store=self.atom_store,
             atomizer=self._atomizer,
             embedder=self.embedder,
             question_generator=self._question_generator,
-            deduplicator=effective_deduplicator,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,
         )
+
+    def ingest_file(
+        self,
+        filepath: str,
+        source_id: str | None = None,
+        *,
+        diversity_filter: DiversityFilter | None = None,
+        use_diversity_filter: bool = True,
+        diversity_scope: FilterScope | None = None,
+    ) -> dict:
+        """Ingest a file, skipping if content unchanged.
+
+        This is the recommended way to ingest files. It:
+        1. Computes a content hash to detect changes
+        2. Skips ingestion if the file hasn't changed
+        3. Clears old data before re-ingesting changed files
+
+        Args:
+            filepath: Path to the file to ingest
+            source_id: Optional custom source identifier. If not provided,
+                      the absolute path will be used as the source.
+            diversity_filter: Custom diversity filter for question deduplication
+            use_diversity_filter: Whether to use diversity filter
+            diversity_scope: Scope for diversity filtering
+
+        Returns:
+            Dict with ingestion statistics or skip info:
+            - If skipped: {"skipped": True, "reason": "..."}
+            - If ingested: {"chunks": N, "atoms": N, "questions": N, ...}
+        """
+        file_path = Path(filepath)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        # Compute content hash
+        content = file_path.read_bytes()
+        content_hash = hashlib.sha256(content).hexdigest()
+
+        # Determine source identifier
+        source = source_id or str(file_path.resolve())
+
+        # Check if content unchanged
+        existing_hash = self._source_registry.get_hash(source)
+        if existing_hash == content_hash:
+            return {"skipped": True, "reason": "content unchanged"}
+
+        # Delete old data for this source (cascading via chunk_ids)
+        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
+        if chunk_ids:
+            self.vector_store.delete_by_chunk_ids(chunk_ids)
+            self.atom_store.delete_by_chunk_ids(chunk_ids)
+            self.chunk_store.delete_by_source(source)
+            self._source_registry.delete(source)
+
+        # Load file into chunks
+        loader_registry = self._get_loader_registry()
+        chunks = loader_registry.load(filepath, source_id)
+        if not chunks:
+            return {"skipped": True, "reason": "no content"}
+
+        # Ingest chunks
+        ingestor = self.ingestor(
+            diversity_filter=diversity_filter,
+            use_diversity_filter=use_diversity_filter,
+            diversity_scope=diversity_scope,
+        )
+        result = ingestor.ingest_chunks(chunks)
+
+        # Track the new hash after successful ingestion
+        self._source_registry.set_hash(source, content_hash)
+
+        return result
+
+    def delete_source(self, source: str) -> dict:
+        """Delete all data for a source.
+
+        Use this to remove a file's data from the database.
+
+        Args:
+            source: The source identifier (typically the absolute file path)
+
+        Returns:
+            Dict with deletion statistics
+        """
+        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
+        if not chunk_ids:
+            return {"deleted": False, "reason": "source not found"}
+
+        self.vector_store.delete_by_chunk_ids(chunk_ids)
+        self.atom_store.delete_by_chunk_ids(chunk_ids)
+        self.chunk_store.delete_by_source(source)
+        self._source_registry.delete(source)
+
+        return {"deleted": True, "chunks_removed": len(chunk_ids)}

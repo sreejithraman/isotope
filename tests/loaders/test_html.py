@@ -116,13 +116,16 @@ class TestHTMLLoader:
         assert chunks[0].metadata.get("title") == "Test Page"
 
     def test_chunk_source(self, temp_dir):
+        from pathlib import Path
+
         from isotopedb.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         path = os.path.join(temp_dir, "simple.html")
         chunks = loader.load(path)
 
-        assert chunks[0].source == path
+        # Source should be the resolved absolute path
+        assert chunks[0].source == str(Path(path).resolve())
 
     def test_removes_scripts_and_styles(self, temp_dir):
         from isotopedb.loaders.html import HTMLLoader

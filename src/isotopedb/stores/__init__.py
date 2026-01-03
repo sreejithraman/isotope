@@ -1,8 +1,9 @@
 # src/isotopedb/stores/__init__.py
 """Storage abstractions for Isotope."""
 
-from isotopedb.stores.base import AtomStore, DocStore, VectorStore
-from isotopedb.stores.sqlite import SQLiteDocStore
+from isotopedb.stores.base import AtomStore, ChunkStore, VectorStore
+from isotopedb.stores.source_registry import SourceRegistry, SQLiteSourceRegistry
+from isotopedb.stores.sqlite import SQLiteChunkStore
 from isotopedb.stores.sqlite_atom import SQLiteAtomStore
 
 try:
@@ -16,9 +17,11 @@ except ImportError:
 
 __all__ = [
     "VectorStore",
-    "DocStore",
+    "ChunkStore",
     "AtomStore",
-    "SQLiteDocStore",
+    "SourceRegistry",
+    "SQLiteChunkStore",
     "SQLiteAtomStore",
+    "SQLiteSourceRegistry",
     "ChromaVectorStore",
 ]

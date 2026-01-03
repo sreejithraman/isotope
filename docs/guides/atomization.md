@@ -6,7 +6,7 @@ IsotopeDB provides two atomization strategies:
 
 ## Strategy Comparison
 
-| Aspect | SentenceAtomizer | LiteLLMAtomizer |
+| Aspect | SentenceAtomizer | LLMAtomizer |
 |--------|------------------|-------------|
 | **Method** | Split by sentence boundaries | LLM extracts facts |
 | **Speed** | Fast (local processing) | Slow (API calls) |
@@ -53,15 +53,17 @@ atoms = atomizer.atomize(chunk)
 - May split complex sentences poorly
 - Treats each sentence as equal importance
 
-## LiteLLMAtomizer
+## LLMAtomizer
 
 Uses an LLM to extract atomic facts from chunks.
 
 ```python
-from isotopedb.litellm import LiteLLMAtomizer
+from isotopedb.atomizer import LLMAtomizer
+from isotopedb.providers.litellm import LiteLLMClient
 from isotopedb import Chunk
 
-atomizer = LiteLLMAtomizer(model="openai/gpt-4o")
+client = LiteLLMClient(model="openai/gpt-4o")
+atomizer = LLMAtomizer(llm_client=client)
 
 chunk = Chunk(
     content="Python, created by Guido van Rossum in 1991, is known for readability.",
@@ -78,8 +80,9 @@ atoms = atomizer.atomize(chunk)
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `model` | `gemini/gemini-3-flash-preview` | LiteLLM model identifier |
+| `llm_client` | (required) | Any `LLMClient` implementation |
 | `prompt_template` | (default) | Custom extraction prompt |
+| `temperature` | `0.0` | LLM temperature |
 
 ### When to Use
 
@@ -111,12 +114,12 @@ atoms = atomizer.atomize(chunk)
                             Yes          No
                              │            │
                              ▼            ▼
-                   SentenceAtomizer   LiteLLMAtomizer
+                   SentenceAtomizer   LLMAtomizer
 ```
 
 **Quick rules:**
 - Prefer `SentenceAtomizer` when speed/cost matters
-- Use `LiteLLMAtomizer` when semantic quality matters more than cost
+- Use `LLMAtomizer` when semantic quality matters more than cost
 
 ## Configuration
 
@@ -189,11 +192,13 @@ Detect formatting signals to identify well-structured content:
 
 ```python
 from isotopedb import SentenceAtomizer, Chunk, Atom
-from isotopedb.litellm import LiteLLMAtomizer
+from isotopedb.atomizer import LLMAtomizer
+from isotopedb.providers.litellm import LiteLLMClient
 import re
 
 sentence_atomizer = SentenceAtomizer()
-llm_atomizer = LiteLLMAtomizer(model="openai/gpt-4o")
+llm_client = LiteLLMClient(model="openai/gpt-4o")
+llm_atomizer = LLMAtomizer(llm_client=llm_client)
 
 def smart_atomize(chunk: Chunk) -> list[Atom]:
     """Route to appropriate atomizer based on content structure."""
@@ -217,10 +222,12 @@ Simpler approach using document source metadata:
 
 ```python
 from isotopedb import SentenceAtomizer, Chunk, Atom
-from isotopedb.litellm import LiteLLMAtomizer
+from isotopedb.atomizer import LLMAtomizer
+from isotopedb.providers.litellm import LiteLLMClient
 
 sentence_atomizer = SentenceAtomizer()
-llm_atomizer = LiteLLMAtomizer(model="openai/gpt-4o")
+llm_client = LiteLLMClient(model="openai/gpt-4o")
+llm_atomizer = LLMAtomizer(llm_client=llm_client)
 
 def smart_atomize(chunk: Chunk) -> list[Atom]:
     """Route based on document source type."""

@@ -11,7 +11,6 @@ class TestSettings:
         assert settings.questions_per_atom == 15
         assert settings.question_diversity_threshold == 0.85
         assert settings.diversity_scope == "global"
-        assert settings.dedup_strategy == "source_aware"
         assert settings.default_k == 5
         assert settings.question_generator_prompt is None
 
@@ -19,13 +18,11 @@ class TestSettings:
         """Test settings loaded from environment variables."""
         monkeypatch.setenv("ISOTOPE_QUESTIONS_PER_ATOM", "10")
         monkeypatch.setenv("ISOTOPE_DIVERSITY_SCOPE", "per_chunk")
-        monkeypatch.setenv("ISOTOPE_DEDUP_STRATEGY", "none")
         monkeypatch.setenv("ISOTOPE_DEFAULT_K", "10")
 
         settings = Settings()
         assert settings.questions_per_atom == 10
         assert settings.diversity_scope == "per_chunk"
-        assert settings.dedup_strategy == "none"
         assert settings.default_k == 10
 
     def test_question_diversity_threshold_none(self, monkeypatch):

@@ -22,15 +22,21 @@ Quick Start (LiteLLM):
 
 Custom Implementations:
     from isotopedb import Isotope
-    from isotopedb.providers import LiteClientEmbedder, LiteLLMAtomizer, LiteLLMGenerator
+    from isotopedb.atomizer import LLMAtomizer
+    from isotopedb.embedder import ClientEmbedder
+    from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+    from isotopedb.question_generator import ClientQuestionGenerator
+
+    llm_client = LiteLLMClient(model="openai/gpt-4o")
+    embedding_client = LiteLLMEmbeddingClient(model="openai/text-embedding-3-small")
 
     iso = Isotope(
         vector_store=my_vector_store,
-        doc_store=my_doc_store,
+        chunk_store=my_chunk_store,
         atom_store=my_atom_store,
-        embedder=LiteClientEmbedder(model="openai/text-embedding-3-small"),
-        atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-        question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
+        embedder=ClientEmbedder(embedding_client=embedding_client),
+        atomizer=LLMAtomizer(llm_client=llm_client),
+        question_generator=ClientQuestionGenerator(llm_client=llm_client),
     )
     ingestor = iso.ingestor()  # All components configured at init
 """
@@ -43,7 +49,6 @@ from isotopedb.atomizer import Atomizer, SentenceAtomizer
 
 # Configuration
 from isotopedb.config import Settings
-from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
 from isotopedb.embedder import Embedder
 
 # Pipelines
@@ -72,9 +77,11 @@ from isotopedb.retriever import Retriever
 from isotopedb.stores import (
     AtomStore,
     ChromaVectorStore,
-    DocStore,
+    ChunkStore,
+    SourceRegistry,
     SQLiteAtomStore,
-    SQLiteDocStore,
+    SQLiteChunkStore,
+    SQLiteSourceRegistry,
     VectorStore,
 )
 
@@ -93,17 +100,15 @@ __all__ = [
     # Storage ABCs
     "AtomStore",
     "ChromaVectorStore",
-    "DocStore",
+    "ChunkStore",
+    "SourceRegistry",
     "SQLiteAtomStore",
-    "SQLiteDocStore",
+    "SQLiteChunkStore",
+    "SQLiteSourceRegistry",
     "VectorStore",
     # Atomization ABCs
     "Atomizer",
     "SentenceAtomizer",
-    # Deduplication
-    "Deduplicator",
-    "NoDedup",
-    "SourceAwareDedup",
     # Embedding ABC
     "Embedder",
     # Question generation ABC

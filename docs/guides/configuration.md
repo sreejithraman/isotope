@@ -31,16 +31,22 @@ retriever = iso.retriever()
 
 ```python
 from isotopedb import Isotope
-from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+from isotopedb.atomizer import LLMAtomizer
+from isotopedb.embedder import ClientEmbedder
+from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotopedb.question_generator import ClientQuestionGenerator
+
+llm_client = LiteLLMClient(model="openai/gpt-4o")
+embedding_client = LiteLLMEmbeddingClient(model="openai/text-embedding-3-small")
 
 # Explicit component configuration
 iso = Isotope(
     vector_store=MyPineconeStore(...),
-    doc_store=MyPostgresDocStore(...),
+    chunk_store=MyPostgresChunkStore(...),
     atom_store=MyPostgresAtomStore(...),
-    embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
-    atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-    question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
+    embedder=ClientEmbedder(embedding_client=embedding_client),
+    atomizer=LLMAtomizer(llm_client=llm_client),
+    question_generator=ClientQuestionGenerator(llm_client=llm_client),
 )
 ```
 
@@ -62,8 +68,8 @@ iso = Isotope.with_litellm(
 ```
 
 This creates:
-- Local stores (ChromaVectorStore, SQLiteDocStore, SQLiteAtomStore)
-- LiteLLM embedder, generator, and atomizer
+- Local stores (ChromaVectorStore, SQLiteChunkStore, SQLiteAtomStore)
+- LiteLLM clients wrapped by `ClientEmbedder`, `ClientQuestionGenerator`, and `LLMAtomizer`
 
 ### Path 2: Explicit Components
 
@@ -71,18 +77,24 @@ For enterprise deployments or custom implementations:
 
 ```python
 from isotopedb import Isotope
-from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
+from isotopedb.atomizer import LLMAtomizer
+from isotopedb.embedder import ClientEmbedder
+from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotopedb.question_generator import ClientQuestionGenerator
 
 # Bring your own stores
-from my_company.stores import PineconeStore, PostgresDocStore, PostgresAtomStore
+from my_company.stores import PineconeStore, PostgresChunkStore, PostgresAtomStore
+
+llm_client = LiteLLMClient(model="openai/gpt-4o")
+embedding_client = LiteLLMEmbeddingClient(model="openai/text-embedding-3-small")
 
 iso = Isotope(
     vector_store=PineconeStore(...),
-    doc_store=PostgresDocStore(...),
+    chunk_store=PostgresChunkStore(...),
     atom_store=PostgresAtomStore(...),
-    embedder=LiteLLMEmbedder(model="openai/text-embedding-3-small"),
-    atomizer=LiteLLMAtomizer(model="openai/gpt-4o"),
-    question_generator=LiteLLMGenerator(model="openai/gpt-4o"),
+    embedder=ClientEmbedder(embedding_client=embedding_client),
+    atomizer=LLMAtomizer(llm_client=llm_client),
+    question_generator=ClientQuestionGenerator(llm_client=llm_client),
 )
 
 # All components configured - ingestor is a simple call
@@ -175,7 +187,6 @@ These settings apply regardless of which provider you use. Configure via environ
 | `ISOTOPE_ATOMIZER_PROMPT` | (default prompt) | Custom atomization prompt template |
 | `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` | `0.85` | Similarity threshold for dedup (empty = disable) |
 | `ISOTOPE_DIVERSITY_SCOPE` | `global` | Scope for diversity filter: `global`, `per_chunk`, `per_atom` |
-| `ISOTOPE_DEDUP_STRATEGY` | `source_aware` | Re-ingestion strategy: `none` or `source_aware` |
 | `ISOTOPE_DEFAULT_K` | `5` | Default number of results to return |
 | `ISOTOPE_SYNTHESIS_PROMPT` | (default prompt) | Custom answer synthesis prompt template |
 
@@ -241,15 +252,21 @@ See the [LiteLLM provider list](https://docs.litellm.ai/docs/providers) for more
 
 ## Imports
 
-LiteLLM-specific classes are in the `isotopedb.litellm` module:
+LiteLLM provider clients and model constants live in `isotopedb.providers.litellm`:
 
 ```python
-# LiteLLM implementations
-from isotopedb.litellm import LiteLLMEmbedder, LiteLLMGenerator, LiteLLMAtomizer
-from isotopedb.litellm import ChatModels, EmbeddingModels
+# LiteLLM provider clients + model constants
+from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotopedb.providers.litellm import ChatModels, EmbeddingModels
+
+# Component wrappers (use any LLMClient / EmbeddingClient)
+from isotopedb.atomizer import LLMAtomizer
+from isotopedb.embedder import ClientEmbedder
+from isotopedb.question_generator import ClientQuestionGenerator
 
 # Abstract base classes (for custom implementations)
 from isotopedb import Embedder, QuestionGenerator, Atomizer
+from isotopedb.providers import LLMClient, EmbeddingClient
 ```
 
 ## Configuration Details
@@ -292,14 +309,45 @@ ingestor = iso.ingestor(diversity_scope="per_chunk")
 ingestor = iso.ingestor(diversity_scope="per_atom")
 ```
 
-### Deduplication Strategy
+### Re-ingestion Behavior
 
-Controls what happens when you re-ingest documents:
+When using `Isotope.ingest_file()`, the system automatically handles re-ingestion via
+the `SourceRegistry`. It tracks content hashes to detect changed files and cascades
+deletion of old data before adding new content. This is handled automatically—no
+configuration needed.
 
-| Value | Behavior |
-|-------|----------|
-| `source_aware` | Delete existing chunks from same source before adding new ones |
-| `none` | Never delete existing data (may create duplicates) |
+### Prompt Customization
+
+You can customize the prompts used by IsotopeDB for atomization, question generation, and answer synthesis.
+
+#### Atomizer Prompt (`ISOTOPE_ATOMIZER_PROMPT`)
+
+Used when breaking chunks into atomic facts with `LLMAtomizer`. Your prompt must include `{content}`.
+
+```bash
+export ISOTOPE_ATOMIZER_PROMPT="Extract key facts from this text as a JSON array of strings:\n\n{content}"
+```
+
+#### Question Generator Prompt (`ISOTOPE_QUESTION_GENERATOR_PROMPT`)
+
+Used when generating questions for each atom. Available variables:
+- `{num_questions}` - Number of questions to generate
+- `{atom_content}` - The atomic fact text
+- `{chunk_content}` - The parent chunk content (may be empty)
+
+```bash
+export ISOTOPE_QUESTION_GENERATOR_PROMPT="Generate {num_questions} search queries for: {atom_content}"
+```
+
+#### Synthesis Prompt (`ISOTOPE_SYNTHESIS_PROMPT`)
+
+Used when synthesizing answers from retrieved context. Available variables:
+- `{context}` - The retrieved chunks/context
+- `{query}` - The user's question
+
+```bash
+export ISOTOPE_SYNTHESIS_PROMPT="Answer based on context:\n\n{context}\n\nQuestion: {query}"
+```
 
 ## Accessing Settings in Code
 
@@ -313,7 +361,6 @@ settings = Settings()
 print(settings.questions_per_atom)
 print(settings.question_diversity_threshold)
 print(settings.diversity_scope)
-print(settings.dedup_strategy)
 print(settings.default_k)
 ```
 
@@ -327,7 +374,6 @@ OPENAI_API_KEY=your-openai-api-key
 ISOTOPE_QUESTIONS_PER_ATOM=15
 ISOTOPE_QUESTION_DIVERSITY_THRESHOLD=0.85
 ISOTOPE_DIVERSITY_SCOPE=global
-ISOTOPE_DEDUP_STRATEGY=source_aware
 ISOTOPE_DEFAULT_K=5
 ```
 

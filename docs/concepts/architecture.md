@@ -27,7 +27,7 @@ IsotopeDB has three layers:
          ▼                                         ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                       Components                                 │
-│  Stores │ Atomizers │ Embedders │ Generators │ Dedup │ Loaders  │
+│  Stores │ Atomizers │ Embedders │ Generators │ Loaders           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,7 +62,7 @@ retriever = iso.retriever(llm_model="openai/gpt-4o")
 The `Ingestor` orchestrates the ingestion pipeline:
 
 ```
-Chunks → Dedup → Store Chunks → Atomize → Store Atoms → Generate Questions
+Chunks → Store Chunks → Atomize → Store Atoms → Generate Questions
        → Embed → Filter → Index
 ```
 
@@ -74,7 +74,6 @@ result = ingestor.ingest_chunks([chunk1, chunk2])
 
 Key features:
 - Progress callbacks for UI/logging
-- Source-aware deduplication (re-ingest updated files)
 - Diversity filtering to remove duplicate questions
 
 ### Retriever
@@ -105,9 +104,9 @@ results = retriever.get_context("authentication")
 └──────────┘    └────────┘    └───────┘    └───────────┘    └────────────┘
                     │              │             │                 │
                     ▼              ▼             ▼                 ▼
-               ┌─────────┐   ┌──────────┐  ┌────────────┐   ┌─────────────┐
-               │DocStore │   │AtomStore │  │DiversityFilt│   │ VectorStore │
-               └─────────┘   └──────────┘  └────────────┘   └─────────────┘
+               ┌───────────┐ ┌──────────┐  ┌────────────┐   ┌─────────────┐
+               │ChunkStore │ │AtomStore │  │DiversityFilt│   │ VectorStore │
+               └───────────┘ └──────────┘  └────────────┘   └─────────────┘
 ```
 
 ## Core Components
@@ -132,7 +131,7 @@ Three abstract base classes define storage contracts:
 | ABC | Implementations | Stores |
 |-----|-----------------|--------|
 | `VectorStore` | `ChromaVectorStore` | Question embeddings |
-| `DocStore` | `SQLiteDocStore` | Chunk content |
+| `ChunkStore` | `SQLiteChunkStore` | Chunk content |
 | `AtomStore` | `SQLiteAtomStore` | Atom content |
 
 All stores support deletion by chunk ID for re-ingestion workflows.
@@ -144,7 +143,7 @@ Atomizers break chunks into atomic facts:
 | Atomizer | Strategy | Use Case |
 |----------|----------|----------|
 | `SentenceAtomizer` | Split by sentence (pysbd) | Fast, structured docs |
-| `LiteLLMAtomizer` | LLM extraction | Semantic extraction |
+| `LLMAtomizer` | LLM extraction | Semantic extraction |
 
 See [Atomization Guide](../guides/atomization.md) for when to use each.
 
@@ -159,20 +158,23 @@ The generator creates ~15 questions per atom by default. The diversity filter (t
 
 ### Embeddings (`embedder/`)
 
-`Embedder` wraps LiteLLM for embedding generation:
+`Embedder` wraps an `EmbeddingClient` (e.g., `LiteLLMEmbeddingClient`) for embedding generation:
 - `embed_text(str)` → single embedding
 - `embed_texts(list[str])` → list of embeddings
 - `embed_question(Question)` → single `EmbeddedQuestion`
 - `embed_questions(list[Question])` → list of `EmbeddedQuestion`
 
-### Deduplication (`dedup/`)
+### Source Registry (`stores/source_registry.py`)
 
-Handles re-ingestion of updated documents:
+Tracks ingested sources for change detection:
 
-| Strategy | Behavior |
-|----------|----------|
-| `NoDedup` | Never delete existing data |
-| `SourceAwareDedup` | Delete chunks from same source before re-ingesting |
+| Component | Purpose |
+|-----------|---------|
+| `SourceRegistry` | ABC for tracking source content hashes |
+| `SQLiteSourceRegistry` | SQLite-backed implementation |
+
+When re-ingesting files via `Isotope.ingest_file()`, the system compares content hashes
+to detect changes and automatically cascades deletion of old data before adding new content.
 
 ### File Loading (`loaders/`)
 
@@ -209,7 +211,7 @@ Most users just need `Isotope`. Power users can customize pipelines or swap comp
 
 ### Why Separate Stores?
 
-We split storage into three stores (VectorStore, DocStore, AtomStore) because:
+We split storage into three stores (VectorStore, ChunkStore, AtomStore) because:
 1. **Vector stores have specific needs**: Optimized for similarity search
 2. **Chunks need full-text retrieval**: For returning content to users
 3. **Atoms bridge the gap**: Track which questions came from which chunks
@@ -245,7 +247,7 @@ iso = Isotope.with_litellm(
 # Custom components
 iso = Isotope(
     vector_store=my_vector_store,
-    doc_store=my_doc_store,
+    chunk_store=my_chunk_store,
     atom_store=my_atom_store,
     embedder=my_embedder,
     atomizer=my_atomizer,

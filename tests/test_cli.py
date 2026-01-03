@@ -36,7 +36,6 @@ class TestConfigCommand:
         assert result.exit_code == 0
         assert "questions_per_atom" in result.output
         assert "diversity_scope" in result.output
-        assert "dedup_strategy" in result.output
 
 
 class TestIngestCommand:

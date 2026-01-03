@@ -17,11 +17,11 @@ def temp_dir():
 def stores(temp_dir):
     """Create store instances for testing (requires chromadb)."""
     pytest.importorskip("chromadb", reason="This fixture requires chromadb")
-    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
+    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteChunkStore
 
     return {
         "vector_store": ChromaVectorStore(os.path.join(temp_dir, "chroma")),
-        "doc_store": SQLiteDocStore(os.path.join(temp_dir, "docs.db")),
+        "chunk_store": SQLiteChunkStore(os.path.join(temp_dir, "chunks.db")),
         "atom_store": SQLiteAtomStore(os.path.join(temp_dir, "atoms.db")),
     }
 

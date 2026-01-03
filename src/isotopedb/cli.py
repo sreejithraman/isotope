@@ -14,14 +14,13 @@ from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 if TYPE_CHECKING:
     from isotopedb.isotope import Isotope
-    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
+    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteChunkStore
 
 try:
     import typer
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 except ImportError as e:
     raise SystemExit(
@@ -73,7 +72,7 @@ CONFIG_FILES = ["isotope.yaml", "isotope.yml", ".isotoperc"]
 
 class StoreBundle(TypedDict):
     vector_store: ChromaVectorStore
-    doc_store: SQLiteDocStore
+    chunk_store: SQLiteChunkStore
     atom_store: SQLiteAtomStore
 
 
@@ -82,11 +81,11 @@ def get_stores(data_dir: str) -> StoreBundle:
 
     This doesn't require provider configuration since it only accesses stores.
     """
-    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
+    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteChunkStore
 
     return {
         "vector_store": ChromaVectorStore(os.path.join(data_dir, "chroma")),
-        "doc_store": SQLiteDocStore(os.path.join(data_dir, "docs.db")),
+        "chunk_store": SQLiteChunkStore(os.path.join(data_dir, "chunks.db")),
         "atom_store": SQLiteAtomStore(os.path.join(data_dir, "atoms.db")),
     }
 
@@ -290,7 +289,6 @@ def config(
         "env var",
     )
     table.add_row("diversity_scope", settings.diversity_scope, "env var")
-    table.add_row("dedup_strategy", settings.dedup_strategy, "env var")
     table.add_row("default_k", str(settings.default_k), "env var")
 
     console.print(table)
@@ -332,15 +330,14 @@ def ingest(
         console.print(f"[red]Error: Path not found: {path}[/red]")
         raise typer.Exit(1)
 
-    # Create Isotope and ingestor
+    # Create Isotope
     try:
         iso = get_isotope(data_dir, config_file)
-        ingestor = iso.ingestor()
     except Exception as e:
-        console.print(f"[red]Error creating ingestor: {e}[/red]")
+        console.print(f"[red]Error creating isotope: {e}[/red]")
         raise typer.Exit(1) from None
 
-    # Load files
+    # Find files to ingest
     registry = LoaderRegistry.default()
 
     if os.path.isfile(path):
@@ -358,48 +355,45 @@ def ingest(
         console.print("[yellow]No supported files found.[/yellow]")
         raise typer.Exit(0)
 
-    # Load chunks
-    all_chunks = []
+    # Ingest each file
+    total_chunks = 0
+    total_atoms = 0
+    total_questions = 0
+    skipped_count = 0
+    ingested_count = 0
+
     for filepath in files:
         try:
-            chunks = registry.load(filepath)
-            all_chunks.extend(chunks)
+            result = iso.ingest_file(filepath)
+
+            if result.get("skipped"):
+                skipped_count += 1
+                if not plain:
+                    console.print(f"[dim]Skipped {filepath}: {result['reason']}[/dim]")
+            else:
+                ingested_count += 1
+                total_chunks += result.get("chunks", 0)
+                total_atoms += result.get("atoms", 0)
+                total_questions += result.get("questions", 0)
+                if not plain:
+                    console.print(f"[green]Ingested {filepath}[/green]")
         except Exception as e:
-            console.print(f"[yellow]Warning: Failed to load {filepath}: {e}[/yellow]")
+            console.print(f"[yellow]Warning: Failed to ingest {filepath}: {e}[/yellow]")
 
-    if not all_chunks:
-        console.print("[yellow]No content to ingest.[/yellow]")
-        raise typer.Exit(0)
-
-    # Ingest with progress
+    # Summary
     if plain:
-        result = ingestor.ingest_chunks(all_chunks)
-        console.print(f"Ingested {result['chunks']} chunks")
-        console.print(f"Created {result['atoms']} atoms")
-        console.print(f"Generated {result['questions']} questions")
-        if result.get("chunks_removed", 0) > 0:
-            console.print(f"Removed {result['chunks_removed']} old chunks")
+        console.print(f"Ingested {ingested_count} files ({total_chunks} chunks)")
+        console.print(f"Created {total_atoms} atoms")
+        console.print(f"Generated {total_questions} questions")
+        if skipped_count > 0:
+            console.print(f"Skipped {skipped_count} unchanged files")
     else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Ingesting...", total=None)
-
-            def on_progress(event: str, current: int, total: int, message: str) -> None:
-                progress.update(task, description=f"{event}: {message}")
-
-            result = ingestor.ingest_chunks(all_chunks, on_progress=on_progress)
-
         console.print()
-        console.print(f"[green]Ingested {result['chunks']} chunks[/green]")
-        console.print(f"[green]Created {result['atoms']} atoms[/green]")
-        console.print(f"[green]Generated {result['questions']} questions[/green]")
-        if result.get("chunks_removed", 0) > 0:
-            console.print(f"[yellow]Removed {result['chunks_removed']} old chunks[/yellow]")
-        if result.get("questions_filtered", 0) > 0:
-            console.print(f"[dim]Filtered {result['questions_filtered']} similar questions[/dim]")
+        console.print(f"[green]Ingested {ingested_count} files ({total_chunks} chunks)[/green]")
+        console.print(f"[green]Created {total_atoms} atoms[/green]")
+        console.print(f"[green]Generated {total_questions} questions[/green]")
+        if skipped_count > 0:
+            console.print(f"[dim]Skipped {skipped_count} unchanged files[/dim]")
 
 
 @app.command()
@@ -539,7 +533,7 @@ def list_sources(
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    sources = stores["doc_store"].list_sources()
+    sources = stores["chunk_store"].list_sources()
 
     if not sources:
         if plain:
@@ -551,7 +545,7 @@ def list_sources(
     if plain:
         console.print(f"Indexed sources ({len(sources)}):")
         for source in sorted(sources):
-            chunks = stores["doc_store"].get_by_source(source)
+            chunks = stores["chunk_store"].get_by_source(source)
             console.print(f"  {source} ({len(chunks)} chunks)")
     else:
         table = Table(title=f"Indexed Sources ({len(sources)})")
@@ -559,7 +553,7 @@ def list_sources(
         table.add_column("Chunks", justify="right")
 
         for source in sorted(sources):
-            chunks = stores["doc_store"].get_by_source(source)
+            chunks = stores["chunk_store"].get_by_source(source)
             table.add_row(source, str(len(chunks)))
 
         console.print(table)
@@ -602,8 +596,8 @@ def status(
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    sources = stores["doc_store"].list_sources()
-    total_chunks = stores["doc_store"].count_chunks()
+    sources = stores["chunk_store"].list_sources()
+    total_chunks = stores["chunk_store"].count_chunks()
     total_atoms = stores["atom_store"].count_atoms()
     total_questions = stores["vector_store"].count_questions()
 
@@ -670,7 +664,7 @@ def delete(
         raise typer.Exit(1) from None
 
     # Find chunks for this source
-    chunks = stores["doc_store"].get_by_source(source)
+    chunks = stores["chunk_store"].get_by_source(source)
 
     if not chunks:
         if plain:
@@ -692,7 +686,7 @@ def delete(
 
     stores["vector_store"].delete_by_chunk_ids(chunk_ids)
     stores["atom_store"].delete_by_chunk_ids(chunk_ids)
-    stores["doc_store"].delete_many(chunk_ids)
+    stores["chunk_store"].delete_many(chunk_ids)
 
     if plain:
         console.print(f"Deleted {len(chunks)} chunks from {source}")

@@ -25,11 +25,13 @@ class HTMLLoader(Loader):
         """Check if this loader supports the given file."""
         return Path(path).suffix.lower() in self.SUPPORTED_EXTENSIONS
 
-    def load(self, path: str) -> list[Chunk]:
+    def load(self, path: str, source_id: str | None = None) -> list[Chunk]:
         """Load an HTML file and return chunks.
 
         Args:
             path: Path to the HTML file
+            source_id: Optional custom source identifier. If not provided,
+                      the absolute path will be used as the source.
 
         Returns:
             List of Chunk objects (typically one for the whole document)
@@ -58,6 +60,9 @@ class HTMLLoader(Loader):
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {path}")
 
+        # Use source_id if provided, otherwise use absolute path
+        source = source_id or str(file_path.resolve())
+
         content = file_path.read_text(encoding="utf-8")
 
         if not content.strip():
@@ -84,7 +89,7 @@ class HTMLLoader(Loader):
         return [
             Chunk(
                 content=md_text.strip(),
-                source=path,
+                source=source,
                 metadata={"type": "html", "title": title},
             )
         ]

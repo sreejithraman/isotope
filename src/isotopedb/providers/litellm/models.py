@@ -5,18 +5,21 @@ These are convenience constants for IDE autocomplete when using LiteLLM.
 You can always pass any valid LiteLLM model string directly.
 
 Example:
-    from isotopedb.providers.litellm import ChatModels, LiteLLMAtomizer
+    from isotopedb.atomizer import LLMAtomizer
+    from isotopedb.providers.litellm import ChatModels, LiteLLMClient
 
     # Using constants (IDE autocomplete works)
-    atomizer = LiteLLMAtomizer(model=ChatModels.CLAUDE_SONNET_45)
+    llm_client = LiteLLMClient(model=ChatModels.CLAUDE_SONNET_45)
+    atomizer = LLMAtomizer(llm_client=llm_client)
 
     # Custom models still work
-    atomizer = LiteLLMAtomizer(model="my-custom/model")
+    llm_client = LiteLLMClient(model="my-custom/model")
+    atomizer = LLMAtomizer(llm_client=llm_client)
 """
 
 
 class ChatModels:
-    """Chat/completion models for LiteLLMAtomizer and LiteLLMGenerator."""
+    """Chat/completion models for LLMAtomizer and ClientQuestionGenerator (via LiteLLMClient)."""
 
     # OpenAI - GPT 5 Series
     GPT_52 = "openai/gpt-5.2"
@@ -47,7 +50,7 @@ class ChatModels:
 
 
 class EmbeddingModels:
-    """Embedding models for LiteClientEmbedder."""
+    """Embedding models for LiteLLMEmbeddingClient / ClientEmbedder."""
 
     # OpenAI
     TEXT_3_SMALL = "openai/text-embedding-3-small"

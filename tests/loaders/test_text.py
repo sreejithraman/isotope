@@ -53,12 +53,16 @@ class TestTextLoader:
         assert loader.supports("file.docx") is False
 
     def test_load_text_file(self, temp_dir):
+        from pathlib import Path
+
         loader = TextLoader()
-        chunks = loader.load(os.path.join(temp_dir, "simple.txt"))
+        path = os.path.join(temp_dir, "simple.txt")
+        chunks = loader.load(path)
 
         assert len(chunks) >= 1
         assert all(isinstance(c, Chunk) for c in chunks)
-        assert chunks[0].source == os.path.join(temp_dir, "simple.txt")
+        # Source should be the resolved absolute path
+        assert chunks[0].source == str(Path(path).resolve())
 
     def test_load_markdown_file(self, temp_dir):
         loader = TextLoader()

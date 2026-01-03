@@ -6,27 +6,34 @@ import os
 import pytest
 
 from isotopedb.isotope import Isotope
-from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
+from isotopedb.stores import (
+    ChromaVectorStore,
+    SQLiteAtomStore,
+    SQLiteChunkStore,
+    SQLiteSourceRegistry,
+)
 
 
 class TestIsotopeInit:
     def test_init_with_stores(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
         """Test initialization with explicit stores."""
         vector_store = ChromaVectorStore(os.path.join(temp_dir, "chroma"))
-        doc_store = SQLiteDocStore(os.path.join(temp_dir, "docs.db"))
+        chunk_store = SQLiteChunkStore(os.path.join(temp_dir, "chunks.db"))
         atom_store = SQLiteAtomStore(os.path.join(temp_dir, "atoms.db"))
+        source_registry = SQLiteSourceRegistry(os.path.join(temp_dir, "sources.db"))
 
         iso = Isotope(
             vector_store=vector_store,
-            doc_store=doc_store,
+            chunk_store=chunk_store,
             atom_store=atom_store,
+            source_registry=source_registry,
             embedder=mock_embedder,
             atomizer=mock_atomizer,
             question_generator=mock_generator,
         )
 
         assert iso.vector_store is vector_store
-        assert iso.doc_store is doc_store
+        assert iso.chunk_store is chunk_store
         assert iso.atom_store is atom_store
         assert iso.embedder is mock_embedder
         assert iso._atomizer is mock_atomizer
@@ -44,7 +51,7 @@ class TestIsotopeInit:
         )
 
         assert isinstance(iso.vector_store, ChromaVectorStore)
-        assert isinstance(iso.doc_store, SQLiteDocStore)
+        assert isinstance(iso.chunk_store, SQLiteChunkStore)
         assert isinstance(iso.atom_store, SQLiteAtomStore)
         assert iso.embedder is mock_embedder
         assert iso._atomizer is mock_atomizer
@@ -89,7 +96,7 @@ class TestIsotopeWithLiteLLM:
         )
 
         assert isinstance(iso.vector_store, ChromaVectorStore)
-        assert isinstance(iso.doc_store, SQLiteDocStore)
+        assert isinstance(iso.chunk_store, SQLiteChunkStore)
         assert isinstance(iso.atom_store, SQLiteAtomStore)
 
     def test_with_litellm_creates_embedder(self, temp_dir):
@@ -150,7 +157,7 @@ class TestIsotopeRetriever:
 
         assert isinstance(retriever, Retriever)
         assert retriever.vector_store is iso.vector_store
-        assert retriever.doc_store is iso.doc_store
+        assert retriever.chunk_store is iso.chunk_store
         assert retriever.atom_store is iso.atom_store
         assert retriever.embedder is iso.embedder
 
@@ -243,7 +250,7 @@ class TestIsotopeIngestor:
 
         assert isinstance(ingestor, Ingestor)
         assert ingestor.vector_store is iso.vector_store
-        assert ingestor.doc_store is iso.doc_store
+        assert ingestor.chunk_store is iso.chunk_store
         assert ingestor.atom_store is iso.atom_store
         assert ingestor.embedder is iso.embedder
 
@@ -274,42 +281,6 @@ class TestIsotopeIngestor:
         ingestor = iso.ingestor()
 
         assert ingestor.question_generator is mock_generator
-
-    def test_ingestor_uses_env_dedup(
-        self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
-    ):
-        """Test that ingestor creates deduplicator from env var."""
-        from isotopedb.dedup import SourceAwareDedup
-
-        monkeypatch.setenv("ISOTOPE_DEDUP_STRATEGY", "source_aware")
-
-        iso = Isotope.with_local_stores(
-            data_dir=temp_dir,
-            embedder=mock_embedder,
-            atomizer=mock_atomizer,
-            question_generator=mock_generator,
-        )
-        ingestor = iso.ingestor()
-
-        assert isinstance(ingestor.deduplicator, SourceAwareDedup)
-
-    def test_ingestor_with_no_dedup(
-        self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
-    ):
-        """Test that ingestor creates NoDedup when strategy is 'none'."""
-        from isotopedb.dedup import NoDedup
-
-        monkeypatch.setenv("ISOTOPE_DEDUP_STRATEGY", "none")
-
-        iso = Isotope.with_local_stores(
-            data_dir=temp_dir,
-            embedder=mock_embedder,
-            atomizer=mock_atomizer,
-            question_generator=mock_generator,
-        )
-        ingestor = iso.ingestor()
-
-        assert isinstance(ingestor.deduplicator, NoDedup)
 
     def test_ingestor_creates_diversity_filter(
         self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
@@ -430,7 +401,7 @@ class TestIsotopeSharedStores:
 
         # Should be the exact same instances
         assert retriever.vector_store is ingestor.vector_store
-        assert retriever.doc_store is ingestor.doc_store
+        assert retriever.chunk_store is ingestor.chunk_store
         assert retriever.atom_store is ingestor.atom_store
         assert retriever.embedder is ingestor.embedder
 
@@ -449,6 +420,6 @@ class TestIsotopeSharedStores:
         r2 = iso.retriever(default_k=10)
 
         assert r1.vector_store is r2.vector_store
-        assert r1.doc_store is r2.doc_store
+        assert r1.chunk_store is r2.chunk_store
         assert r1.atom_store is r2.atom_store
         assert r1.embedder is r2.embedder

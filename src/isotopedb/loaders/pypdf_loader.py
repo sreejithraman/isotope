@@ -22,11 +22,13 @@ class PyPDFLoader(Loader):
         """Check if this loader supports the given file."""
         return Path(path).suffix.lower() in self.SUPPORTED_EXTENSIONS
 
-    def load(self, path: str) -> list[Chunk]:
+    def load(self, path: str, source_id: str | None = None) -> list[Chunk]:
         """Load a PDF file and return chunks (one per page).
 
         Args:
             path: Path to the PDF file
+            source_id: Optional custom source identifier. If not provided,
+                      the absolute path will be used as the source.
 
         Returns:
             List of Chunk objects, one per page with content
@@ -47,6 +49,9 @@ class PyPDFLoader(Loader):
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {path}")
 
+        # Use source_id if provided, otherwise use absolute path
+        source = source_id or str(file_path.resolve())
+
         chunks = []
         reader = PdfReader(path)
 
@@ -56,7 +61,7 @@ class PyPDFLoader(Loader):
                 chunks.append(
                     Chunk(
                         content=text.strip(),
-                        source=path,
+                        source=source,
                         metadata={"type": "pdf", "page": page_num},
                     )
                 )

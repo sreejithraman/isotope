@@ -35,8 +35,8 @@ class VectorStore(ABC):
         ...
 
 
-class DocStore(ABC):
-    """Abstract base class for document storage."""
+class ChunkStore(ABC):
+    """Abstract base class for chunk storage."""
 
     @abstractmethod
     def put(self, chunk: Chunk) -> None:
@@ -81,6 +81,16 @@ class DocStore(ABC):
     @abstractmethod
     def get_by_source(self, source: str) -> list[Chunk]:
         """Get all chunks from a specific source."""
+        ...
+
+    @abstractmethod
+    def get_chunk_ids_by_source(self, source: str) -> list[str]:
+        """Get all chunk IDs for a specific source."""
+        ...
+
+    @abstractmethod
+    def delete_by_source(self, source: str) -> None:
+        """Delete all chunks from a specific source."""
         ...
 
 

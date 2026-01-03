@@ -27,11 +27,13 @@ class LoaderRegistry:
                 return loader
         return None
 
-    def load(self, path: str) -> list[Chunk]:
+    def load(self, path: str, source_id: str | None = None) -> list[Chunk]:
         """Load a file using the appropriate loader.
 
         Args:
             path: Path to the file to load
+            source_id: Optional custom source identifier. If not provided,
+                      the absolute path will be used as the source.
 
         Returns:
             List of Chunk objects
@@ -42,7 +44,7 @@ class LoaderRegistry:
         loader = self.find_loader(path)
         if loader is None:
             raise ValueError(f"No loader found for: {path}")
-        return loader.load(path)
+        return loader.load(path, source_id)
 
     @classmethod
     def default(cls) -> "LoaderRegistry":

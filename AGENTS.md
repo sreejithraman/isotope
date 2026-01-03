@@ -34,18 +34,17 @@ pytest -m 'not mock_integration'
 ```
 src/isotopedb/
 ├── models/          # Pydantic data models (Chunk, Atom, Question, etc.)
-├── stores/          # Storage ABCs + implementations (VectorStore, DocStore, AtomStore)
-├── atomizer/        # Break chunks into atomic facts (SentenceAtomizer, LiteLLMAtomizer)
-├── dedup/           # Re-ingestion deduplication strategies
-├── embedder/        # Embedding wrapper (LiteLLMEmbedder)
-├── generator/       # Question generation + diversity filtering
+├── stores/          # Storage ABCs + implementations (VectorStore, ChunkStore, AtomStore)
+├── atomizer/        # Break chunks into atomic facts (SentenceAtomizer, LLMAtomizer)
+├── embedder/        # Embedding wrapper (ClientEmbedder)
+├── question_generator/  # Question generation + diversity filtering
 ├── loaders/         # File loaders (text, PDF, HTML) with registry pattern
+├── providers/       # LLM/embedding provider clients (LiteLLMClient, LiteLLMEmbeddingClient)
 ├── isotope.py       # Central configuration facade
 ├── ingestor.py      # Ingestion pipeline
 ├── retriever.py     # Query pipeline with LLM synthesis
 ├── cli.py           # Typer CLI (isotope config/ingest/query/list/status/delete)
 ├── config.py        # Settings (pydantic-settings, ISOTOPE_* env vars)
-├── llm_models.py    # Curated model constants (ChatModels, EmbeddingModels)
 └── _optional.py     # Optional dependency handling
 ```
 
@@ -56,18 +55,19 @@ src/isotopedb/
 ## Code Patterns
 
 **ABCs for extensibility**: All major components have abstract base classes:
-- `VectorStore`, `DocStore`, `AtomStore` in `stores/base.py`
+- `VectorStore`, `ChunkStore`, `AtomStore` in `stores/base.py`
+- `SourceRegistry` in `stores/source_registry.py`
 - `Atomizer` in `atomizer/base.py`
-- `Deduplicator` in `dedup/base.py`
 - `Embedder` in `embedder/base.py`
-- `QuestionGenerator` in `generator/base.py`
+- `QuestionGenerator` in `question_generator/base.py`
+- `LLMClient`, `EmbeddingClient` in `providers/base.py`
 - `Loader` in `loaders/base.py`
 
 **Pydantic 2.x models**: All data models use Pydantic with:
 - `Field(default_factory=...)` for UUIDs
 - Composition over inheritance (e.g., `EmbeddedQuestion` contains `Question`)
 
-**LiteLLM**: All LLM/embedding calls go through litellm for provider flexibility.
+**LiteLLM**: Default provider clients live in `providers/litellm` for easy provider switching.
 
 **Optional dependencies**: Use `_optional.py` pattern to handle missing optional packages gracefully.
 
@@ -78,12 +78,11 @@ src/isotopedb/
 | To add... | Implement... | Reference |
 |-----------|--------------|-----------|
 | New vector store | `VectorStore` ABC | `ChromaVectorStore` |
-| New doc store | `DocStore` ABC | `SQLiteDocStore` |
+| New chunk store | `ChunkStore` ABC | `SQLiteChunkStore` |
 | New atom store | `AtomStore` ABC | `SQLiteAtomStore` |
-| New atomizer | `Atomizer` ABC | `SentenceAtomizer`, `LiteLLMAtomizer` |
-| New dedup strategy | `Deduplicator` ABC | `NoDedup`, `SourceAwareDedup` |
-| New embedder | `Embedder` ABC | `LiteLLMEmbedder` |
-| New question generator | `QuestionGenerator` ABC | `LiteLLMQuestionGenerator` |
+| New atomizer | `Atomizer` ABC | `SentenceAtomizer`, `LLMAtomizer` |
+| New embedder | `Embedder` ABC | `ClientEmbedder` |
+| New question generator | `QuestionGenerator` ABC | `ClientQuestionGenerator` |
 | New file loader | `Loader` ABC | `TextLoader`, register via `LoaderRegistry` |
 
 ## CLI Commands
