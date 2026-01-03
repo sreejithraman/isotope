@@ -35,7 +35,6 @@ except ImportError:
     YAML_AVAILABLE = False
 
 from isotopedb import __version__
-from isotopedb.config import Settings
 
 app = typer.Typer(
     name="isotope",
@@ -68,6 +67,43 @@ def main(
 
 DEFAULT_DATA_DIR = "./isotope_data"
 CONFIG_FILES = ["isotope.yaml", "isotope.yml", ".isotoperc"]
+
+
+def _parse_threshold(value: str | None) -> float | None:
+    """Parse diversity threshold from env var, treating empty string as None."""
+    if value is None or value == "":
+        return None
+    return float(value)
+
+
+def _parse_diversity_scope(value: str | None) -> str:
+    """Parse diversity scope from env var, defaulting to 'global'."""
+    if value is None or value == "":
+        return "global"
+    normalized = value.lower()
+    if normalized not in {"global", "per_chunk", "per_atom"}:
+        console.print(f"[yellow]Warning: Invalid diversity_scope '{value}', defaulting[/yellow]")
+        return "global"
+    return normalized
+
+
+def _get_behavioral_settings_from_env() -> dict:
+    """Read behavioral settings from ISOTOPE_* environment variables.
+
+    This is the CLI (application layer) reading env vars and preparing
+    them to pass explicitly to the library.
+    """
+    return {
+        "questions_per_atom": int(os.environ.get("ISOTOPE_QUESTIONS_PER_ATOM", "15")),
+        "question_generator_prompt": os.environ.get("ISOTOPE_QUESTION_GENERATOR_PROMPT") or None,
+        "atomizer_prompt": os.environ.get("ISOTOPE_ATOMIZER_PROMPT") or None,
+        "diversity_threshold": _parse_threshold(
+            os.environ.get("ISOTOPE_QUESTION_DIVERSITY_THRESHOLD", "0.85")
+        ),
+        "diversity_scope": _parse_diversity_scope(os.environ.get("ISOTOPE_DIVERSITY_SCOPE")),
+        "default_k": int(os.environ.get("ISOTOPE_DEFAULT_K", "5")),
+        "synthesis_prompt": os.environ.get("ISOTOPE_SYNTHESIS_PROMPT") or None,
+    }
 
 
 class StoreBundle(TypedDict):
@@ -142,12 +178,30 @@ def get_isotope(
     2. isotope.yaml in current/parent directories
     3. Falls back to LiteLLM with env vars if no config found
     """
+    from dataclasses import dataclass
+
+    from isotopedb.config import Settings
+    from isotopedb.configuration import LiteLLMProvider, LocalStorage
     from isotopedb.isotope import Isotope
 
     config = load_config(Path(config_path) if config_path else None)
     effective_data_dir = data_dir or config.get("data_dir") or DEFAULT_DATA_DIR
 
     provider = config.get("provider", "litellm")
+
+    # Get behavioral settings from env vars (CLI reads env, passes to library)
+    env_settings = _get_behavioral_settings_from_env()
+
+    # Build Settings from env vars
+    settings = Settings(
+        questions_per_atom=env_settings["questions_per_atom"],
+        question_generator_prompt=env_settings["question_generator_prompt"],
+        atomizer_prompt=env_settings["atomizer_prompt"],
+        question_diversity_threshold=env_settings["diversity_threshold"],
+        diversity_scope=env_settings["diversity_scope"],  # type: ignore[arg-type]
+        default_k=env_settings["default_k"],
+        synthesis_prompt=env_settings["synthesis_prompt"],
+    )
 
     if provider == "litellm":
         # LiteLLM provider
@@ -173,11 +227,14 @@ def get_isotope(
 
         use_sentence_atomizer = config.get("use_sentence_atomizer", False)
 
-        return Isotope.with_litellm(
-            llm_model=llm_model,
-            embedding_model=embedding_model,
-            data_dir=effective_data_dir,
-            use_sentence_atomizer=use_sentence_atomizer,
+        return Isotope(
+            provider=LiteLLMProvider(
+                llm=llm_model,
+                embedding=embedding_model,
+                atomizer_type="sentence" if use_sentence_atomizer else "llm",
+            ),
+            storage=LocalStorage(effective_data_dir),
+            settings=settings,
         )
 
     elif provider == "custom":
@@ -224,11 +281,32 @@ def get_isotope(
         question_generator = question_generator_cls(**question_generator_kwargs)
         atomizer = atomizer_cls(**atomizer_kwargs)
 
-        return Isotope.with_local_stores(
-            embedder=embedder,
-            atomizer=atomizer,
-            question_generator=question_generator,
-            data_dir=effective_data_dir,
+        # Create an inline provider that wraps the custom components
+        @dataclass(frozen=True)
+        class _CustomProvider:
+            """Inline provider for custom implementations."""
+
+            _embedder: Any
+            _atomizer: Any
+            _question_generator: Any
+
+            def build_embedder(self) -> Any:
+                return self._embedder
+
+            def build_atomizer(self, settings: Settings) -> Any:
+                return self._atomizer
+
+            def build_question_generator(self, settings: Settings) -> Any:
+                return self._question_generator
+
+        return Isotope(
+            provider=_CustomProvider(
+                _embedder=embedder,
+                _atomizer=atomizer,
+                _question_generator=question_generator,
+            ),
+            storage=LocalStorage(effective_data_dir),
+            settings=settings,
         )
 
     else:
@@ -247,7 +325,8 @@ def config(
     ),
 ) -> None:
     """Show current configuration settings."""
-    settings = Settings()
+    # Read behavioral settings from env vars (application layer)
+    env_settings = _get_behavioral_settings_from_env()
     cli_config = load_config(Path(config_file) if config_file else None)
 
     table = Table(title="IsotopeDB Configuration")
@@ -279,17 +358,17 @@ def config(
         table.add_row("generator", cli_config.get("generator", "(not set)"), "config file")
         table.add_row("atomizer", cli_config.get("atomizer", "(not set)"), "config file")
 
-    # Behavioral settings (from env vars)
+    # Behavioral settings (from env vars, read by CLI)
     table.add_row("", "", "")  # Separator
-    table.add_row("questions_per_atom", str(settings.questions_per_atom), "env var")
-    threshold = settings.question_diversity_threshold
+    table.add_row("questions_per_atom", str(env_settings["questions_per_atom"]), "env var")
+    threshold = env_settings["diversity_threshold"]
     table.add_row(
         "question_diversity_threshold",
         str(threshold) if threshold is not None else "disabled",
         "env var",
     )
-    table.add_row("diversity_scope", settings.diversity_scope, "env var")
-    table.add_row("default_k", str(settings.default_k), "env var")
+    table.add_row("diversity_scope", env_settings["diversity_scope"], "env var")
+    table.add_row("default_k", str(env_settings["default_k"]), "env var")
 
     console.print(table)
 

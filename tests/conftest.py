@@ -90,3 +90,36 @@ def mock_atomizer():
             return [Atom(content=chunk.content, chunk_id=chunk.id, index=0)]
 
     return MockAtomizer()
+
+
+@pytest.fixture
+def mock_provider(mock_embedder, mock_atomizer, mock_generator):
+    """Create a mock provider for testing.
+
+    This provider wraps the mock components and satisfies the ProviderConfig protocol.
+    """
+    from dataclasses import dataclass
+    from typing import Any
+
+    @dataclass(frozen=True)
+    class MockProvider:
+        """Mock provider that wraps mock components."""
+
+        _embedder: Any
+        _atomizer: Any
+        _question_generator: Any
+
+        def build_embedder(self) -> Any:
+            return self._embedder
+
+        def build_atomizer(self, settings: Any) -> Any:
+            return self._atomizer
+
+        def build_question_generator(self, settings: Any) -> Any:
+            return self._question_generator
+
+    return MockProvider(
+        _embedder=mock_embedder,
+        _atomizer=mock_atomizer,
+        _question_generator=mock_generator,
+    )

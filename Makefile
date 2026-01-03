@@ -6,7 +6,8 @@ DIM := \033[2m
 RESET := \033[0m
 
 help:
-	@printf "$(ORANGE)◆ isotope$(RESET)\n"
+	@printf "\n"
+	@printf "$(ORANGE)⛬ isotope$(RESET)\n"
 	@printf "\n"
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Setup $(RESET)$(DIM)────────────────────────────────────╮$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)dev-setup$(RESET)    Install + pre-commit hooks   $(DIM)│$(RESET)\n"

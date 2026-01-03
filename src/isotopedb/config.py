@@ -2,32 +2,31 @@
 """Configuration management for IsotopeDB.
 
 This module contains behavioral settings that apply regardless of which
-LLM provider is used. Provider-specific configuration (model names, API keys)
-is handled by the provider modules (e.g., isotopedb.providers.litellm).
+LLM provider is used. Settings are passed programmatically - the library
+does not read from environment variables (following SDK best practices
+like OpenAI, Stripe, boto3).
+
+For applications that want env-based config, read env vars at the
+application layer and pass values explicitly to Isotope factory methods.
 """
 
-from typing import Literal, cast
+from typing import Literal
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel
 
 
-class Settings(BaseSettings):
+class Settings(BaseModel):
     """Behavioral settings for IsotopeDB.
 
     These settings control how IsotopeDB behaves, independent of which
-    LLM/embedding provider is used. Set via environment variables with
-    the ISOTOPE_ prefix.
+    LLM/embedding provider is used.
 
     Example:
-        export ISOTOPE_QUESTIONS_PER_ATOM=20
-        export ISOTOPE_DIVERSITY_SCOPE=per_chunk
+        settings = Settings(
+            questions_per_atom=20,
+            diversity_scope="per_chunk",
+        )
     """
-
-    model_config = SettingsConfigDict(
-        env_prefix="ISOTOPE_",
-        extra="ignore",
-    )
 
     # Question generation
     questions_per_atom: int = 15
@@ -43,22 +42,3 @@ class Settings(BaseSettings):
     # Retrieval
     default_k: int = 5
     synthesis_prompt: str | None = None
-
-    @field_validator("question_diversity_threshold", mode="before")
-    @classmethod
-    def parse_threshold(cls, v: object) -> float | None:
-        """Parse threshold, treating empty string as None (disabled)."""
-        if v == "" or v is None:
-            return None
-        return float(v)  # type: ignore[arg-type]
-
-    @field_validator("diversity_scope", mode="before")
-    @classmethod
-    def parse_diversity_scope(cls, v: object) -> Literal["global", "per_chunk", "per_atom"]:
-        """Parse diversity scope, normalizing to lowercase."""
-        if v is None or v == "":
-            return "global"
-        value = str(v).lower()
-        if value not in {"global", "per_chunk", "per_atom"}:
-            raise ValueError("diversity_scope must be global, per_chunk, or per_atom")
-        return cast(Literal["global", "per_chunk", "per_atom"], value)

@@ -4,16 +4,14 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from isotopedb.atomizer import Atomizer
-    from isotopedb.embedder import Embedder
+    from isotopedb.configuration import ProviderConfig, StorageConfig
     from isotopedb.ingestor import Ingestor
     from isotopedb.loaders import LoaderRegistry
-    from isotopedb.question_generator import DiversityFilter, FilterScope, QuestionGenerator
+    from isotopedb.question_generator import DiversityFilter, FilterScope
     from isotopedb.retriever import Retriever
     from isotopedb.stores import AtomStore, ChunkStore, SourceRegistry, VectorStore
 
@@ -23,205 +21,110 @@ from isotopedb.config import Settings
 class Isotope:
     """Central configuration for IsotopeDB stores and components.
 
-    Isotope bundles all the stores and embedder together so you can
+    Isotope bundles all the stores and AI components together so you can
     configure once and create Retrievers/Ingestors from it.
 
-    There are two ways to use Isotope:
+    There are two ways to create an Isotope instance:
 
-    1. Simple path (LiteLLM):
-        Use the with_litellm() factory method for quick setup:
+    1. With a storage bundle (developer-friendly):
 
-        iso = Isotope.with_litellm(
-            data_dir="./my_data",
-            llm_model="openai/gpt-4o",
-            embedding_model="openai/text-embedding-3-small",
+        from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+
+        iso = Isotope(
+            provider=LiteLLMProvider(llm="openai/gpt-4o", embedding="text-embedding-3-small"),
+            storage=LocalStorage("./data"),
         )
         ingestor = iso.ingestor()
 
-    2. Explicit path (custom/enterprise):
-        Bring your own components:
+    2. With explicit stores (enterprise):
 
-        from isotopedb.atomizer import LLMAtomizer
-        from isotopedb.embedder import ClientEmbedder
-        from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-        from isotopedb.question_generator import ClientQuestionGenerator
-
-        llm_client = LiteLLMClient(model="openai/gpt-4o")
-        embedding_client = LiteLLMEmbeddingClient(model="openai/text-embedding-3-small")
+        from isotopedb import Isotope, LiteLLMProvider
+        from isotopedb.stores import (
+            ChromaVectorStore, SQLiteChunkStore, SQLiteAtomStore, SQLiteSourceRegistry
+        )
 
         iso = Isotope(
-            vector_store=my_vector_store,
-            chunk_store=my_chunk_store,
-            atom_store=my_atom_store,
-            embedder=ClientEmbedder(embedding_client=embedding_client),
-            atomizer=LLMAtomizer(llm_client=llm_client),
-            question_generator=ClientQuestionGenerator(llm_client=llm_client),
+            provider=LiteLLMProvider(llm="gpt-4o", embedding="text-embedding-3-small"),
+            vector_store=ChromaVectorStore("./data/chroma"),
+            chunk_store=SQLiteChunkStore("./data/chunks.db"),
+            atom_store=SQLiteAtomStore("./data/atoms.db"),
+            source_registry=SQLiteSourceRegistry("./data/sources.db"),
         )
-        ingestor = iso.ingestor()  # All components configured at init
+        ingestor = iso.ingestor()
     """
 
     def __init__(
         self,
         *,
-        vector_store: VectorStore,
-        chunk_store: ChunkStore,
-        atom_store: AtomStore,
-        source_registry: SourceRegistry,
-        embedder: Embedder,
-        atomizer: Atomizer,
-        question_generator: QuestionGenerator,
+        provider: ProviderConfig,
+        # EITHER storage bundle...
+        storage: StorageConfig | None = None,
+        # ...OR explicit stores
+        vector_store: VectorStore | None = None,
+        chunk_store: ChunkStore | None = None,
+        atom_store: AtomStore | None = None,
+        source_registry: SourceRegistry | None = None,
+        # Common
+        settings: Settings | None = None,
         loader_registry: LoaderRegistry | None = None,
     ) -> None:
         """Create an Isotope instance.
 
         Args:
-            vector_store: Vector store for question embeddings (required)
-            chunk_store: Chunk store for chunks (required)
-            atom_store: Atom store for atomic statements (required)
-            source_registry: Registry for tracking source content hashes (required)
-            embedder: Embedder for creating embeddings (required)
-            atomizer: Atomizer for breaking chunks into atoms (required)
-            question_generator: Question generator for creating synthetic questions (required)
+            provider: Provider configuration (builds embedder, atomizer, question_generator).
+                      Example: LiteLLMProvider(llm="gpt-4o", embedding="text-embedding-3-small")
+            storage: Storage bundle (convenience). Mutually exclusive with explicit stores.
+                     Example: LocalStorage("./data")
+            vector_store: Explicit vector store. Use with other explicit stores.
+            chunk_store: Explicit chunk store.
+            atom_store: Explicit atom store.
+            source_registry: Explicit source registry.
+            settings: Behavioral settings (questions_per_atom, diversity_threshold, etc.)
             loader_registry: Optional loader registry for file loading. If None, uses default.
+
+        Raises:
+            ValueError: If neither storage bundle nor all explicit stores are provided,
+                       or if both are provided.
         """
-        # Load behavioral settings from env vars
-        self._settings = Settings()
+        # Use provided settings or defaults
+        self._settings = settings if settings is not None else Settings()
 
-        # Store references
-        self.vector_store = vector_store
-        self.chunk_store = chunk_store
-        self.atom_store = atom_store
-        self._source_registry = source_registry
-        self.embedder = embedder
+        # Path 1: Storage bundle (convenience)
+        if storage is not None:
+            if any([vector_store, chunk_store, atom_store, source_registry]):
+                raise ValueError("Cannot mix 'storage' bundle with explicit stores")
+            (
+                self.vector_store,
+                self.chunk_store,
+                self.atom_store,
+                self._source_registry,
+            ) = storage.build_stores()
 
-        # Required components for ingestor
-        self._atomizer = atomizer
-        self._question_generator = question_generator
+        # Path 2: Explicit stores (enterprise)
+        elif all([vector_store, chunk_store, atom_store, source_registry]):
+            # Type narrowing - we checked all are not None above
+            assert vector_store is not None
+            assert chunk_store is not None
+            assert atom_store is not None
+            assert source_registry is not None
+            self.vector_store = vector_store
+            self.chunk_store = chunk_store
+            self.atom_store = atom_store
+            self._source_registry = source_registry
+
+        else:
+            raise ValueError(
+                "Must provide either 'storage' bundle or all explicit stores "
+                "(vector_store, chunk_store, atom_store, source_registry)"
+            )
+
+        # Build provider components
+        self.embedder = provider.build_embedder()
+        self._atomizer = provider.build_atomizer(self._settings)
+        self._question_generator = provider.build_question_generator(self._settings)
 
         # Loader registry (lazily created if not provided)
         self._loader_registry = loader_registry
-
-    @classmethod
-    def with_litellm(
-        cls,
-        *,
-        llm_model: str,
-        embedding_model: str,
-        data_dir: str = "./isotope_data",
-        use_sentence_atomizer: bool = False,
-    ) -> Isotope:
-        """Create Isotope with LiteLLM provider and local stores.
-
-        Convenience factory for quick setup using LiteLLM.
-        Requires the litellm package to be installed.
-
-        Args:
-            llm_model: LiteLLM model for question generation and atomization.
-                       Examples: "openai/gpt-4o", "anthropic/claude-sonnet-4-5-20250929"
-            embedding_model: LiteLLM embedding model.
-                             Examples: "openai/text-embedding-3-small"
-            data_dir: Base directory for local stores (Chroma + SQLite).
-            use_sentence_atomizer: If True, use SentenceAtomizer instead of LLM atomizer.
-
-        Returns:
-            Configured Isotope instance with LiteLLM components.
-
-        Example:
-            iso = Isotope.with_litellm(
-                llm_model="openai/gpt-4o",
-                embedding_model="openai/text-embedding-3-small",
-            )
-            ingestor = iso.ingestor()
-        """
-        from isotopedb.atomizer import LLMAtomizer, SentenceAtomizer
-        from isotopedb.embedder import ClientEmbedder
-        from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-        from isotopedb.question_generator import ClientQuestionGenerator
-        from isotopedb.stores import (
-            ChromaVectorStore,
-            SQLiteAtomStore,
-            SQLiteChunkStore,
-            SQLiteSourceRegistry,
-        )
-
-        # Create local stores
-        Path(data_dir).mkdir(parents=True, exist_ok=True)
-        vector_store = ChromaVectorStore(os.path.join(data_dir, "chroma"))
-        chunk_store = SQLiteChunkStore(os.path.join(data_dir, "chunks.db"))
-        atom_store = SQLiteAtomStore(os.path.join(data_dir, "atoms.db"))
-        source_registry = SQLiteSourceRegistry(os.path.join(data_dir, "sources.db"))
-
-        # Load behavioral settings for generator
-        settings = Settings()
-
-        # Create LiteLLM clients
-        llm_client = LiteLLMClient(model=llm_model)
-        embedding_client = LiteLLMEmbeddingClient(model=embedding_model)
-
-        # Create components with injected clients
-        embedder = ClientEmbedder(embedding_client=embedding_client)
-        question_generator = ClientQuestionGenerator(
-            llm_client=llm_client,
-            num_questions=settings.questions_per_atom,
-            prompt_template=settings.question_generator_prompt,
-        )
-
-        if use_sentence_atomizer:
-            atomizer: Atomizer = SentenceAtomizer()
-        else:
-            atomizer = LLMAtomizer(llm_client=llm_client, prompt_template=settings.atomizer_prompt)
-
-        return cls(
-            vector_store=vector_store,
-            chunk_store=chunk_store,
-            atom_store=atom_store,
-            source_registry=source_registry,
-            embedder=embedder,
-            atomizer=atomizer,
-            question_generator=question_generator,
-        )
-
-    @classmethod
-    def with_local_stores(
-        cls,
-        *,
-        embedder: Embedder,
-        atomizer: Atomizer,
-        question_generator: QuestionGenerator,
-        data_dir: str = "./isotope_data",
-    ) -> Isotope:
-        """Create Isotope with local stores (Chroma + SQLite).
-
-        Use this when you want to bring your own embedder/atomizer/question_generator
-        but use local stores for development.
-
-        Args:
-            embedder: Embedder implementation (required)
-            atomizer: Atomizer implementation (required)
-            question_generator: Question generator implementation (required)
-            data_dir: Base directory for all stores.
-
-        Returns:
-            Configured Isotope instance with local stores.
-        """
-        from isotopedb.stores import (
-            ChromaVectorStore,
-            SQLiteAtomStore,
-            SQLiteChunkStore,
-            SQLiteSourceRegistry,
-        )
-
-        Path(data_dir).mkdir(parents=True, exist_ok=True)
-
-        return cls(
-            vector_store=ChromaVectorStore(os.path.join(data_dir, "chroma")),
-            chunk_store=SQLiteChunkStore(os.path.join(data_dir, "chunks.db")),
-            atom_store=SQLiteAtomStore(os.path.join(data_dir, "atoms.db")),
-            source_registry=SQLiteSourceRegistry(os.path.join(data_dir, "sources.db")),
-            embedder=embedder,
-            atomizer=atomizer,
-            question_generator=question_generator,
-        )
 
     def _get_loader_registry(self) -> LoaderRegistry:
         """Get or create the loader registry."""

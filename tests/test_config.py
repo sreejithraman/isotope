@@ -1,64 +1,51 @@
 # tests/test_config.py
-"""Tests for configuration."""
+"""Tests for configuration.
+
+Settings is now a plain BaseModel (no env var reading).
+The library is programmatic-first - env vars are read by the CLI application layer.
+"""
 
 from isotopedb.config import Settings
 
 
 class TestSettings:
     def test_default_settings(self):
-        """Test optional settings have correct defaults."""
+        """Test Settings has correct defaults."""
         settings = Settings()
         assert settings.questions_per_atom == 15
         assert settings.question_diversity_threshold == 0.85
         assert settings.diversity_scope == "global"
         assert settings.default_k == 5
         assert settings.question_generator_prompt is None
+        assert settings.atomizer_prompt is None
+        assert settings.synthesis_prompt is None
 
-    def test_settings_from_env(self, monkeypatch):
-        """Test settings loaded from environment variables."""
-        monkeypatch.setenv("ISOTOPE_QUESTIONS_PER_ATOM", "10")
-        monkeypatch.setenv("ISOTOPE_DIVERSITY_SCOPE", "per_chunk")
-        monkeypatch.setenv("ISOTOPE_DEFAULT_K", "10")
-
-        settings = Settings()
-        assert settings.questions_per_atom == 10
+    def test_settings_with_custom_values(self):
+        """Test Settings accepts custom values."""
+        settings = Settings(
+            questions_per_atom=20,
+            question_diversity_threshold=0.9,
+            diversity_scope="per_chunk",
+            default_k=10,
+            question_generator_prompt="custom prompt",
+            atomizer_prompt="atomizer prompt",
+            synthesis_prompt="synthesis prompt",
+        )
+        assert settings.questions_per_atom == 20
+        assert settings.question_diversity_threshold == 0.9
         assert settings.diversity_scope == "per_chunk"
         assert settings.default_k == 10
+        assert settings.question_generator_prompt == "custom prompt"
+        assert settings.atomizer_prompt == "atomizer prompt"
+        assert settings.synthesis_prompt == "synthesis prompt"
 
-    def test_question_diversity_threshold_none(self, monkeypatch):
-        """Test empty string threshold is treated as None (disabled)."""
-        monkeypatch.setenv("ISOTOPE_QUESTION_DIVERSITY_THRESHOLD", "")
-        settings = Settings()
+    def test_settings_with_disabled_threshold(self):
+        """Test Settings with None threshold (disabled)."""
+        settings = Settings(question_diversity_threshold=None)
         assert settings.question_diversity_threshold is None
 
-    def test_question_diversity_threshold_custom(self, monkeypatch):
-        """Test custom threshold value."""
-        monkeypatch.setenv("ISOTOPE_QUESTION_DIVERSITY_THRESHOLD", "0.9")
-        settings = Settings()
-        assert settings.question_diversity_threshold == 0.9
-
-    def test_custom_question_generator_prompt(self, monkeypatch):
-        """Test custom question generator prompt from env var."""
-        custom_prompt = "Generate questions about: {atom}"
-        monkeypatch.setenv("ISOTOPE_QUESTION_GENERATOR_PROMPT", custom_prompt)
-        settings = Settings()
-        assert settings.question_generator_prompt == custom_prompt
-
-    def test_diversity_scope_values(self, monkeypatch):
+    def test_settings_all_diversity_scopes(self):
         """Test all valid diversity_scope values."""
         for scope in ["global", "per_chunk", "per_atom"]:
-            monkeypatch.setenv("ISOTOPE_DIVERSITY_SCOPE", scope)
-            settings = Settings()
+            settings = Settings(diversity_scope=scope)  # type: ignore[arg-type]
             assert settings.diversity_scope == scope
-
-    def test_diversity_scope_case_insensitive(self, monkeypatch):
-        """Test diversity_scope is case insensitive."""
-        monkeypatch.setenv("ISOTOPE_DIVERSITY_SCOPE", "PER_CHUNK")
-        settings = Settings()
-        assert settings.diversity_scope == "per_chunk"
-
-    def test_diversity_scope_default_on_empty(self, monkeypatch):
-        """Test empty diversity_scope defaults to global."""
-        monkeypatch.setenv("ISOTOPE_DIVERSITY_SCOPE", "")
-        settings = Settings()
-        assert settings.diversity_scope == "global"

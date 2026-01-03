@@ -3,12 +3,12 @@
 A question-based retrieval system using atomic units for enterprise RAG.
 Aligns with arXiv:2405.12363.
 
-Quick Start (LiteLLM):
-    from isotopedb import Isotope, LoaderRegistry
+Quick Start (LiteLLM + Local Storage):
+    from isotopedb import Isotope, LiteLLMProvider, LocalStorage, LoaderRegistry
 
-    iso = Isotope.with_litellm(
-        llm_model="openai/gpt-4o",
-        embedding_model="openai/text-embedding-3-small",
+    iso = Isotope(
+        provider=LiteLLMProvider(llm="openai/gpt-4o", embedding="text-embedding-3-small"),
+        storage=LocalStorage("./data"),
     )
 
     # Ingest documents
@@ -20,25 +20,19 @@ Quick Start (LiteLLM):
     retriever = iso.retriever()
     response = retriever.get_answer("What is...?")
 
-Custom Implementations:
-    from isotopedb import Isotope
-    from isotopedb.atomizer import LLMAtomizer
-    from isotopedb.embedder import ClientEmbedder
-    from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-    from isotopedb.question_generator import ClientQuestionGenerator
-
-    llm_client = LiteLLMClient(model="openai/gpt-4o")
-    embedding_client = LiteLLMEmbeddingClient(model="openai/text-embedding-3-small")
+Enterprise (Explicit Stores):
+    from isotopedb import Isotope, LiteLLMProvider
+    from isotopedb.stores import (
+        ChromaVectorStore, SQLiteChunkStore, SQLiteAtomStore, SQLiteSourceRegistry
+    )
 
     iso = Isotope(
-        vector_store=my_vector_store,
-        chunk_store=my_chunk_store,
-        atom_store=my_atom_store,
-        embedder=ClientEmbedder(embedding_client=embedding_client),
-        atomizer=LLMAtomizer(llm_client=llm_client),
-        question_generator=ClientQuestionGenerator(llm_client=llm_client),
+        provider=LiteLLMProvider(llm="gpt-4o", embedding="text-embedding-3-small"),
+        vector_store=ChromaVectorStore("./data/chroma"),
+        chunk_store=SQLiteChunkStore("./data/chunks.db"),
+        atom_store=SQLiteAtomStore("./data/atoms.db"),
+        source_registry=SQLiteSourceRegistry("./data/sources.db"),
     )
-    ingestor = iso.ingestor()  # All components configured at init
 """
 
 __version__ = "0.1.0"
@@ -49,6 +43,14 @@ from isotopedb.atomizer import Atomizer, SentenceAtomizer
 
 # Configuration
 from isotopedb.config import Settings
+
+# Configuration objects
+from isotopedb.configuration import (
+    LiteLLMProvider,
+    LocalStorage,
+    ProviderConfig,
+    StorageConfig,
+)
 from isotopedb.embedder import Embedder
 
 # Pipelines
@@ -97,6 +99,11 @@ __all__ = [
     "SearchResult",
     # Config
     "Settings",
+    # Configuration objects
+    "ProviderConfig",
+    "StorageConfig",
+    "LiteLLMProvider",
+    "LocalStorage",
     # Storage ABCs
     "AtomStore",
     "ChromaVectorStore",
