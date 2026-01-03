@@ -148,7 +148,7 @@ class Isotope:
         if use_sentence_atomizer:
             atomizer: Atomizer = SentenceAtomizer()
         else:
-            atomizer = LLMAtomizer(llm_client=llm_client)
+            atomizer = LLMAtomizer(llm_client=llm_client, prompt_template=settings.atomizer_prompt)
 
         return cls(
             vector_store=vector_store,
@@ -240,7 +240,7 @@ class Isotope:
             embedder=self.embedder,
             default_k=default_k if default_k is not None else self._settings.default_k,
             llm_model=llm_model,
-            synthesis_prompt=synthesis_prompt,
+            synthesis_prompt=synthesis_prompt or self._settings.synthesis_prompt,
         )
 
     def ingestor(

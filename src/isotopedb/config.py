@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     questions_per_atom: int = 15
     question_prompt: str | None = None
 
+    # Atomization
+    atomizer_prompt: str | None = None
+
     # Question diversity deduplication
     question_diversity_threshold: float | None = 0.85
     diversity_scope: Literal["global", "per_chunk", "per_atom"] = "global"
@@ -42,6 +45,7 @@ class Settings(BaseSettings):
 
     # Retrieval
     default_k: int = 5
+    synthesis_prompt: str | None = None
 
     @field_validator("question_diversity_threshold", mode="before")
     @classmethod

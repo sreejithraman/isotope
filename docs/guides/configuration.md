@@ -171,11 +171,13 @@ These settings apply regardless of which provider you use. Configure via environ
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ISOTOPE_QUESTIONS_PER_ATOM` | `15` | Questions to generate per atom |
-| `ISOTOPE_QUESTION_PROMPT` | (default prompt) | Custom prompt template |
+| `ISOTOPE_QUESTION_PROMPT` | (default prompt) | Custom question generation prompt template |
+| `ISOTOPE_ATOMIZER_PROMPT` | (default prompt) | Custom atomization prompt template |
 | `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` | `0.85` | Similarity threshold for dedup (empty = disable) |
 | `ISOTOPE_DIVERSITY_SCOPE` | `global` | Scope for diversity filter: `global`, `per_chunk`, `per_atom` |
 | `ISOTOPE_DEDUP_STRATEGY` | `source_aware` | Re-ingestion strategy: `none` or `source_aware` |
 | `ISOTOPE_DEFAULT_K` | `5` | Default number of results to return |
+| `ISOTOPE_SYNTHESIS_PROMPT` | (default prompt) | Custom answer synthesis prompt template |
 
 ## Provider API Keys
 
