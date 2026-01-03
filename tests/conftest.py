@@ -45,9 +45,7 @@ def mock_embedder():
             return EmbeddedQuestion(question=question, embedding=[0.1] * 10)
 
         def embed_questions(self, questions: list[Question]) -> list[EmbeddedQuestion]:
-            return [
-                EmbeddedQuestion(question=q, embedding=[0.1] * 10) for q in questions
-            ]
+            return [EmbeddedQuestion(question=q, embedding=[0.1] * 10) for q in questions]
 
     return MockEmbedder()
 
@@ -63,7 +61,11 @@ def mock_generator():
 
         def generate(self, atom: Atom, chunk_content: str = "") -> list[Question]:
             return [
-                Question(text=f"Question about {atom.content}?", chunk_id=atom.chunk_id, atom_id=atom.id)
+                Question(
+                    text=f"Question about {atom.content}?",
+                    chunk_id=atom.chunk_id,
+                    atom_id=atom.id,
+                )
             ]
 
         def generate_batch(self, atoms: list[Atom], chunk_content: str = "") -> list[Question]:

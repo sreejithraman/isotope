@@ -1,8 +1,6 @@
 # tests/test_config.py
 """Tests for configuration."""
 
-import pytest
-
 from isotopedb.config import Settings
 
 

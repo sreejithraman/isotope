@@ -37,6 +37,23 @@ Custom Implementations:
 __version__ = "0.1.0"
 
 # Core models
+# Abstract base classes
+from isotopedb.atomizer import Atomizer, SentenceAtomizer
+
+# Configuration
+from isotopedb.config import Settings
+from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
+from isotopedb.embedder import Embedder
+from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
+
+# Pipelines
+from isotopedb.ingestor import Ingestor
+
+# Central configuration
+from isotopedb.isotope import Isotope
+
+# File loading
+from isotopedb.loaders import Loader, LoaderRegistry, TextLoader
 from isotopedb.models import (
     Atom,
     Chunk,
@@ -45,15 +62,7 @@ from isotopedb.models import (
     Question,
     SearchResult,
 )
-
-# Abstract base classes
-from isotopedb.atomizer import Atomizer, SentenceAtomizer
-from isotopedb.dedup import Deduplicator, NoDedup, SourceAwareDedup
-from isotopedb.embedder import Embedder
-from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
-
-# Configuration
-from isotopedb.config import Settings
+from isotopedb.retriever import Retriever
 
 # Storage ABCs
 from isotopedb.stores import (
@@ -64,16 +73,6 @@ from isotopedb.stores import (
     SQLiteDocStore,
     VectorStore,
 )
-
-# Pipelines
-from isotopedb.ingestor import Ingestor
-from isotopedb.retriever import Retriever
-
-# Central configuration
-from isotopedb.isotope import Isotope
-
-# File loading
-from isotopedb.loaders import Loader, LoaderRegistry, TextLoader
 
 __all__ = [
     # Version

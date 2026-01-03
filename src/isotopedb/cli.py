@@ -151,7 +151,9 @@ def get_isotope(
         )
 
         if not llm_model or not embedding_model:
-            console.print("[red]Error: LiteLLM provider requires llm_model and embedding_model.[/red]")
+            console.print(
+                "[red]Error: LiteLLM provider requires llm_model and embedding_model.[/red]"
+            )
             console.print()
             console.print("Either create isotope.yaml:")
             console.print("  provider: litellm")
@@ -179,7 +181,9 @@ def get_isotope(
         atomizer_class = config.get("atomizer")
 
         if not all([embedder_class, generator_class, atomizer_class]):
-            console.print("[red]Error: Custom provider requires embedder, generator, and atomizer.[/red]")
+            console.print(
+                "[red]Error: Custom provider requires embedder, generator, and atomizer.[/red]"
+            )
             console.print()
             console.print("Example isotope.yaml:")
             console.print("  provider: custom")
@@ -194,7 +198,7 @@ def get_isotope(
             atomizer_cls = import_class(atomizer_class)
         except (ImportError, AttributeError) as e:
             console.print(f"[red]Error importing custom class: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         # Get kwargs for each class
         embedder_kwargs = config.get("embedder_kwargs", {})
@@ -318,7 +322,7 @@ def ingest(
         ingestor = iso.ingestor()
     except Exception as e:
         console.print(f"[red]Error creating ingestor: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # Load files
     registry = LoaderRegistry.default()
@@ -430,7 +434,7 @@ def query(
         iso = get_isotope(data_dir, config_file)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # For retriever, get LLM model from config if available
     llm_model: str | None = None
@@ -517,7 +521,7 @@ def list_sources(
         stores = get_stores(effective_data_dir)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     sources = stores["doc_store"].list_sources()
 
@@ -580,7 +584,7 @@ def status(
         stores = get_stores(effective_data_dir)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     sources = stores["doc_store"].list_sources()
     total_chunks = stores["doc_store"].count_chunks()
@@ -647,7 +651,7 @@ def delete(
         stores = get_stores(effective_data_dir)
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # Find chunks for this source
     chunks = stores["doc_store"].get_by_source(source)

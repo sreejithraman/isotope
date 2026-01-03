@@ -3,12 +3,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
 from isotopedb.generator import DiversityFilter
-from isotopedb.litellm import LiteLLMEmbedder, LiteLLMQuestionGenerator
 from isotopedb.ingestor import Ingestor
+from isotopedb.litellm import LiteLLMEmbedder, LiteLLMQuestionGenerator
 from isotopedb.models import Chunk
 
 

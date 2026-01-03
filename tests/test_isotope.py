@@ -4,7 +4,6 @@
 import os
 
 import pytest
-
 from isotopedb.isotope import Isotope
 from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
 
@@ -32,7 +31,9 @@ class TestIsotopeInit:
         assert iso._atomizer is mock_atomizer
         assert iso._generator is mock_generator
 
-    def test_with_local_stores_creates_all(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_with_local_stores_creates_all(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test with_local_stores factory creates all stores."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -48,7 +49,9 @@ class TestIsotopeInit:
         assert iso._atomizer is mock_atomizer
         assert iso._generator is mock_generator
 
-    def test_with_local_stores_creates_directory(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_with_local_stores_creates_directory(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that with_local_stores creates the data directory if it doesn't exist."""
         new_dir = os.path.join(temp_dir, "new_data")
 
@@ -131,7 +134,9 @@ class TestIsotopeWithLiteLLM:
 
 
 class TestIsotopeRetriever:
-    def test_retriever_creates_retriever(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_retriever_creates_retriever(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that retriever() returns a Retriever instance."""
         from isotopedb.retriever import Retriever
 
@@ -149,7 +154,9 @@ class TestIsotopeRetriever:
         assert retriever.atom_store is iso.atom_store
         assert retriever.embedder is iso.embedder
 
-    def test_retriever_uses_default_k(self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch):
+    def test_retriever_uses_default_k(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
+    ):
         """Test that retriever uses default_k from env var."""
         monkeypatch.setenv("ISOTOPE_DEFAULT_K", "15")
 
@@ -175,7 +182,9 @@ class TestIsotopeRetriever:
 
         assert retriever.default_k == 20
 
-    def test_retriever_with_custom_llm_model(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_retriever_with_custom_llm_model(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that retriever respects llm_model override."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -187,7 +196,9 @@ class TestIsotopeRetriever:
 
         assert retriever.llm_model == "custom/model"
 
-    def test_retriever_no_llm_by_default(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_retriever_no_llm_by_default(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that retriever has no LLM model by default."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -199,7 +210,9 @@ class TestIsotopeRetriever:
 
         assert retriever.llm_model is None
 
-    def test_retriever_with_synthesis_prompt(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_retriever_with_synthesis_prompt(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that retriever respects synthesis_prompt override."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -214,7 +227,9 @@ class TestIsotopeRetriever:
 
 
 class TestIsotopeIngestor:
-    def test_ingestor_creates_ingestor(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_ingestor_creates_ingestor(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that ingestor() returns an Ingestor instance."""
         from isotopedb.ingestor import Ingestor
 
@@ -232,7 +247,9 @@ class TestIsotopeIngestor:
         assert ingestor.atom_store is iso.atom_store
         assert ingestor.embedder is iso.embedder
 
-    def test_ingestor_uses_init_atomizer(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_ingestor_uses_init_atomizer(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that ingestor uses atomizer from Isotope init."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -244,7 +261,9 @@ class TestIsotopeIngestor:
 
         assert ingestor.atomizer is mock_atomizer
 
-    def test_ingestor_uses_init_generator(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_ingestor_uses_init_generator(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that ingestor uses generator from Isotope init."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -256,7 +275,9 @@ class TestIsotopeIngestor:
 
         assert ingestor.generator is mock_generator
 
-    def test_ingestor_uses_env_dedup(self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch):
+    def test_ingestor_uses_env_dedup(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
+    ):
         """Test that ingestor creates deduplicator from env var."""
         from isotopedb.dedup import SourceAwareDedup
 
@@ -272,7 +293,9 @@ class TestIsotopeIngestor:
 
         assert isinstance(ingestor.deduplicator, SourceAwareDedup)
 
-    def test_ingestor_with_no_dedup(self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch):
+    def test_ingestor_with_no_dedup(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
+    ):
         """Test that ingestor creates NoDedup when strategy is 'none'."""
         from isotopedb.dedup import NoDedup
 
@@ -288,7 +311,9 @@ class TestIsotopeIngestor:
 
         assert isinstance(ingestor.deduplicator, NoDedup)
 
-    def test_ingestor_creates_diversity_filter(self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch):
+    def test_ingestor_creates_diversity_filter(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator, monkeypatch
+    ):
         """Test that ingestor creates diversity filter from env var."""
         from isotopedb.generator import DiversityFilter
 
@@ -305,7 +330,9 @@ class TestIsotopeIngestor:
         assert ingestor.diversity_filter is not None
         assert isinstance(ingestor.diversity_filter, DiversityFilter)
 
-    def test_ingestor_has_diversity_filter_by_default(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_ingestor_has_diversity_filter_by_default(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that ingestor has diversity filter by default (threshold=0.85)."""
         from isotopedb.generator import DiversityFilter
 
@@ -387,7 +414,9 @@ class TestIsotopeIngestor:
 
 
 class TestIsotopeSharedStores:
-    def test_retriever_and_ingestor_share_stores(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_retriever_and_ingestor_share_stores(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that retriever and ingestor share the same store instances."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,
@@ -405,7 +434,9 @@ class TestIsotopeSharedStores:
         assert retriever.atom_store is ingestor.atom_store
         assert retriever.embedder is ingestor.embedder
 
-    def test_multiple_retrievers_share_stores(self, temp_dir, mock_embedder, mock_atomizer, mock_generator):
+    def test_multiple_retrievers_share_stores(
+        self, temp_dir, mock_embedder, mock_atomizer, mock_generator
+    ):
         """Test that multiple retrievers share stores."""
         iso = Isotope.with_local_stores(
             data_dir=temp_dir,

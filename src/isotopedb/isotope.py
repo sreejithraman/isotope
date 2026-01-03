@@ -94,7 +94,7 @@ class Isotope:
         embedding_model: str,
         data_dir: str = "./isotope_data",
         use_sentence_atomizer: bool = False,
-    ) -> "Isotope":
+    ) -> Isotope:
         """Create Isotope with LiteLLM provider and local stores.
 
         Convenience factory for quick setup using LiteLLM.
@@ -154,7 +154,7 @@ class Isotope:
         atomizer: Atomizer,
         generator: QuestionGenerator,
         data_dir: str = "./isotope_data",
-    ) -> "Isotope":
+    ) -> Isotope:
         """Create Isotope with local stores (Chroma + SQLite).
 
         Use this when you want to bring your own embedder/atomizer/generator
