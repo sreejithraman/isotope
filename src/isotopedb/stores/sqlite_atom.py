@@ -100,3 +100,10 @@ class SQLiteAtomStore(AtomStore):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT DISTINCT chunk_id FROM atoms")
             return {row[0] for row in cursor.fetchall()}
+
+    def count_atoms(self) -> int:
+        """Count the total number of atoms in the store."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT COUNT(id) FROM atoms")
+            count = cursor.fetchone()
+            return count[0] if count else 0

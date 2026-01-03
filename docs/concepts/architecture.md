@@ -238,12 +238,14 @@ All components are configurable via environment variables or the `Settings` clas
 The `Isotope` class reads from environment by default:
 
 ```python
-# These are equivalent
-iso = Isotope()  # Reads ISOTOPE_* env vars
+# 1. Initialize with defaults from environment variables
+# Isotope will read ISOTOPE_* environment variables via pydantic-settings.
+iso_from_env = Isotope()
 
-iso = Isotope(
-    data_dir=os.getenv("ISOTOPE_DATA_DIR", "./isotope_data"),
-    embedding_model=os.getenv("ISOTOPE_EMBEDDING_MODEL", "gemini/text-embedding-004"),
-    llm_model=os.getenv("ISOTOPE_LLM_MODEL", "gemini/gemini-3-flash-preview"),
+# 2. Initialize with explicit configuration, overriding environment variables
+iso_explicit = Isotope(
+    data_dir="./my_custom_data",
+    embedding_model="openai/text-embedding-3-small",
+    llm_model="openai/gpt-4",
 )
 ```

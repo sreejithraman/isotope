@@ -83,3 +83,7 @@ class ChromaVectorStore(VectorStore):
 
         results = self._collection.get(include=["metadatas"])
         return {meta["chunk_id"] for meta in results["metadatas"]}
+
+    def count_questions(self) -> int:
+        """Count the total number of questions in the store."""
+        return self._collection.count()

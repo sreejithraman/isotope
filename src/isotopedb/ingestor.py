@@ -87,15 +87,13 @@ class Ingestor:
         if chunk_ids_to_remove:
             self.vector_store.delete_by_chunk_ids(chunk_ids_to_remove)
             self.atom_store.delete_by_chunk_ids(chunk_ids_to_remove)
-            for chunk_id in chunk_ids_to_remove:
-                self.doc_store.delete(chunk_id)
+            self.doc_store.delete_many(chunk_ids_to_remove)
         progress("deduplicating", 1, 1, f"Removed {chunks_removed} old chunks")
 
         # Step 2: Store chunks
-        progress("storing", 0, len(chunks), "Storing chunks...")
-        for i, chunk in enumerate(chunks):
-            self.doc_store.put(chunk)
-            progress("storing", i + 1, len(chunks), f"Stored chunk {i + 1}/{len(chunks)}")
+        progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
+        self.doc_store.put_many(chunks)
+        progress("storing", 1, 1, "Storing chunks complete")
 
         # Step 3: Atomize
         progress("atomizing", 0, len(chunks), "Atomizing chunks...")

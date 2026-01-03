@@ -82,6 +82,36 @@ class SQLiteDocStore(DocStore):
             conn.execute("DELETE FROM chunks WHERE id = ?", (chunk_id,))
             conn.commit()
 
+    def put_many(self, chunks: list[Chunk]) -> None:
+        """Store multiple chunks, overwriting if they exist."""
+        if not chunks:
+            return
+        with sqlite3.connect(self.db_path) as conn:
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO chunks (id, content, source, metadata)
+                VALUES (?, ?, ?, ?)
+                """,
+                [(c.id, c.content, c.source, json.dumps(c.metadata)) for c in chunks],
+            )
+            conn.commit()
+
+    def delete_many(self, chunk_ids: list[str]) -> None:
+        """Delete multiple chunks by ID."""
+        if not chunk_ids:
+            return
+        placeholders = ",".join("?" * len(chunk_ids))
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(f"DELETE FROM chunks WHERE id IN ({placeholders})", chunk_ids)
+            conn.commit()
+
+    def count_chunks(self) -> int:
+        """Count the total number of chunks in the store."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT COUNT(id) FROM chunks")
+            count = cursor.fetchone()
+            return count[0] if count else 0
+
     def list_sources(self) -> list[str]:
         """List all unique sources."""
         with sqlite3.connect(self.db_path) as conn:

@@ -333,19 +333,9 @@ def status(
     iso = get_isotope(data_dir)
 
     sources = iso.doc_store.list_sources()
-    chunk_ids = iso.atom_store.list_chunk_ids()
-    question_chunk_ids = iso.vector_store.list_chunk_ids()
-
-    # Count totals
-    total_chunks = 0
-    for source in sources:
-        chunks = iso.doc_store.get_by_source(source)
-        total_chunks += len(chunks)
-
-    total_atoms = 0
-    for chunk_id in chunk_ids:
-        atoms = iso.atom_store.get_by_chunk(chunk_id)
-        total_atoms += len(atoms)
+    total_chunks = iso.doc_store.count_chunks()
+    total_atoms = iso.atom_store.count_atoms()
+    total_questions = iso.vector_store.count_questions()
 
     if plain:
         console.print("Database Status:")
@@ -353,7 +343,7 @@ def status(
         console.print(f"  Sources: {len(sources)}")
         console.print(f"  Chunks: {total_chunks}")
         console.print(f"  Atoms: {total_atoms}")
-        console.print(f"  Questions indexed: {len(question_chunk_ids)} chunks")
+        console.print(f"  Indexed questions: {total_questions}")
     else:
         table = Table(title="Database Status")
         table.add_column("Metric", style="cyan")
@@ -363,7 +353,7 @@ def status(
         table.add_row("Sources", str(len(sources)))
         table.add_row("Chunks", str(total_chunks))
         table.add_row("Atoms", str(total_atoms))
-        table.add_row("Indexed questions (by chunk)", str(len(question_chunk_ids)))
+        table.add_row("Indexed questions", str(total_questions))
 
         console.print(table)
 
@@ -422,8 +412,7 @@ def delete(
 
     iso.vector_store.delete_by_chunk_ids(chunk_ids)
     iso.atom_store.delete_by_chunk_ids(chunk_ids)
-    for chunk_id in chunk_ids:
-        iso.doc_store.delete(chunk_id)
+    iso.doc_store.delete_many(chunk_ids)
 
     if plain:
         console.print(f"Deleted {len(chunks)} chunks from {source}")

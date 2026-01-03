@@ -29,6 +29,11 @@ class VectorStore(ABC):
         """List all unique chunk IDs in the store."""
         ...
 
+    @abstractmethod
+    def count_questions(self) -> int:
+        """Count the total number of questions in the store."""
+        ...
+
 
 class DocStore(ABC):
     """Abstract base class for document storage."""
@@ -51,6 +56,21 @@ class DocStore(ABC):
     @abstractmethod
     def delete(self, chunk_id: str) -> None:
         """Delete a chunk by ID."""
+        ...
+
+    @abstractmethod
+    def put_many(self, chunks: list[Chunk]) -> None:
+        """Store multiple chunks, overwriting if they exist."""
+        ...
+
+    @abstractmethod
+    def delete_many(self, chunk_ids: list[str]) -> None:
+        """Delete multiple chunks by ID."""
+        ...
+
+    @abstractmethod
+    def count_chunks(self) -> int:
+        """Count the total number of chunks in the store."""
         ...
 
     @abstractmethod
@@ -95,4 +115,9 @@ class AtomStore(ABC):
     @abstractmethod
     def list_chunk_ids(self) -> set[str]:
         """List all unique chunk IDs with atoms."""
+        ...
+
+    @abstractmethod
+    def count_atoms(self) -> int:
+        """Count the total number of atoms in the store."""
         ...
