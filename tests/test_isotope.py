@@ -4,6 +4,7 @@
 import os
 
 import pytest
+
 from isotopedb.isotope import Isotope
 from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
 

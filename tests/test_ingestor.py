@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from isotopedb.atomizer import SentenceAtomizer
 from isotopedb.dedup import NoDedup
 from isotopedb.generator import DiversityFilter
