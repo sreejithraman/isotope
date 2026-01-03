@@ -6,7 +6,7 @@ LLM provider is used. Provider-specific configuration (model names, API keys)
 is handled by the provider modules (e.g., isotopedb.litellm).
 """
 
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -53,8 +53,11 @@ class Settings(BaseSettings):
 
     @field_validator("diversity_scope", mode="before")
     @classmethod
-    def parse_diversity_scope(cls, v: object) -> str:
+    def parse_diversity_scope(cls, v: object) -> Literal["global", "per_chunk", "per_atom"]:
         """Parse diversity scope, normalizing to lowercase."""
         if v is None or v == "":
             return "global"
-        return str(v).lower()
+        value = str(v).lower()
+        if value not in {"global", "per_chunk", "per_atom"}:
+            raise ValueError("diversity_scope must be global, per_chunk, or per_atom")
+        return cast(Literal["global", "per_chunk", "per_atom"], value)

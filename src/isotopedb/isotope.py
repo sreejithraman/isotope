@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from isotopedb.atomizer import Atomizer
     from isotopedb.dedup import Deduplicator
     from isotopedb.embedder import Embedder
-    from isotopedb.generator import DiversityFilter, QuestionGenerator
+    from isotopedb.generator import DiversityFilter, FilterScope, QuestionGenerator
     from isotopedb.ingestor import Ingestor
     from isotopedb.retriever import Retriever
     from isotopedb.stores import AtomStore, DocStore, VectorStore
@@ -243,7 +243,7 @@ class Isotope:
         deduplicator: Deduplicator | None = None,
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
-        diversity_scope: str | None = None,
+        diversity_scope: FilterScope | None = None,
     ) -> Ingestor:
         """Create an Ingestor using this instance's stores.
 
@@ -278,7 +278,7 @@ class Isotope:
             effective_diversity_filter = None
 
         # Use settings default for diversity_scope if not specified
-        effective_diversity_scope = diversity_scope or self._settings.diversity_scope
+        effective_diversity_scope: FilterScope = diversity_scope or self._settings.diversity_scope
 
         return Ingestor(
             vector_store=self.vector_store,

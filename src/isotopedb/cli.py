@@ -10,10 +10,11 @@ from __future__ import annotations
 import importlib
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 if TYPE_CHECKING:
     from isotopedb.isotope import Isotope
+    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteDocStore
 
 try:
     import typer
@@ -28,7 +29,7 @@ except ImportError as e:
     ) from e
 
 try:
-    import yaml
+    import yaml  # type: ignore[import-untyped]
 
     YAML_AVAILABLE = True
 except ImportError:
@@ -70,7 +71,13 @@ DEFAULT_DATA_DIR = "./isotope_data"
 CONFIG_FILES = ["isotope.yaml", "isotope.yml", ".isotoperc"]
 
 
-def get_stores(data_dir: str):
+class StoreBundle(TypedDict):
+    vector_store: ChromaVectorStore
+    doc_store: SQLiteDocStore
+    atom_store: SQLiteAtomStore
+
+
+def get_stores(data_dir: str) -> StoreBundle:
     """Get store instances for read-only operations (list, status, delete).
 
     This doesn't require provider configuration since it only accesses stores.
@@ -118,11 +125,11 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
     return config
 
 
-def import_class(class_path: str) -> type:
+def import_class(class_path: str) -> type[Any]:
     """Import a class from a dotted path like 'my_package.module.ClassName'."""
     module_path, class_name = class_path.rsplit(".", 1)
     module = importlib.import_module(module_path)
-    return getattr(module, class_name)
+    return cast(type[Any], getattr(module, class_name))
 
 
 def get_isotope(
@@ -190,6 +197,14 @@ def get_isotope(
             console.print("  embedder: my_package.MyEmbedder")
             console.print("  generator: my_package.MyGenerator")
             console.print("  atomizer: my_package.MyAtomizer")
+            raise typer.Exit(1)
+
+        if (
+            not isinstance(embedder_class, str)
+            or not isinstance(generator_class, str)
+            or not isinstance(atomizer_class, str)
+        ):
+            console.print("[red]Error: Custom provider class paths must be strings.[/red]")
             raise typer.Exit(1)
 
         try:
