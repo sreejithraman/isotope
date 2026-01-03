@@ -4,10 +4,14 @@ Isotope includes a command-line interface for quick ingestion and querying workf
 
 ## Installation
 
-The CLI is included when you install `isotopedb`:
+The CLI is included when you install `isotopedb` with CLI extras:
 
 ```bash
-pip install isotopedb
+# Recommended: local dev setup (Chroma + LiteLLM + CLI)
+pip install isotopedb[local]
+
+# CLI only (bring your own providers/stores)
+pip install isotopedb[cli]
 ```
 
 Verify it's working:
@@ -30,7 +34,8 @@ isotope ingest <path> [options]
 - `path` - File or directory to ingest
 
 **Options:**
-- `--data-dir, -d` - Data directory (default: `ISOTOPE_DATA_DIR` or `./isotope_data`)
+- `--data-dir, -d` - Data directory (default: `data_dir` in config or `./isotope_data`)
+- `--config, -c` - Path to config file (overrides auto-discovery)
 - `--plain` - Plain text output without colors
 
 **Examples:**
@@ -39,15 +44,18 @@ isotope ingest <path> [options]
 # Ingest a single file
 isotope ingest docs/guide.md
 
-# Ingest a directory (recursively finds .txt and .md files)
+# Ingest a directory (recursively finds supported files)
 isotope ingest docs/
 
 # Use a custom data directory
 isotope ingest docs/ --data-dir ./my_data
+
+# Use a specific config file
+isotope ingest docs/ --config ./isotope.yaml
 ```
 
 **What happens:**
-1. Loads supported files (`.txt`, `.md`, `.markdown`)
+1. Loads supported files (`.txt`, `.md`, `.markdown`, plus PDFs/HTML if loader extras are installed)
 2. Breaks content into chunks
 3. Atomizes chunks into facts
 4. Generates questions for each atom
@@ -77,6 +85,7 @@ isotope query "<question>" [options]
 
 **Options:**
 - `--data-dir, -d` - Data directory
+- `--config, -c` - Path to config file (overrides auto-discovery)
 - `--k, -k` - Number of results to return (default: 5)
 - `--raw, -r` - Return raw chunks without LLM synthesis
 - `--plain` - Plain text output
@@ -115,8 +124,7 @@ Sources:
 ```
 Sources:
   [1] docs/python.md (score: 0.923)
-      Who created Python?
-           → Python is a high-level programming language created by Guido...
+      Python is a high-level programming language created by Guido...
 ```
 
 ---
@@ -131,6 +139,7 @@ isotope status [options]
 
 **Options:**
 - `--data-dir, -d` - Data directory
+- `--config, -c` - Path to config file (overrides auto-discovery)
 - `--plain` - Plain text output
 
 **Example:**
@@ -166,6 +175,7 @@ isotope list [options]
 
 **Options:**
 - `--data-dir, -d` - Data directory
+- `--config, -c` - Path to config file (overrides auto-discovery)
 - `--plain` - Plain text output
 
 **Example:**
@@ -204,6 +214,7 @@ isotope delete <source> [options]
 
 **Options:**
 - `--data-dir, -d` - Data directory
+- `--config, -c` - Path to config file (overrides auto-discovery)
 - `--force, -f` - Skip confirmation prompt
 - `--plain` - Plain text output
 
@@ -234,24 +245,45 @@ Show current configuration settings.
 isotope config
 ```
 
+**Options:**
+- `--config, -c` - Path to config file (overrides auto-discovery)
+
 **Output:**
 ```
-┌───────────────────────────────────────────────────────┐
-│                 Isotope Configuration                  │
-├─────────────────────────────┬─────────────────────────┤
-│ Setting                     │ Value                   │
-├─────────────────────────────┼─────────────────────────┤
-│ llm_model                   │ gemini/gemini-2.0-flash │
-│ embedding_model             │ gemini/text-embedding-004│
-│ atomizer                    │ sentence                │
-│ questions_per_atom          │ 15                      │
-│ question_diversity_threshold│ 0.85                    │
-│ data_dir                    │ ./isotope_data          │
-│ vector_store                │ chroma                  │
-│ doc_store                   │ sqlite                  │
-│ dedup_strategy              │ source_aware            │
-│ default_k                   │ 5                       │
-└─────────────────────────────┴─────────────────────────┘
+┌──────────────────────────────┬─────────────────────────┬─────────────┐
+│ Setting                      │ Value                   │ Source      │
+├──────────────────────────────┼─────────────────────────┼─────────────┤
+│ provider                     │ litellm                 │ config file │
+│ llm_model                    │ openai/gpt-4o           │ config file │
+│ embedding_model              │ openai/text-embedding-3-small │ config file │
+│                              │                         │             │
+│ questions_per_atom           │ 15                      │ env var     │
+│ question_diversity_threshold │ 0.85                    │ env var     │
+│ diversity_scope              │ global                  │ env var     │
+│ dedup_strategy               │ source_aware            │ env var     │
+│ default_k                    │ 5                       │ env var     │
+└──────────────────────────────┴─────────────────────────┴─────────────┘
+```
+
+---
+
+### `isotope init`
+
+Initialize a new `isotope.yaml` configuration file.
+
+```bash
+isotope init [options]
+```
+
+**Options:**
+- `--provider, -p` - Provider to use (`litellm` or `custom`)
+- `--llm-model` - LLM model (for `litellm` provider)
+- `--embedding-model` - Embedding model (for `litellm` provider)
+
+**Example:**
+
+```bash
+isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
 ```
 
 ## Global Options
@@ -269,13 +301,21 @@ isotope ingest --help
 
 ## Configuration
 
-The CLI reads configuration from environment variables. See [Configuration Guide](./configuration.md) for details.
+The CLI reads provider configuration from a YAML file and behavioral settings from `ISOTOPE_*` env vars. See [Configuration Guide](./configuration.md) for details.
+
+**Config file discovery**:
+- Looks for `isotope.yaml`, `isotope.yml`, or `.isotoperc` in the current directory or parents
+- Use `--config` to point to a specific file
 
 Key variables:
-- `ISOTOPE_DATA_DIR` - Default data directory
-- `ISOTOPE_LLM_MODEL` - Model for question generation and synthesis
-- `ISOTOPE_EMBEDDING_MODEL` - Model for embeddings
-- `GOOGLE_API_KEY` / `OPENAI_API_KEY` - Provider API keys
+- `ISOTOPE_LITELLM_LLM_MODEL` - LiteLLM model (CLI fallback if no config file)
+- `ISOTOPE_LITELLM_EMBEDDING_MODEL` - LiteLLM embedding model (CLI fallback)
+- `ISOTOPE_QUESTIONS_PER_ATOM` - Question generation count per atom
+- `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` - Diversity filter threshold
+- `ISOTOPE_DIVERSITY_SCOPE` - Diversity scope (`global`, `per_chunk`, `per_atom`)
+- `ISOTOPE_DEDUP_STRATEGY` - Re-ingestion behavior (`source_aware`, `none`)
+- `ISOTOPE_DEFAULT_K` - Default top-k
+- Provider API keys (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
 
 ## Scripting
 

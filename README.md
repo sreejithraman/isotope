@@ -49,8 +49,8 @@ ingestor = iso.ingestor()
 chunks = [Chunk(content="Python was created by Guido van Rossum in 1991.", source="wiki")]
 ingestor.ingest_chunks(chunks)
 
-# Query
-retriever = iso.retriever()
+# Query (pass llm_model to enable synthesis)
+retriever = iso.retriever(llm_model="openai/gpt-4o")
 response = retriever.get_answer("Who invented Python?")
 print(response.answer)  # LLM-synthesized answer
 print(response.results)  # Source chunks with confidence scores

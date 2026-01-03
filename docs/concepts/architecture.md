@@ -38,25 +38,21 @@ The `Isotope` class is the main entry point. It bundles configuration and create
 ```python
 from isotopedb import Isotope
 
-# Simple setup with defaults from environment
-iso = Isotope()
-
-# Or with explicit configuration
-iso = Isotope(
-    data_dir="./my_data",
+# Simple setup with LiteLLM + local stores
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
     embedding_model="openai/text-embedding-3-small",
-    llm_model="openai/gpt-4",
+    data_dir="./my_data",
 )
 
 # Create pipelines
 ingestor = iso.ingestor()
-retriever = iso.retriever()
+retriever = iso.retriever(llm_model="openai/gpt-4o")
 ```
 
 `Isotope` handles:
-- Reading configuration from `ISOTOPE_*` environment variables
-- Creating and wiring up all stores (vector, doc, atom)
-- Creating embedders with the configured model
+- Holding references to stores and components (or creating them via factory methods)
+- Reading behavioral defaults from `ISOTOPE_*` settings (questions per atom, dedup, default_k)
 - Providing factory methods for `Ingestor` and `Retriever`
 
 ## Pipelines
@@ -90,7 +86,7 @@ Query → Embed → Search Questions → Fetch Chunks → (Optional) Synthesize 
 ```
 
 ```python
-retriever = iso.retriever()
+retriever = iso.retriever(llm_model="openai/gpt-4o")
 
 # With LLM synthesis
 response = retriever.get_answer("How do I authenticate?")
@@ -148,7 +144,7 @@ Atomizers break chunks into atomic facts:
 | Atomizer | Strategy | Use Case |
 |----------|----------|----------|
 | `SentenceAtomizer` | Split by sentence (pysbd) | Fast, structured docs |
-| `LLMAtomizer` | LLM extraction | Semantic extraction |
+| `LiteLLMAtomizer` | LLM extraction | Semantic extraction |
 
 See [Atomization Guide](../guides/atomization.md) for when to use each.
 
@@ -164,8 +160,9 @@ The generator creates ~15 questions per atom by default. The diversity filter (t
 ### Embeddings (`embedder/`)
 
 `Embedder` wraps LiteLLM for embedding generation:
-- `embed(str)` → single embedding
-- `embed_batch(list[str])` → list of embeddings
+- `embed_text(str)` → single embedding
+- `embed_texts(list[str])` → list of embeddings
+- `embed_question(Question)` → single `EmbeddedQuestion`
 - `embed_questions(list[Question])` → list of `EmbeddedQuestion`
 
 ### Deduplication (`dedup/`)
@@ -198,7 +195,7 @@ Handles re-ingestion of updated documents:
 | Embedding | `Embedder` |
 | Vector index | `VectorStore` |
 | Retrieval pipeline | `Retriever` |
-| Answer synthesis | `Retriever.query()` with LLM |
+| Answer synthesis | `Retriever.get_answer()` with `llm_model` set |
 
 ## Design Decisions
 
@@ -233,19 +230,25 @@ LiteLLM provides a unified interface to 100+ LLM providers. This means:
 
 ## Configuration
 
-All components are configurable via environment variables or the `Settings` class. See [Configuration Guide](../guides/configuration.md) for details.
-
-The `Isotope` class reads from environment by default:
+Behavioral settings (questions per atom, diversity, default_k, etc.) are configured via
+`ISOTOPE_*` environment variables or the `Settings` class. Provider configuration is explicit
+in code (e.g., `Isotope.with_litellm`) or via the CLI config file. See
+[Configuration Guide](../guides/configuration.md) for details.
 
 ```python
-# 1. Initialize with defaults from environment variables
-# Isotope will read ISOTOPE_* environment variables via pydantic-settings.
-iso_from_env = Isotope()
-
-# 2. Initialize with explicit configuration, overriding environment variables
-iso_explicit = Isotope(
-    data_dir="./my_custom_data",
+# LiteLLM + local stores
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
     embedding_model="openai/text-embedding-3-small",
-    llm_model="openai/gpt-4",
+)
+
+# Custom components
+iso = Isotope(
+    vector_store=my_vector_store,
+    doc_store=my_doc_store,
+    atom_store=my_atom_store,
+    embedder=my_embedder,
+    atomizer=my_atomizer,
+    generator=my_generator,
 )
 ```

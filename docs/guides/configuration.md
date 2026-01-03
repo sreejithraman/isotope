@@ -22,6 +22,9 @@ iso = Isotope.with_litellm(
 # Create ingestor and retriever
 ingestor = iso.ingestor()
 retriever = iso.retriever()
+
+# For synthesized answers, pass llm_model to the retriever:
+# retriever = iso.retriever(llm_model="openai/gpt-4o")
 ```
 
 ### Using Custom Components (Enterprise)
@@ -104,7 +107,9 @@ iso = Isotope.with_local_stores(
 
 ## CLI Configuration
 
-The CLI uses a config file (`isotope.yaml`) for provider configuration.
+The CLI uses a config file (`isotope.yaml`, `isotope.yml`, or `.isotoperc`) for provider configuration.
+It searches the current directory and parent directories (up to 10 levels). Use `--config` to point
+to a specific file if needed.
 
 ### Creating a Config File
 
@@ -152,7 +157,7 @@ atomizer_kwargs: {}
 
 ### Environment Variable Override
 
-For LiteLLM, you can also use environment variables:
+If no config file is found, the CLI falls back to LiteLLM environment variables:
 
 ```bash
 export ISOTOPE_LITELLM_LLM_MODEL=openai/gpt-4o
@@ -324,4 +329,6 @@ ISOTOPE_DEDUP_STRATEGY=source_aware
 ISOTOPE_DEFAULT_K=5
 ```
 
-Note: LLM and embedding model configuration is now done via the `Isotope.with_litellm()` call or `isotope.yaml` config file, not environment variables.
+Note: In Python, pass LLM/embedding models directly to `Isotope.with_litellm()` (or your custom
+components). The CLI can also read `ISOTOPE_LITELLM_LLM_MODEL` and
+`ISOTOPE_LITELLM_EMBEDDING_MODEL` if no config file is present.

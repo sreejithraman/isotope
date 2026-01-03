@@ -4,13 +4,14 @@ This tutorial walks you through ingesting your first document and querying it wi
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - An API key for your LLM provider (Gemini, OpenAI, Anthropic, etc.)
 
 ## Installation
 
 ```bash
-pip install isotopedb
+# Recommended: local dev setup (Chroma + LiteLLM + CLI)
+pip install isotopedb[local]
 ```
 
 ## Set Up Your API Key
@@ -30,9 +31,10 @@ export ANTHROPIC_API_KEY="your-api-key"
 
 See [Configuration Guide](../guides/configuration.md) for all supported providers.
 
-## The Simple Way: Using `Isotope`
+## The Simple Way: Using `Isotope.with_litellm`
 
-The `Isotope` class is the easiest way to get started. It handles all the configuration and wiring for you.
+The `Isotope.with_litellm()` factory is the easiest way to get started. It wires up local
+stores and LiteLLM-backed components for you.
 
 ### Step 1: Create Some Content
 
@@ -50,8 +52,13 @@ including procedural, object-oriented, and functional programming.
 ```python
 from isotopedb import Isotope, Chunk
 
-# Create an Isotope instance (uses sensible defaults)
-iso = Isotope(data_dir="./my_isotope_data")
+# Create an Isotope instance (LiteLLM + local stores)
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
+    embedding_model="openai/text-embedding-3-small",
+    data_dir="./my_isotope_data",
+    use_sentence_atomizer=True,  # Faster, no LLM for atomization
+)
 
 # Load your content
 with open("python-intro.txt") as f:
@@ -77,8 +84,8 @@ That's it! Isotope automatically:
 ### Step 3: Query It
 
 ```python
-# Create a retriever
-retriever = iso.retriever()
+# Create a retriever (pass llm_model to enable synthesis)
+retriever = iso.retriever(llm_model="openai/gpt-4o")
 
 # Ask a question
 response = retriever.get_answer("Who invented Python?")
@@ -116,6 +123,9 @@ for result in results:
 Isotope also has a command-line interface for quick workflows:
 
 ```bash
+# One-time: create CLI config (or set ISOTOPE_LITELLM_* env vars)
+isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+
 # Ingest a file or directory
 isotope ingest python-intro.txt
 
@@ -135,6 +145,9 @@ isotope list
 isotope delete python-intro.txt
 ```
 
+If you used a custom data directory above, add `--data-dir ./my_isotope_data` to the CLI commands
+so they operate on the same database.
+
 See [CLI Reference](../guides/cli.md) for all commands.
 
 ## Complete Example
@@ -145,7 +158,12 @@ Here's everything in one script:
 from isotopedb import Isotope, Chunk
 
 # 1. Setup
-iso = Isotope(data_dir="./my_data")
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",
+    embedding_model="openai/text-embedding-3-small",
+    data_dir="./my_data",
+    use_sentence_atomizer=True,
+)
 
 # 2. Load and ingest content
 with open("python-intro.txt") as f:
@@ -158,7 +176,7 @@ result = ingestor.ingest_chunks([chunk])
 print(f"Indexed {result['questions']} questions from {result['atoms']} atoms")
 
 # 3. Query
-retriever = iso.retriever()
+retriever = iso.retriever(llm_model="openai/gpt-4o")
 response = retriever.get_answer("Who created Python?")
 print(f"\nAnswer: {response.answer}")
 ```
@@ -187,10 +205,10 @@ This is the "Reverse RAG" approach—see [Reverse RAG Explained](../concepts/rev
 The `Isotope` class uses sensible defaults, but you can customize everything:
 
 ```python
-iso = Isotope(
+iso = Isotope.with_litellm(
+    llm_model="openai/gpt-4o",                        # LLM for generation/synthesis
+    embedding_model="openai/text-embedding-3-small",  # Embedding model
     data_dir="./my_data",
-    embedding_model="openai/text-embedding-3-small",  # Different embedding model
-    llm_model="openai/gpt-4",                         # Different LLM
 )
 
 # Or customize the ingestor
@@ -200,8 +218,8 @@ ingestor = iso.ingestor(
 
 # Or customize the retriever
 retriever = iso.retriever(
-    llm_model="",  # Disable synthesis entirely
-    default_k=10,  # Return more results
+    llm_model=None,  # Disable synthesis entirely
+    default_k=10,    # Return more results
 )
 ```
 
@@ -220,13 +238,12 @@ If you need full control, you can use the components directly:
 from isotopedb import (
     Chunk,
     SentenceAtomizer,
-    LiteLLMQuestionGenerator,
-    LiteLLMEmbedder,
     DiversityFilter,
     ChromaVectorStore,
     SQLiteDocStore,
     SQLiteAtomStore,
 )
+from isotopedb.litellm import LiteLLMQuestionGenerator, LiteLLMEmbedder
 
 # Create stores
 vector_store = ChromaVectorStore("./data/chroma")
