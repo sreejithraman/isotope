@@ -88,7 +88,7 @@ class LLMAtomizer(Atomizer):
             facts = json.loads(response_text)
         except json.JSONDecodeError:
             # Fallback: treat each line as a fact, stripping list markers
-            lines = (line.strip() for line in response_text.split("\n") if line.strip())
+            lines = [line.strip() for line in response_text.split("\n") if line.strip()]
             facts = [re.sub(r"^\s*(?:[-*]|\d+[.)])\s+", "", line) for line in lines]
 
         atoms = []

@@ -50,7 +50,7 @@ class LiteLLMClient(LLMClient):
         content = response.choices[0].message.content
         if content is None:
             raise ValueError(f"LLM returned None content for model {self.model}")
-        return content
+        return str(content)
 
 
 class LiteLLMEmbeddingClient(EmbeddingClient):
