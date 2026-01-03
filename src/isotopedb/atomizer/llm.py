@@ -7,6 +7,7 @@ import re
 import litellm
 
 from isotopedb.atomizer.base import Atomizer
+from isotopedb.llm_models import ChatModels
 from isotopedb.models import Atom, Chunk
 
 DEFAULT_PROMPT = """Please breakdown the following paragraph into stand-alone atomic facts.
@@ -35,14 +36,14 @@ class LiteLLMAtomizer(Atomizer):
 
     def __init__(
         self,
-        model: str = "gemini/gemini-2.0-flash-exp",
+        model: str = ChatModels.GEMINI_3_FLASH,
         prompt_template: str | None = None,
         temperature: float | None = 0.0,
     ) -> None:
         """Initialize the LLM atomizer.
 
         Args:
-            model: LiteLLM model identifier (e.g., "gemini/gemini-2.0-flash-exp")
+            model: LiteLLM model identifier (default: gemini/gemini-3-flash-preview)
             prompt_template: Custom prompt template with {content} placeholder
             temperature: LLM temperature (0.0-1.0). None to use model default.
         """

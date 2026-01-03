@@ -131,3 +131,88 @@ class TestDiversityFilter:
         ]
         result = filter.filter(questions)
         assert len(result) == 2
+
+
+FILTER_SCOPES: list[str] = ["global", "per_chunk", "per_atom"]
+
+
+class TestFilterByScope:
+    """Tests for the filter_by_scope method."""
+
+    @pytest.fixture
+    def filter(self):
+        return DiversityFilter(threshold=0.9)
+
+    def test_global_scope_same_as_filter(self, filter):
+        """GLOBAL scope should behave exactly like filter()."""
+        questions = [
+            make_eq("Q1?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),
+            make_eq("Q2?", [1.0, 0.0], chunk_id="c2", atom_id="a2"),  # Duplicate
+        ]
+        global_result = filter.filter_by_scope(questions, "global")
+        filter_result = filter.filter(questions)
+        assert len(global_result) == len(filter_result)
+
+    def test_per_chunk_filters_within_chunks(self, filter):
+        """PER_CHUNK should filter duplicates within each chunk separately."""
+        questions = [
+            # Chunk 1: two similar questions
+            make_eq("Q1?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),
+            make_eq("Q2?", [1.0, 0.0], chunk_id="c1", atom_id="a2"),  # Same chunk, duplicate
+            # Chunk 2: one question with same embedding (cross-chunk)
+            make_eq("Q3?", [1.0, 0.0], chunk_id="c2", atom_id="a3"),
+        ]
+        result = filter.filter_by_scope(questions, "per_chunk")
+        # Within c1: keeps 1 (filters duplicate)
+        # Within c2: keeps 1
+        # Cross-chunk duplicates NOT filtered
+        assert len(result) == 2
+
+    def test_per_chunk_keeps_cross_chunk_duplicates(self, filter):
+        """PER_CHUNK should NOT filter duplicates across different chunks."""
+        questions = [
+            make_eq("Q1?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),
+            make_eq("Q2?", [1.0, 0.0], chunk_id="c2", atom_id="a2"),  # Different chunk
+        ]
+        result = filter.filter_by_scope(questions, "per_chunk")
+        # Each chunk has 1 question, no within-chunk duplicates
+        assert len(result) == 2
+
+    def test_per_atom_filters_within_atoms(self, filter):
+        """PER_ATOM should filter duplicates within each atom separately."""
+        questions = [
+            # Atom 1: two similar questions
+            make_eq("Q1?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),
+            make_eq("Q2?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),  # Same atom, duplicate
+            # Atom 2: one question with same embedding (cross-atom)
+            make_eq("Q3?", [1.0, 0.0], chunk_id="c1", atom_id="a2"),
+        ]
+        result = filter.filter_by_scope(questions, "per_atom")
+        # Within a1: keeps 1
+        # Within a2: keeps 1
+        assert len(result) == 2
+
+    def test_per_atom_keeps_cross_atom_duplicates(self, filter):
+        """PER_ATOM should NOT filter duplicates across different atoms."""
+        questions = [
+            make_eq("Q1?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),
+            make_eq("Q2?", [1.0, 0.0], chunk_id="c1", atom_id="a2"),  # Different atom
+        ]
+        result = filter.filter_by_scope(questions, "per_atom")
+        assert len(result) == 2
+
+    def test_empty_list(self, filter):
+        """Empty list should return empty for all scopes."""
+        for scope in FILTER_SCOPES:
+            result = filter.filter_by_scope([], scope)
+            assert result == []
+
+    def test_default_scope_is_global(self, filter):
+        """Default scope should be GLOBAL."""
+        questions = [
+            make_eq("Q1?", [1.0, 0.0], chunk_id="c1", atom_id="a1"),
+            make_eq("Q2?", [1.0, 0.0], chunk_id="c2", atom_id="a2"),
+        ]
+        default_result = filter.filter_by_scope(questions)
+        global_result = filter.filter_by_scope(questions, "global")
+        assert len(default_result) == len(global_result)

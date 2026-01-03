@@ -1,9 +1,23 @@
 # src/isotopedb/generator/diversity_filter.py
 """Question diversity filtering to remove near-duplicates."""
 
+from collections import defaultdict
+from typing import Literal
+
 import numpy as np
 
 from isotopedb.models import EmbeddedQuestion
+
+# Scope for diversity filtering.
+#
+# Trade-offs:
+#   - "global": Best retrieval quality (paper-validated), O(N²) complexity.
+#       Catches all duplicates across entire corpus.
+#   - "per_chunk": ~100x faster, O(C × Q²) where C=chunks.
+#       May return similar questions from different chunks.
+#   - "per_atom": ~1000x faster, only deduplicates within each atom's questions.
+#       Most duplicates retained across atoms.
+FilterScope = Literal["global", "per_chunk", "per_atom"]
 
 
 class DiversityFilter:
@@ -86,3 +100,40 @@ class DiversityFilter:
                 kept.append(eq)
 
         return kept
+
+    def filter_by_scope(
+        self,
+        questions: list[EmbeddedQuestion],
+        scope: FilterScope = "global",
+    ) -> list[EmbeddedQuestion]:
+        """Filter questions with configurable scope.
+
+        Args:
+            questions: List of embedded questions to filter
+            scope: Filtering scope (see FilterScope for trade-offs)
+
+        Returns:
+            Filtered list with near-duplicates removed within the specified scope
+        """
+        if not questions or scope == "global":
+            return self.filter(questions)
+
+        # Group questions by the appropriate key
+        def get_chunk_id(eq: EmbeddedQuestion) -> str:
+            return eq.question.chunk_id
+
+        def get_atom_id(eq: EmbeddedQuestion) -> str:
+            return eq.question.atom_id
+
+        key_fn = get_chunk_id if scope == "per_chunk" else get_atom_id
+
+        groups: dict[str, list[EmbeddedQuestion]] = defaultdict(list)
+        for eq in questions:
+            groups[key_fn(eq)].append(eq)
+
+        # Filter each group independently
+        filtered: list[EmbeddedQuestion] = []
+        for group_questions in groups.values():
+            filtered.extend(self.filter(group_questions))
+
+        return filtered

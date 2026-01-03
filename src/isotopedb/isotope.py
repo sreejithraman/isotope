@@ -207,6 +207,8 @@ class Isotope:
         deduplicator: Deduplicator | None = None,
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
+        diversity_scope: str = "global",
+        max_concurrent_generations: int = 1,
     ) -> Ingestor:
         """Create an Ingestor using this instance's stores.
 
@@ -218,6 +220,13 @@ class Isotope:
                               use_diversity_filter is True, created from settings.
             use_diversity_filter: Whether to use diversity filter. Set False to
                                   disable even if settings has a threshold.
+            diversity_scope: Scope for diversity filtering. Options:
+                - "global": Filter across all questions (default, paper-validated)
+                - "per_chunk": Filter within each chunk (~100x faster)
+                - "per_atom": Filter within each atom (~1000x faster)
+            max_concurrent_generations: Maximum concurrent LLM calls for question
+                generation. Default 1 (sequential). Higher values enable parallel
+                generation for faster ingestion at the same cost.
 
         Returns:
             Configured Ingestor instance.
@@ -247,4 +256,6 @@ class Isotope:
             generator=effective_generator,
             deduplicator=effective_deduplicator,
             diversity_filter=effective_diversity_filter,
+            diversity_scope=diversity_scope,
+            max_concurrent_generations=max_concurrent_generations,
         )

@@ -22,6 +22,7 @@ from isotopedb.embedder import Embedder, LiteLLMEmbedder
 # Question generation
 from isotopedb.generator import (
     DiversityFilter,
+    FilterScope,
     LiteLLMQuestionGenerator,
     QuestionGenerator,
 )
@@ -90,6 +91,7 @@ __all__ = [
     "LiteLLMEmbedder",
     # Question generation
     "DiversityFilter",
+    "FilterScope",
     "LiteLLMQuestionGenerator",
     "QuestionGenerator",
     # LLM model constants

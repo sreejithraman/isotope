@@ -135,6 +135,73 @@ Controls how aggressively duplicate questions are removed:
 - `0.70`: More aggressive deduplication
 - Empty string or `None`: Disable deduplication
 
+### Diversity Filter Scope
+
+Controls how diversity filtering is applied during question generation:
+
+| Value | Description | Performance | Trade-off |
+|-------|-------------|-------------|-----------|
+| `global` (default) | Filter across all questions | O(N²) complexity | Best retrieval quality (research-validated) |
+| `per_chunk` | Filter within each chunk only | ~100x faster | May retain similar questions from different chunks |
+| `per_atom` | Filter within each atom only | ~1000x faster | Only deduplicates within each atom's questions |
+
+**Default**: `global` (research-validated for maximum retrieval performance)
+
+**When to use non-default scopes**:
+- Large corpora (>10,000 questions) where global filtering is slow
+- Performance-critical ingestion pipelines
+- When you've verified that cross-chunk/cross-atom duplicates are acceptable
+
+**Programmatic configuration**:
+```python
+from isotopedb import Isotope
+
+# Default: global filtering (best quality, slower for large corpora)
+ingestor = iso.ingestor()
+
+# Performance optimization: filter within chunks (~100x faster)
+ingestor = iso.ingestor(diversity_scope="per_chunk")
+
+# Maximum speed: filter within atoms only (~1000x faster)
+ingestor = iso.ingestor(diversity_scope="per_atom")
+```
+
+**How it works**:
+- `global`: Compares every question against every other question (paper-validated)
+- `per_chunk`: Groups questions by chunk_id, filters each group separately
+- `per_atom`: Groups questions by atom_id, filters each group separately
+
+With `per_chunk` or `per_atom`, duplicate questions may remain if they come from different groups. Global filtering catches all duplicates but requires more comparisons.
+
+### Question Generation Concurrency
+
+Controls how many LLM calls can run concurrently during question generation:
+
+**Default**: `1` (sequential, same as current behavior)
+
+**When to increase**:
+- You want faster ingestion and can handle concurrent LLM API calls
+- Your LLM provider supports high rate limits
+- You're ingesting large documents with many atoms
+
+**Programmatic configuration**:
+```python
+from isotopedb import Isotope
+
+# Default: sequential generation (current behavior)
+ingestor = iso.ingestor()
+
+# Concurrent generation: 5 LLM calls at once
+ingestor = iso.ingestor(max_concurrent_generations=5)
+
+# Maximum concurrency (be mindful of rate limits)
+ingestor = iso.ingestor(max_concurrent_generations=10)
+```
+
+**Note**: This setting only affects *concurrency*, not the quality of question generation. Each atom still gets its own LLM call with full chunk context (research-validated approach). Higher values mean faster ingestion at the same cost, but may hit API rate limits.
+
+**Implementation**: Uses `asyncio.Semaphore` to limit concurrent `litellm.acompletion()` calls.
+
 ### Deduplication Strategy
 
 Controls what happens when you re-ingest documents:

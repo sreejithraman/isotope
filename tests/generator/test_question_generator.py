@@ -9,6 +9,7 @@ import pytest
 pytest.importorskip("litellm", reason="Tests require litellm package")
 
 from isotopedb.generator import LiteLLMQuestionGenerator, QuestionGenerator
+from isotopedb.llm_models import ChatModels
 from isotopedb.models import Atom, Question
 
 
@@ -40,7 +41,7 @@ class TestLiteLLMQuestionGenerator:
         assert isinstance(generator, QuestionGenerator)
 
     def test_default_settings(self, generator):
-        assert generator.model == "gemini/gemini-2.0-flash-exp"
+        assert generator.model == ChatModels.GEMINI_3_FLASH
         assert generator.num_questions == 15
         assert generator.temperature == 0.7
 
@@ -203,3 +204,84 @@ class TestLiteLLMQuestionGenerator:
         call_kwargs = mock_completion.call_args.kwargs
         assert "temperature" not in call_kwargs
         assert call_kwargs["drop_params"] is True
+
+
+class TestAsyncGenerate:
+    """Tests for the async agenerate() method."""
+
+    @pytest.fixture
+    def generator(self):
+        return LiteLLMQuestionGenerator()
+
+    @pytest.fixture
+    def sample_atom(self):
+        return Atom(
+            content="Python was created by Guido van Rossum.",
+            chunk_id="chunk-123",
+        )
+
+    @pytest.mark.asyncio
+    @patch("isotopedb.generator.question_generator.litellm.acompletion")
+    async def test_agenerate_returns_questions(self, mock_acompletion, generator, sample_atom):
+        """agenerate should return questions using async LLM call."""
+        mock_acompletion.return_value = mock_completion_response(
+            ["Who created Python?", "What is Python?"]
+        )
+
+        questions = await generator.agenerate(sample_atom)
+
+        assert len(questions) == 2
+        assert all(isinstance(q, Question) for q in questions)
+        mock_acompletion.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("isotopedb.generator.question_generator.litellm.acompletion")
+    async def test_agenerate_uses_correct_model(self, mock_acompletion, generator, sample_atom):
+        """agenerate should use the configured model."""
+        mock_acompletion.return_value = mock_completion_response(["Q1?"])
+
+        await generator.agenerate(sample_atom)
+
+        call_kwargs = mock_acompletion.call_args.kwargs
+        assert call_kwargs["model"] == ChatModels.GEMINI_3_FLASH
+
+    @pytest.mark.asyncio
+    @patch("isotopedb.generator.question_generator.litellm.acompletion")
+    async def test_agenerate_passes_chunk_content(self, mock_acompletion, generator, sample_atom):
+        """agenerate should include chunk content in prompt."""
+        mock_acompletion.return_value = mock_completion_response(["Q1?"])
+
+        await generator.agenerate(sample_atom, chunk_content="Document context")
+
+        call_kwargs = mock_acompletion.call_args.kwargs
+        prompt = call_kwargs["messages"][0]["content"]
+        assert "Document context" in prompt
+
+    @pytest.mark.asyncio
+    @patch("isotopedb.generator.question_generator.litellm.acompletion")
+    async def test_agenerate_handles_code_block_response(
+        self, mock_acompletion, generator, sample_atom
+    ):
+        """agenerate should handle markdown code blocks in response."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = '```json\n["Q1?", "Q2?"]\n```'
+        mock_acompletion.return_value = mock_response
+
+        questions = await generator.agenerate(sample_atom)
+
+        assert len(questions) == 2
+
+    @pytest.mark.asyncio
+    @patch("isotopedb.generator.question_generator.litellm.acompletion")
+    async def test_agenerate_consistent_with_generate(
+        self, mock_acompletion, generator, sample_atom
+    ):
+        """agenerate should produce same results as generate for same input."""
+        mock_acompletion.return_value = mock_completion_response(["Q1?", "Q2?"])
+
+        questions = await generator.agenerate(sample_atom)
+
+        # Should have correct structure
+        assert all(q.chunk_id == sample_atom.chunk_id for q in questions)
+        assert all(q.atom_id == sample_atom.id for q in questions)

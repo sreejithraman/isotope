@@ -7,6 +7,7 @@ import re
 import litellm
 
 from isotopedb.generator.base import QuestionGenerator
+from isotopedb.llm_models import ChatModels
 from isotopedb.models import Atom, Question
 
 DEFAULT_PROMPT = """Generate {num_questions} diverse questions that this atomic fact answers.
@@ -41,7 +42,7 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
 
     def __init__(
         self,
-        model: str = "gemini/gemini-2.0-flash-exp",
+        model: str = ChatModels.GEMINI_3_FLASH,
         num_questions: int = 15,
         prompt_template: str | None = None,
         temperature: float | None = 0.7,
@@ -49,7 +50,7 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
         """Initialize the question generator.
 
         Args:
-            model: LiteLLM model identifier
+            model: LiteLLM model identifier (default: gemini/gemini-3-flash-preview)
             num_questions: Number of questions to generate per atom
             prompt_template: Custom prompt with {num_questions}, {atom_content}, {chunk_content}
             temperature: LLM temperature (0.0-1.0). None to use model default.
@@ -59,37 +60,17 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
         self.prompt_template = prompt_template or DEFAULT_PROMPT
         self.temperature = temperature
 
-    def generate(
-        self,
-        atom: Atom,
-        chunk_content: str = "",
-    ) -> list[Question]:
-        """Generate questions for a single atom.
+    def _parse_response(self, response_text: str, atom: Atom) -> list[Question]:
+        """Parse LLM response text into Question objects.
 
         Args:
-            atom: The atom to generate questions for
-            chunk_content: Optional context from the parent chunk
+            response_text: Raw response text from the LLM
+            atom: The atom these questions are for
 
         Returns:
             List of Question objects
         """
-        prompt = self.prompt_template.format(
-            num_questions=self.num_questions,
-            atom_content=atom.content,
-            chunk_content=chunk_content or "(no additional context)",
-        )
-
-        completion_kwargs = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "drop_params": True,
-        }
-        if self.temperature is not None:
-            completion_kwargs["temperature"] = self.temperature
-
-        response = litellm.completion(**completion_kwargs)
-
-        response_text = response.choices[0].message.content.strip()
+        response_text = response_text.strip()
 
         # Parse JSON response
         try:
@@ -132,6 +113,68 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
                 )
 
         return questions
+
+    def _build_prompt(self, atom: Atom, chunk_content: str) -> str:
+        """Build the prompt for question generation."""
+        return self.prompt_template.format(
+            num_questions=self.num_questions,
+            atom_content=atom.content,
+            chunk_content=chunk_content or "(no additional context)",
+        )
+
+    def _build_completion_kwargs(self, prompt: str) -> dict:
+        """Build kwargs for litellm completion call."""
+        kwargs = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "drop_params": True,
+        }
+        if self.temperature is not None:
+            kwargs["temperature"] = self.temperature
+        return kwargs
+
+    def generate(
+        self,
+        atom: Atom,
+        chunk_content: str = "",
+    ) -> list[Question]:
+        """Generate questions for a single atom.
+
+        Args:
+            atom: The atom to generate questions for
+            chunk_content: Optional context from the parent chunk
+
+        Returns:
+            List of Question objects
+        """
+        prompt = self._build_prompt(atom, chunk_content)
+        completion_kwargs = self._build_completion_kwargs(prompt)
+        response = litellm.completion(**completion_kwargs)
+        response_text = response.choices[0].message.content
+        return self._parse_response(response_text, atom)
+
+    async def agenerate(
+        self,
+        atom: Atom,
+        chunk_content: str = "",
+    ) -> list[Question]:
+        """Async version of generate for concurrent question generation.
+
+        Uses litellm.acompletion() for async LLM calls, enabling concurrent
+        processing of multiple atoms when used with asyncio.gather().
+
+        Args:
+            atom: The atom to generate questions for
+            chunk_content: Optional context from the parent chunk
+
+        Returns:
+            List of Question objects
+        """
+        prompt = self._build_prompt(atom, chunk_content)
+        completion_kwargs = self._build_completion_kwargs(prompt)
+        response = await litellm.acompletion(**completion_kwargs)
+        response_text = response.choices[0].message.content
+        return self._parse_response(response_text, atom)
 
     def generate_batch(
         self,

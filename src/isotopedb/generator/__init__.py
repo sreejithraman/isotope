@@ -2,7 +2,7 @@
 """Question generation for Isotope."""
 
 from isotopedb.generator.base import QuestionGenerator
-from isotopedb.generator.diversity_filter import DiversityFilter
+from isotopedb.generator.diversity_filter import DiversityFilter, FilterScope
 
 try:
     from isotopedb.generator.question_generator import LiteLLMQuestionGenerator
@@ -13,4 +13,9 @@ except ImportError:
         "LiteLLMQuestionGenerator", "litellm"
     )
 
-__all__ = ["QuestionGenerator", "LiteLLMQuestionGenerator", "DiversityFilter"]
+__all__ = [
+    "QuestionGenerator",
+    "LiteLLMQuestionGenerator",
+    "DiversityFilter",
+    "FilterScope",
+]
