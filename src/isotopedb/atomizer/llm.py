@@ -2,6 +2,7 @@
 """LiteLLM-based atomizer implementation."""
 
 import json
+import re
 
 import litellm
 
@@ -87,8 +88,9 @@ class LiteLLMAtomizer(Atomizer):
 
             facts = json.loads(response_text)
         except json.JSONDecodeError:
-            # Fallback: treat each line as a fact
-            facts = [line.strip() for line in response_text.split("\n") if line.strip()]
+            # Fallback: treat each line as a fact, stripping list markers
+            lines = (line.strip() for line in response_text.split("\n") if line.strip())
+            facts = [re.sub(r"^\s*[\d.\-*]+\s*", "", line) for line in lines]
 
         atoms = []
         for index, fact in enumerate(facts):

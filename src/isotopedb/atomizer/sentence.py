@@ -40,7 +40,7 @@ class SentenceAtomizer(Atomizer):
         sentences = self.segmenter.segment(content)
 
         atoms = []
-        for index, sentence in enumerate(sentences):
+        for sentence in sentences:
             sentence = sentence.strip()
             # Skip empty or too-short sentences
             if len(sentence) >= self.min_length:
@@ -48,7 +48,7 @@ class SentenceAtomizer(Atomizer):
                     Atom(
                         content=sentence,
                         chunk_id=chunk.id,
-                        index=index,
+                        index=len(atoms),  # Contiguous index based on added atoms
                     )
                 )
 

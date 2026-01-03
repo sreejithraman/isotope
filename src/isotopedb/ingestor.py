@@ -100,8 +100,6 @@ class Ingestor:
         all_atoms = []
         for i, chunk in enumerate(chunks):
             atoms = self.atomizer.atomize(chunk)
-            for j, atom in enumerate(atoms):
-                atom.index = j
             all_atoms.extend(atoms)
             self.atom_store.put_many(atoms)
             progress("atomizing", i + 1, len(chunks), f"Atomized {i + 1}/{len(chunks)} chunks")

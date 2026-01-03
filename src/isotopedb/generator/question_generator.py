@@ -2,6 +2,7 @@
 """LiteLLM-based question generator implementation."""
 
 import json
+import re
 
 import litellm
 
@@ -107,9 +108,9 @@ class LiteLLMQuestionGenerator(QuestionGenerator):
 
             question_texts = json.loads(response_text)
         except json.JSONDecodeError:
-            # Fallback: treat each line as a question
+            # Fallback: treat each line as a question, stripping list markers
             question_texts = [
-                line.strip().lstrip("0123456789.-) ")
+                re.sub(r"^\s*[\d.\-*]+\s*", "", line.strip())
                 for line in response_text.split("\n")
                 if line.strip() and "?" in line
             ]
