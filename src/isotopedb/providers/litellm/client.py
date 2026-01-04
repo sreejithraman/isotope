@@ -52,6 +52,29 @@ class LiteLLMClient(LLMClient):
             raise ValueError(f"LLM returned None content for model {self.model}")
         return str(content)
 
+    async def acomplete(
+        self,
+        messages: list[dict],
+        temperature: float | None = None,
+    ) -> str:
+        """Generate a completion using LiteLLM (async)."""
+        completion_kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "drop_params": True,
+        }
+        if temperature is not None:
+            completion_kwargs["temperature"] = temperature
+
+        response = await litellm.acompletion(**completion_kwargs)
+
+        if not response.choices:
+            raise ValueError(f"LLM returned no choices for model {self.model}")
+        content = response.choices[0].message.content
+        if content is None:
+            raise ValueError(f"LLM returned None content for model {self.model}")
+        return str(content)
+
 
 class LiteLLMEmbeddingClient(EmbeddingClient):
     """LiteLLM-based embedding client.

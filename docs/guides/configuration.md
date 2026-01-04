@@ -207,6 +207,7 @@ and passes them explicitly.
 | `ISOTOPE_DIVERSITY_SCOPE` | `global` | Scope for diversity filter: `global`, `per_chunk`, `per_atom` |
 | `ISOTOPE_DEFAULT_K` | `5` | Default number of results to return |
 | `ISOTOPE_SYNTHESIS_PROMPT` | (default prompt) | Custom answer synthesis prompt template |
+| `ISOTOPE_MAX_CONCURRENT_QUESTIONS` | `10` | Maximum concurrent async question generation requests |
 
 ## Provider API Keys
 
@@ -358,6 +359,38 @@ the `SourceRegistry`. It tracks content hashes to detect changed files and casca
 deletion of old data before adding new content. This is handled automatically—no
 configuration needed.
 
+### Async Ingestion
+
+For large documents, use async methods to parallelize question generation:
+
+```python
+import asyncio
+
+# Async file ingestion (10-50x faster for large docs)
+result = asyncio.run(iso.aingest_file("large-report.pdf"))
+
+# Or with explicit ingestor and custom concurrency
+ingestor = iso.ingestor(max_concurrent_questions=20)
+result = asyncio.run(ingestor.aingest_chunks(chunks))
+```
+
+The `max_concurrent_questions` setting controls how many LLM requests run concurrently.
+Higher values = faster ingestion but may hit rate limits. Default is 10.
+
+**Programmatic configuration**:
+```python
+settings = Settings(
+    questions_per_atom=15,
+    max_concurrent_questions=20,  # Increase for faster ingestion
+)
+
+iso = Isotope(
+    provider=LiteLLMProvider(...),
+    storage=LocalStorage("./data"),
+    settings=settings,
+)
+```
+
 ### Prompt Customization
 
 You can customize the prompts used by IsotopeDB for atomization, question generation, and answer synthesis.
@@ -401,6 +434,7 @@ from isotopedb import Isotope, LiteLLMProvider, LocalStorage, Settings
 settings = Settings(
     questions_per_atom=20,
     diversity_scope="per_chunk",
+    max_concurrent_questions=20,  # For async ingestion
 )
 
 iso = Isotope(
@@ -417,6 +451,7 @@ print(settings.questions_per_atom)
 print(settings.question_diversity_threshold)
 print(settings.diversity_scope)
 print(settings.default_k)
+print(settings.max_concurrent_questions)
 ```
 
 ## Example .env File (CLI)
@@ -430,6 +465,7 @@ ISOTOPE_QUESTIONS_PER_ATOM=15
 ISOTOPE_QUESTION_DIVERSITY_THRESHOLD=0.85
 ISOTOPE_DIVERSITY_SCOPE=global
 ISOTOPE_DEFAULT_K=5
+ISOTOPE_MAX_CONCURRENT_QUESTIONS=10
 ```
 
 Note: In Python, pass LLM/embedding models directly to `LiteLLMProvider` (or your custom

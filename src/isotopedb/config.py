@@ -42,3 +42,7 @@ class Settings(BaseModel):
     # Retrieval
     default_k: int = 5
     synthesis_prompt: str | None = None
+    synthesis_temperature: float | None = 0.3
+
+    # Async ingestion
+    max_concurrent_questions: int = 10

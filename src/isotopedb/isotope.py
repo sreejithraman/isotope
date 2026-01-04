@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from isotopedb.configuration import ProviderConfig, StorageConfig
     from isotopedb.ingestor import Ingestor
     from isotopedb.loaders import LoaderRegistry
+    from isotopedb.providers import LLMClient
     from isotopedb.question_generator import DiversityFilter, FilterScope
     from isotopedb.retriever import Retriever
     from isotopedb.stores import AtomStore, ChunkStore, SourceRegistry, VectorStore
@@ -145,15 +146,17 @@ class Isotope:
     def retriever(
         self,
         *,
-        llm_model: str | None = None,
+        llm_client: LLMClient | None = None,
         synthesis_prompt: str | None = None,
+        synthesis_temperature: float | None = None,
         default_k: int | None = None,
     ) -> Retriever:
         """Create a Retriever using this instance's stores.
 
         Args:
-            llm_model: LiteLLM model for answer synthesis. Pass None to disable synthesis.
+            llm_client: LLM client for answer synthesis. Pass None to disable synthesis.
             synthesis_prompt: Custom synthesis prompt template.
+            synthesis_temperature: Temperature for synthesis LLM calls.
             default_k: Number of results to return. If None, uses settings default.
 
         Returns:
@@ -167,8 +170,13 @@ class Isotope:
             atom_store=self.atom_store,
             embedder=self.embedder,
             default_k=default_k if default_k is not None else self._settings.default_k,
-            llm_model=llm_model,
+            llm_client=llm_client,
             synthesis_prompt=synthesis_prompt or self._settings.synthesis_prompt,
+            synthesis_temperature=(
+                synthesis_temperature
+                if synthesis_temperature is not None
+                else self._settings.synthesis_temperature
+            ),
         )
 
     def ingestor(
@@ -177,6 +185,7 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
+        max_concurrent_questions: int | None = None,
     ) -> Ingestor:
         """Create an Ingestor using this instance's stores.
 
@@ -190,6 +199,8 @@ class Isotope:
                 - "per_chunk": Filter within each chunk (~100x faster)
                 - "per_atom": Filter within each atom (~1000x faster)
                 If None, uses settings default.
+            max_concurrent_questions: Maximum concurrent async question generation
+                requests. Only used by aingest_chunks(). If None, uses settings.
 
         Returns:
             Configured Ingestor instance using the atomizer and generator
@@ -218,6 +229,11 @@ class Isotope:
             question_generator=self._question_generator,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,
+            max_concurrent_questions=(
+                max_concurrent_questions
+                if max_concurrent_questions is not None
+                else self._settings.max_concurrent_questions
+            ),
         )
 
     def ingest_file(
@@ -286,6 +302,80 @@ class Isotope:
             diversity_scope=diversity_scope,
         )
         result = ingestor.ingest_chunks(chunks)
+
+        # Track the new hash after successful ingestion
+        self._source_registry.set_hash(source, content_hash)
+
+        return result
+
+    async def aingest_file(
+        self,
+        filepath: str,
+        source_id: str | None = None,
+        *,
+        diversity_filter: DiversityFilter | None = None,
+        use_diversity_filter: bool = True,
+        diversity_scope: FilterScope | None = None,
+        max_concurrent_questions: int | None = None,
+    ) -> dict:
+        """Ingest a file with async question generation, skipping if content unchanged.
+
+        Same as ingest_file() but uses concurrent async requests for question
+        generation to reduce total wall-clock time.
+
+        Args:
+            filepath: Path to the file to ingest
+            source_id: Optional custom source identifier. If not provided,
+                      the absolute path will be used as the source.
+            diversity_filter: Custom diversity filter for question deduplication
+            use_diversity_filter: Whether to use diversity filter
+            diversity_scope: Scope for diversity filtering
+            max_concurrent_questions: Maximum concurrent async requests.
+                                     If None, uses settings default.
+
+        Returns:
+            Dict with ingestion statistics or skip info:
+            - If skipped: {"skipped": True, "reason": "..."}
+            - If ingested: {"chunks": N, "atoms": N, "questions": N, ...}
+        """
+        file_path = Path(filepath)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        # Compute content hash
+        content = file_path.read_bytes()
+        content_hash = hashlib.sha256(content).hexdigest()
+
+        # Determine source identifier
+        source = source_id or str(file_path.resolve())
+
+        # Check if content unchanged
+        existing_hash = self._source_registry.get_hash(source)
+        if existing_hash == content_hash:
+            return {"skipped": True, "reason": "content unchanged"}
+
+        # Delete old data for this source (cascading via chunk_ids)
+        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
+        if chunk_ids:
+            self.vector_store.delete_by_chunk_ids(chunk_ids)
+            self.atom_store.delete_by_chunk_ids(chunk_ids)
+            self.chunk_store.delete_by_source(source)
+            self._source_registry.delete(source)
+
+        # Load file into chunks
+        loader_registry = self._get_loader_registry()
+        chunks = loader_registry.load(filepath, source_id)
+        if not chunks:
+            return {"skipped": True, "reason": "no content"}
+
+        # Ingest chunks using async
+        ingestor = self.ingestor(
+            diversity_filter=diversity_filter,
+            use_diversity_filter=use_diversity_filter,
+            diversity_scope=diversity_scope,
+            max_concurrent_questions=max_concurrent_questions,
+        )
+        result = await ingestor.aingest_chunks(chunks)
 
         # Track the new hash after successful ingestion
         self._source_registry.set_hash(source, content_hash)

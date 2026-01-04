@@ -68,11 +68,9 @@ def mock_generator():
                 )
             ]
 
-        def generate_batch(self, atoms: list[Atom], chunk_content: str = "") -> list[Question]:
-            questions = []
-            for atom in atoms:
-                questions.extend(self.generate(atom, chunk_content))
-            return questions
+        async def agenerate(self, atom: Atom, chunk_content: str = "") -> list[Question]:
+            """Async version - just calls sync for mocking."""
+            return self.generate(atom, chunk_content)
 
     return MockGenerator()
 

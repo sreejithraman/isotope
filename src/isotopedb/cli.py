@@ -14,7 +14,12 @@ from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 if TYPE_CHECKING:
     from isotopedb.isotope import Isotope
-    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteChunkStore
+    from isotopedb.stores import (
+        ChromaVectorStore,
+        SQLiteAtomStore,
+        SQLiteChunkStore,
+        SQLiteSourceRegistry,
+    )
 
 try:
     import typer
@@ -110,6 +115,7 @@ class StoreBundle(TypedDict):
     vector_store: ChromaVectorStore
     chunk_store: SQLiteChunkStore
     atom_store: SQLiteAtomStore
+    source_registry: SQLiteSourceRegistry
 
 
 def get_stores(data_dir: str) -> StoreBundle:
@@ -117,12 +123,18 @@ def get_stores(data_dir: str) -> StoreBundle:
 
     This doesn't require provider configuration since it only accesses stores.
     """
-    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteChunkStore
+    from isotopedb.stores import (
+        ChromaVectorStore,
+        SQLiteAtomStore,
+        SQLiteChunkStore,
+        SQLiteSourceRegistry,
+    )
 
     return {
         "vector_store": ChromaVectorStore(os.path.join(data_dir, "chroma")),
         "chunk_store": SQLiteChunkStore(os.path.join(data_dir, "chunks.db")),
         "atom_store": SQLiteAtomStore(os.path.join(data_dir, "atoms.db")),
+        "source_registry": SQLiteSourceRegistry(os.path.join(data_dir, "sources.db")),
     }
 
 
@@ -298,6 +310,12 @@ def get_isotope(
 
             def build_question_generator(self, settings: Settings) -> Any:
                 return self._question_generator
+
+            def build_llm_client(self) -> Any:
+                raise NotImplementedError(
+                    "Custom provider does not support build_llm_client. "
+                    "Use --raw flag with 'isotope ask' or extend your provider."
+                )
 
         return Isotope(
             provider=_CustomProvider(
@@ -525,14 +543,18 @@ def query(
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    # For retriever, get LLM model from config if available
-    llm_model: str | None = None
+    # For retriever, build LLM client from config if available
+    llm_client = None
     if not raw:
         llm_model = cli_config.get("llm_model") or os.environ.get("ISOTOPE_LITELLM_LLM_MODEL")
+        if llm_model:
+            from isotopedb.providers.litellm import LiteLLMClient
+
+            llm_client = LiteLLMClient(model=llm_model)
 
     retriever = iso.retriever(
         default_k=k,
-        llm_model=llm_model,
+        llm_client=llm_client,
     )
 
     response = retriever.get_answer(question)
@@ -743,9 +765,9 @@ def delete(
         raise typer.Exit(1) from None
 
     # Find chunks for this source
-    chunks = stores["chunk_store"].get_by_source(source)
+    chunk_ids = stores["chunk_store"].get_chunk_ids_by_source(source)
 
-    if not chunks:
+    if not chunk_ids:
         if plain:
             console.print(f"Source not found: {source}")
         else:
@@ -754,23 +776,22 @@ def delete(
 
     # Confirm deletion
     if not force and not plain:
-        console.print(f"[yellow]About to delete {len(chunks)} chunks from {source}[/yellow]")
+        console.print(f"[yellow]About to delete {len(chunk_ids)} chunks from {source}[/yellow]")
         confirm = typer.confirm("Continue?")
         if not confirm:
             console.print("Cancelled.")
             raise typer.Exit(0)
 
-    # Delete from all stores
-    chunk_ids = [c.id for c in chunks]
-
+    # Delete from all stores (matching Isotope.delete_source() logic)
     stores["vector_store"].delete_by_chunk_ids(chunk_ids)
     stores["atom_store"].delete_by_chunk_ids(chunk_ids)
-    stores["chunk_store"].delete_many(chunk_ids)
+    stores["chunk_store"].delete_by_source(source)
+    stores["source_registry"].delete(source)
 
     if plain:
-        console.print(f"Deleted {len(chunks)} chunks from {source}")
+        console.print(f"Deleted {len(chunk_ids)} chunks from {source}")
     else:
-        console.print(f"[green]Deleted {len(chunks)} chunks from {source}[/green]")
+        console.print(f"[green]Deleted {len(chunk_ids)} chunks from {source}[/green]")
 
 
 @app.command()

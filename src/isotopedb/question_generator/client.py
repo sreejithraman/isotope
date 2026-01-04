@@ -118,10 +118,11 @@ class ClientQuestionGenerator(QuestionGenerator):
         )
         return self._parse_response(response_text, atom)
 
-    def generate_batch(self, atoms: list[Atom], chunk_content: str = "") -> list[Question]:
-        """Generate questions for multiple atoms."""
-        all_questions = []
-        for atom in atoms:
-            questions = self.generate(atom, chunk_content)
-            all_questions.extend(questions)
-        return all_questions
+    async def agenerate(self, atom: Atom, chunk_content: str = "") -> list[Question]:
+        """Generate questions for a single atom (async)."""
+        prompt = self._build_prompt(atom, chunk_content)
+        response_text = await self._client.acomplete(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=self.temperature,
+        )
+        return self._parse_response(response_text, atom)

@@ -68,15 +68,24 @@ Chunks → Store Chunks → Atomize → Store Atoms → Generate Questions
        → Embed → Filter → Index
 ```
 
+Two modes available:
+- `ingest_chunks()` - Synchronous, sequential question generation
+- `aingest_chunks()` - Async, concurrent question generation (10-50x faster for large docs)
+
 ```python
+# Sync ingestion
 ingestor = iso.ingestor()
 result = ingestor.ingest_chunks([chunk1, chunk2])
+
+# Async ingestion (faster for large documents)
+result = await ingestor.aingest_chunks([chunk1, chunk2])
 # result = {"chunks": 2, "atoms": 8, "questions": 45, ...}
 ```
 
 Key features:
 - Progress callbacks for UI/logging
 - Diversity filtering to remove duplicate questions
+- Concurrent async question generation with configurable rate limiting
 
 ### Retriever
 
@@ -155,8 +164,13 @@ See [Atomization Guide](../guides/atomization.md) for when to use each.
 |-----------|---------|
 | `QuestionGenerator` | Generate synthetic questions via LLM |
 | `DiversityFilter` | Remove near-duplicate questions |
+| `BatchGenerationError` | Exception for partial batch failures |
 
 The generator creates ~15 questions per atom by default. The diversity filter (threshold 0.85) removes questions with >85% cosine similarity, keeping diverse coverage.
+
+**Async Support**: For large ingests, use async methods for concurrent question generation:
+- `agenerate(atom, chunk_content)` - Single atom, async
+- `agenerate_batch(atoms, chunk_contents, max_concurrent)` - Concurrent batch with semaphore-based rate limiting
 
 ### Embeddings (`embedder/`)
 

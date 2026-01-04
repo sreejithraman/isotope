@@ -193,25 +193,31 @@ class TestIsotopeRetriever:
 
         assert retriever.default_k == 20
 
-    def test_retriever_with_custom_llm_model(self, temp_dir, mock_provider):
-        """Test that retriever respects llm_model override."""
+    def test_retriever_with_custom_llm_client(self, temp_dir, mock_provider):
+        """Test that retriever respects llm_client override."""
+        from unittest.mock import MagicMock
+
+        from isotopedb.providers import LLMClient
+
+        mock_llm_client = MagicMock(spec=LLMClient)
+
         iso = Isotope(
             provider=mock_provider,
             storage=LocalStorage(temp_dir),
         )
-        retriever = iso.retriever(llm_model="custom/model")
+        retriever = iso.retriever(llm_client=mock_llm_client)
 
-        assert retriever.llm_model == "custom/model"
+        assert retriever._llm_client is mock_llm_client
 
-    def test_retriever_no_llm_by_default(self, temp_dir, mock_provider):
-        """Test that retriever has no LLM model by default."""
+    def test_retriever_no_llm_client_by_default(self, temp_dir, mock_provider):
+        """Test that retriever has no LLM client by default."""
         iso = Isotope(
             provider=mock_provider,
             storage=LocalStorage(temp_dir),
         )
         retriever = iso.retriever()
 
-        assert retriever.llm_model is None
+        assert retriever._llm_client is None
 
     def test_retriever_with_synthesis_prompt(self, temp_dir, mock_provider):
         """Test that retriever respects synthesis_prompt override."""

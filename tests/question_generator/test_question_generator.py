@@ -156,22 +156,6 @@ class TestClientQuestionGenerator:
         assert len(questions) == 2
 
     @patch("isotopedb.providers.litellm.client.litellm.completion")
-    def test_generate_batch(self, mock_completion, generator):
-        mock_completion.return_value = mock_completion_response(["Q1?", "Q2?"])
-
-        atoms = [
-            Atom(content="Fact 1", chunk_id="c1"),
-            Atom(content="Fact 2", chunk_id="c1"),
-        ]
-
-        questions = generator.generate_batch(atoms)
-
-        # Should call LLM once per atom
-        assert mock_completion.call_count == 2
-        # Should return all questions
-        assert len(questions) == 4
-
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
     def test_uses_chunk_content_context(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?"])
 

@@ -6,6 +6,7 @@ import pytest
 
 from isotopedb.embedder import ClientEmbedder
 from isotopedb.models import Atom, Chunk, EmbeddedQuestion, Question, SearchResult
+from isotopedb.providers import LLMClient
 from isotopedb.providers.litellm import LiteLLMEmbeddingClient
 from isotopedb.retriever import Retriever
 
@@ -148,24 +149,22 @@ class TestRetrieverGetContext:
 
 class TestRetrieverGetAnswer:
     @pytest.mark.mock_integration
-    @patch("litellm.completion")
     @patch("isotopedb.providers.litellm.client.litellm.embedding")
-    def test_get_answer_returns_response_with_synthesis(
-        self, mock_embedding, mock_completion, stores
-    ):
+    def test_get_answer_returns_response_with_synthesis(self, mock_embedding, stores):
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
-        mock_completion.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="Python is a programming language."))]
-        )
 
         chunk, atom, question = create_test_data(stores)
+
+        # Create mock LLM client
+        mock_llm_client = MagicMock(spec=LLMClient)
+        mock_llm_client.complete.return_value = "Python is a programming language."
 
         retriever = Retriever(
             vector_store=stores["vector_store"],
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            llm_model="gemini/gemini-2.0-flash-exp",
+            llm_client=mock_llm_client,
         )
 
         from isotopedb.models import QueryResponse
@@ -174,13 +173,15 @@ class TestRetrieverGetAnswer:
 
         assert isinstance(response, QueryResponse)
         assert response.query == "What is Python?"
-        assert response.answer is not None  # Synthesizes when llm_model is set
+        assert response.answer is not None  # Synthesizes when llm_client is set
+        assert response.answer == "Python is a programming language."
         assert len(response.results) > 0
+        mock_llm_client.complete.assert_called_once()
 
     @pytest.mark.mock_integration
     @patch("isotopedb.providers.litellm.client.litellm.embedding")
-    def test_get_answer_no_synthesis_without_llm(self, mock_embedding, stores):
-        """Test that get_answer() returns no answer when llm_model is not set."""
+    def test_get_answer_no_synthesis_without_llm_client(self, mock_embedding, stores):
+        """Test that get_answer() returns no answer when llm_client is not set."""
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
 
         chunk, atom, question = create_test_data(stores)
@@ -190,7 +191,7 @@ class TestRetrieverGetAnswer:
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
-            # No llm_model - so no synthesis
+            # No llm_client - so no synthesis
         )
 
         from isotopedb.models import QueryResponse
@@ -198,8 +199,34 @@ class TestRetrieverGetAnswer:
         response = retriever.get_answer("What is Python?")
 
         assert isinstance(response, QueryResponse)
-        assert response.answer is None  # No synthesis without llm_model
+        assert response.answer is None  # No synthesis without llm_client
         assert len(response.results) > 0
+
+    @pytest.mark.mock_integration
+    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    def test_get_answer_passes_temperature_to_llm_client(self, mock_embedding, stores):
+        """Test that synthesis_temperature is passed to the LLM client."""
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
+
+        chunk, atom, question = create_test_data(stores)
+
+        mock_llm_client = MagicMock(spec=LLMClient)
+        mock_llm_client.complete.return_value = "Answer"
+
+        retriever = Retriever(
+            vector_store=stores["vector_store"],
+            chunk_store=stores["chunk_store"],
+            atom_store=stores["atom_store"],
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            llm_client=mock_llm_client,
+            synthesis_temperature=0.7,
+        )
+
+        retriever.get_answer("What is Python?")
+
+        # Verify temperature was passed
+        call_kwargs = mock_llm_client.complete.call_args.kwargs
+        assert call_kwargs["temperature"] == 0.7
 
     @pytest.mark.mock_integration
     @patch("isotopedb.providers.litellm.client.litellm.embedding")

@@ -4,10 +4,12 @@
 from isotopedb.question_generator.base import QuestionGenerator
 from isotopedb.question_generator.client import ClientQuestionGenerator
 from isotopedb.question_generator.diversity_filter import DiversityFilter, FilterScope
+from isotopedb.question_generator.exceptions import BatchGenerationError
 
 __all__ = [
     "QuestionGenerator",
     "ClientQuestionGenerator",
     "DiversityFilter",
     "FilterScope",
+    "BatchGenerationError",
 ]

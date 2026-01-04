@@ -35,7 +35,12 @@ Enterprise (Explicit Stores):
     )
 """
 
-__version__ = "0.1.0"
+try:
+    from importlib.metadata import version
+
+    __version__ = version("isotopedb")
+except Exception:
+    __version__ = "unknown"
 
 # Core models
 # Abstract base classes

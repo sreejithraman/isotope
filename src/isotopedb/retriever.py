@@ -2,6 +2,7 @@
 
 from isotopedb.embedder import Embedder
 from isotopedb.models import QueryResponse, SearchResult
+from isotopedb.providers import LLMClient
 from isotopedb.stores import AtomStore, ChunkStore, VectorStore
 
 SYNTHESIS_PROMPT = """Based on the following context, answer the user's question.
@@ -25,8 +26,9 @@ class Retriever:
         atom_store: AtomStore,
         embedder: Embedder,
         default_k: int = 5,
-        llm_model: str | None = None,
+        llm_client: LLMClient | None = None,
         synthesis_prompt: str | None = None,
+        synthesis_temperature: float | None = 0.3,
     ) -> None:
         """Initialize the retriever.
 
@@ -36,16 +38,18 @@ class Retriever:
             atom_store: Atom store for atom retrieval
             embedder: Embedder for query embedding
             default_k: Default number of results to return
-            llm_model: LLM model for answer synthesis (optional)
+            llm_client: LLM client for answer synthesis (optional)
             synthesis_prompt: Custom synthesis prompt template
+            synthesis_temperature: Temperature for synthesis LLM calls
         """
         self.vector_store = vector_store
         self.chunk_store = chunk_store
         self.atom_store = atom_store
         self.embedder = embedder
         self.default_k = default_k
-        self.llm_model = llm_model
+        self._llm_client = llm_client
         self.synthesis_prompt = synthesis_prompt or SYNTHESIS_PROMPT
+        self.synthesis_temperature = synthesis_temperature
 
     def get_context(self, query: str, k: int | None = None) -> list[SearchResult]:
         """Get relevant context (chunks/atoms) for a query.
@@ -89,7 +93,7 @@ class Retriever:
     def get_answer(self, query: str, k: int | None = None) -> QueryResponse:
         """Get an answer to a query using retrieved context.
 
-        If llm_model is configured, synthesizes an answer from the context.
+        If llm_client is configured, synthesizes an answer from the context.
         Otherwise, returns QueryResponse with answer=None.
 
         Args:
@@ -97,12 +101,12 @@ class Retriever:
             k: Number of results to retrieve
 
         Returns:
-            QueryResponse with results and synthesized answer (if llm_model set)
+            QueryResponse with results and synthesized answer (if llm_client set)
         """
         results = self.get_context(query, k=k)
 
         answer = None
-        if results and self.llm_model:
+        if results and self._llm_client:
             answer = self._synthesize_answer(query, results)
 
         return QueryResponse(
@@ -113,13 +117,8 @@ class Retriever:
 
     def _synthesize_answer(self, query: str, results: list[SearchResult]) -> str:
         """Synthesize an answer from the search results using an LLM."""
-        try:
-            import litellm
-        except ImportError:
-            raise ImportError(
-                "Answer synthesis requires the 'litellm' package. "
-                "Install it with: pip install isotopedb[litellm]"
-            ) from None
+        if self._llm_client is None:
+            return ""
 
         # Build context from results
         context_parts = []
@@ -133,11 +132,7 @@ class Retriever:
             query=query,
         )
 
-        response = litellm.completion(
-            model=self.llm_model,
+        return self._llm_client.complete(
             messages=[{"role": "user", "content": prompt}],
-            drop_params=True,
-        )
-
-        content = response.choices[0].message.content
-        return str(content).strip() if content else ""
+            temperature=self.synthesis_temperature,
+        ).strip()

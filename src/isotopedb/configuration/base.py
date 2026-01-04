@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from isotopedb.atomizer import Atomizer
     from isotopedb.config import Settings
     from isotopedb.embedder import Embedder
+    from isotopedb.providers import LLMClient
     from isotopedb.question_generator import QuestionGenerator
     from isotopedb.stores import AtomStore, ChunkStore, SourceRegistry, VectorStore
 
@@ -55,6 +56,14 @@ class ProviderConfig(Protocol):
         Args:
             settings: Settings containing questions_per_atom and
                       question_generator_prompt if customized.
+        """
+        ...
+
+    def build_llm_client(self) -> LLMClient:
+        """Build an LLM client for general-purpose completions.
+
+        This can be used for answer synthesis or any other LLM task
+        not covered by the specialized component builders.
         """
         ...
 

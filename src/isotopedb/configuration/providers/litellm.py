@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from isotopedb.atomizer import Atomizer
     from isotopedb.config import Settings
     from isotopedb.embedder import Embedder
+    from isotopedb.providers import LLMClient
     from isotopedb.question_generator import QuestionGenerator
 
 
@@ -92,3 +93,9 @@ class LiteLLMProvider:
             num_questions=settings.questions_per_atom,
             prompt_template=settings.question_generator_prompt,
         )
+
+    def build_llm_client(self) -> LLMClient:
+        """Build a LiteLLMClient for general-purpose LLM calls."""
+        from isotopedb.providers.litellm import LiteLLMClient
+
+        return LiteLLMClient(model=self.llm)

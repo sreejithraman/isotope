@@ -27,7 +27,7 @@ help:
 	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 
 install:
-	pip install -e ".[dev,default]"
+	pip install -e ".[dev]"
 
 dev-setup: install
 	pre-commit install

@@ -273,8 +273,10 @@ chunk = Chunk(content="Python was created by Guido van Rossum.", source="wiki")
 # Atomize
 atoms = atomizer.atomize(chunk)
 
-# Generate questions
-questions = question_generator.generate_batch(atoms)
+# Generate questions (one atom at a time, or use async for speed)
+questions = []
+for atom in atoms:
+    questions.extend(question_generator.generate(atom, chunk.content))
 
 # Embed
 embedded = embedder.embed_questions(questions)
@@ -295,6 +297,27 @@ for question, score in results:
     chunk = chunk_store.get(question.chunk_id)
     print(f"[{score:.2f}] {chunk.content}")
 ```
+
+**Tip: Async for Large Documents**
+
+For large documents with many atoms, use async methods to parallelize question generation:
+
+```python
+import asyncio
+
+# Using the high-level API
+async def ingest_large_file():
+    result = await iso.aingest_file("large-document.pdf")
+    return result
+
+result = asyncio.run(ingest_large_file())
+
+# Or with the Ingestor directly
+ingestor = iso.ingestor(max_concurrent_questions=20)
+result = asyncio.run(ingestor.aingest_chunks(chunks))
+```
+
+This can be 10-50x faster for documents with 100+ atoms.
 
 </details>
 
