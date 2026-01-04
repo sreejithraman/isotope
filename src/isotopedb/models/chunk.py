@@ -1,6 +1,7 @@
 # src/isotopedb/models/chunk.py
 """Chunk data model."""
 
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -12,4 +13,4 @@ class Chunk(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     content: str
     source: str
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)

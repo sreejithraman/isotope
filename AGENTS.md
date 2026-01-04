@@ -34,7 +34,7 @@ pytest -m 'not mock_integration'
 ```
 src/isotopedb/
 ├── models/          # Pydantic data models (Chunk, Atom, Question, etc.)
-├── stores/          # Storage ABCs + implementations (VectorStore, ChunkStore, AtomStore)
+├── stores/          # Storage ABCs + implementations (VectorStore, ChunkStore, AtomStore, SourceRegistry)
 ├── atomizer/        # Break chunks into atomic facts (SentenceAtomizer, LLMAtomizer)
 ├── embedder/        # Embedding wrapper (ClientEmbedder)
 ├── question_generator/  # Question generation + diversity filtering
@@ -55,8 +55,7 @@ src/isotopedb/
 ## Code Patterns
 
 **ABCs for extensibility**: All major components have abstract base classes:
-- `VectorStore`, `ChunkStore`, `AtomStore` in `stores/base.py`
-- `SourceRegistry` in `stores/source_registry.py`
+- `VectorStore`, `ChunkStore`, `AtomStore`, `SourceRegistry` in `stores/base.py`
 - `Atomizer` in `atomizer/base.py`
 - `Embedder` in `embedder/base.py`
 - `QuestionGenerator` in `question_generator/base.py`

@@ -8,7 +8,7 @@ import pytest
 
 from isotopedb.models import Chunk
 from isotopedb.stores.base import ChunkStore
-from isotopedb.stores.sqlite import SQLiteChunkStore
+from isotopedb.stores.sqlite_chunk import SQLiteChunkStore
 
 
 @pytest.fixture

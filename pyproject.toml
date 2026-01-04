@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Sree Raman" }]
+keywords = ["rag", "embeddings", "vector-database", "question-generation", "document-processing"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -51,6 +52,10 @@ dev = [
 
 [project.scripts]
 isotope = "isotopedb.cli:app"
+
+[project.urls]
+Repository = "https://github.com/sreejithraman/isotope"
+Documentation = "https://github.com/sreejithraman/isotope#readme"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/isotopedb"]

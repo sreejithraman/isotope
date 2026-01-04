@@ -373,7 +373,9 @@ def config(
         )
     elif provider == "custom":
         table.add_row("embedder", cli_config.get("embedder", "(not set)"), "config file")
-        table.add_row("generator", cli_config.get("generator", "(not set)"), "config file")
+        table.add_row(
+            "question_generator", cli_config.get("question_generator", "(not set)"), "config file"
+        )
         table.add_row("atomizer", cli_config.get("atomizer", "(not set)"), "config file")
 
     # Behavioral settings (from env vars, read by CLI)

@@ -32,7 +32,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          pip install -e ".[dev,local]"
+          pip install -e ".[dev,chroma]"
       - name: Run mypy
         run: mypy src
 
@@ -48,7 +48,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install -e ".[dev,local]"
+          pip install -e ".[dev,chroma]"
       - name: Run tests
         run: pytest
 

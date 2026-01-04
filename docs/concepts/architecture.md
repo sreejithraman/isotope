@@ -137,13 +137,14 @@ results = retriever.get_context("authentication")
 
 ### Storage Layer (`stores/`)
 
-Three abstract base classes define storage contracts:
+Four abstract base classes define storage contracts:
 
 | ABC | Implementations | Stores |
 |-----|-----------------|--------|
 | `VectorStore` | `ChromaVectorStore` | Question embeddings |
 | `ChunkStore` | `SQLiteChunkStore` | Chunk content |
 | `AtomStore` | `SQLiteAtomStore` | Atom content |
+| `SourceRegistry` | `SQLiteSourceRegistry` | Source content hashes |
 
 All stores support deletion by chunk ID for re-ingestion workflows.
 
@@ -180,14 +181,9 @@ The generator creates ~15 questions per atom by default. The diversity filter (t
 - `embed_question(Question)` → single `EmbeddedQuestion`
 - `embed_questions(list[Question])` → list of `EmbeddedQuestion`
 
-### Source Registry (`stores/source_registry.py`)
+### Source Registry
 
-Tracks ingested sources for change detection:
-
-| Component | Purpose |
-|-----------|---------|
-| `SourceRegistry` | ABC for tracking source content hashes |
-| `SQLiteSourceRegistry` | SQLite-backed implementation |
+Tracks ingested sources for change detection. The `SourceRegistry` ABC is defined in `stores/base.py` alongside other store ABCs, with `SQLiteSourceRegistry` in `stores/source_registry.py`.
 
 When re-ingesting files via `Isotope.ingest_file()`, the system compares content hashes
 to detect changes and automatically cascades deletion of old data before adding new content.

@@ -22,7 +22,7 @@ class LocalStorage:
     - atoms.db: Atomic statements (SQLite)
     - sources.db: Source content hashes (SQLite)
 
-    Requires the chromadb package: pip install isotope[local]
+    Requires the chromadb package: pip install isotopedb[chroma]
 
     Args:
         data_dir: Base directory for all storage files.

@@ -1,34 +1,11 @@
 # src/isotopedb/stores/source_registry.py
-"""Source registry for tracking content hashes."""
+"""SQLite implementation of source registry."""
 
 import sqlite3
-from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
 
-
-class SourceRegistry(ABC):
-    """Tracks source metadata for change detection.
-
-    Similar to LangChain's RecordManager - keeps tracking separate from
-    document storage. Stores content hashes to detect when files change.
-    """
-
-    @abstractmethod
-    def get_hash(self, source: str) -> str | None:
-        """Get content hash for a source, or None if not tracked."""
-
-    @abstractmethod
-    def set_hash(self, source: str, content_hash: str) -> None:
-        """Store content hash after successful ingestion."""
-
-    @abstractmethod
-    def delete(self, source: str) -> None:
-        """Remove tracking for a source."""
-
-    @abstractmethod
-    def list_sources(self) -> list[str]:
-        """List all tracked sources."""
+from isotopedb.stores.base import SourceRegistry
 
 
 class SQLiteSourceRegistry(SourceRegistry):

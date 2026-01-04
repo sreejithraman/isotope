@@ -1,4 +1,4 @@
-# src/isotopedb/stores/sqlite.py
+# src/isotopedb/stores/sqlite_chunk.py
 """SQLite chunk store implementation."""
 
 import json
