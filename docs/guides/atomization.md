@@ -126,12 +126,15 @@ atoms = atomizer.atomize(chunk)
 Configure atomization explicitly in code or via the CLI config file:
 
 ```python
-from isotopedb import Isotope
+from isotopedb import Isotope, LiteLLMProvider, LocalStorage
 
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",
-    embedding_model="openai/text-embedding-3-small",
-    use_sentence_atomizer=True,  # Use sentence-based atomizer
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",
+        embedding="openai/text-embedding-3-small",
+        atomizer_type="sentence",  # Use sentence-based atomizer
+    ),
+    storage=LocalStorage("./isotope_data"),
 )
 ```
 

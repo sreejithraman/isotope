@@ -10,8 +10,7 @@ This tutorial walks you through ingesting your first document and querying it wi
 ## Installation
 
 ```bash
-# Recommended: local dev setup (Chroma + LiteLLM + CLI)
-pip install isotopedb[local]
+pip install isotopedb[all]
 ```
 
 ## Set Up Your API Key
@@ -31,10 +30,10 @@ export ANTHROPIC_API_KEY="your-api-key"
 
 See [Configuration Guide](../guides/configuration.md) for all supported providers.
 
-## The Simple Way: Using `Isotope.with_litellm`
+## The Simple Way: LiteLLMProvider + LocalStorage
 
-The `Isotope.with_litellm()` factory is the easiest way to get started. It wires up local
-stores and LiteLLM-backed components for you.
+The simplest way to get started is to pair `LiteLLMProvider` with `LocalStorage`. This wires
+up local stores and LiteLLM-backed components for you.
 
 ### Step 1: Create Some Content
 
@@ -50,14 +49,16 @@ including procedural, object-oriented, and functional programming.
 ### Step 2: Ingest It
 
 ```python
-from isotopedb import Isotope, Chunk
+from isotopedb import Isotope, Chunk, LiteLLMProvider, LocalStorage
 
 # Create an Isotope instance (LiteLLM + local stores)
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",
-    embedding_model="openai/text-embedding-3-small",
-    data_dir="./my_isotope_data",
-    use_sentence_atomizer=True,  # Faster, no LLM for atomization
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",
+        embedding="openai/text-embedding-3-small",
+        atomizer_type="sentence",  # Faster, no LLM for atomization
+    ),
+    storage=LocalStorage("./my_isotope_data"),
 )
 
 # Load your content
@@ -155,14 +156,16 @@ See [CLI Reference](../guides/cli.md) for all commands.
 Here's everything in one script:
 
 ```python
-from isotopedb import Isotope, Chunk
+from isotopedb import Isotope, Chunk, LiteLLMProvider, LocalStorage
 
 # 1. Setup
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",
-    embedding_model="openai/text-embedding-3-small",
-    data_dir="./my_data",
-    use_sentence_atomizer=True,
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",
+        embedding="openai/text-embedding-3-small",
+        atomizer_type="sentence",
+    ),
+    storage=LocalStorage("./my_data"),
 )
 
 # 2. Load and ingest content
@@ -205,10 +208,14 @@ This is the "Reverse RAG" approach—see [Reverse RAG Explained](../concepts/rev
 The `Isotope` class uses sensible defaults, but you can customize everything:
 
 ```python
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",                        # LLM for generation/synthesis
-    embedding_model="openai/text-embedding-3-small",  # Embedding model
-    data_dir="./my_data",
+from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",                        # LLM for generation/synthesis
+        embedding="openai/text-embedding-3-small",  # Embedding model
+    ),
+    storage=LocalStorage("./my_data"),
 )
 
 # Or customize the ingestor

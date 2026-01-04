@@ -27,21 +27,23 @@ Isotope:          "Who created Python?" → search questions → get "Who create
 ## Installation
 
 ```bash
-pip install isotopedb[local]
+pip install isotopedb[all]
 ```
 
-This installs Isotope with ChromaDB (local vector store), LiteLLM, and CLI tools—everything needed for local development.
+This installs Isotope with all optional dependencies (ChromaDB, LiteLLM, CLI, document loaders).
 
 ## Quick Start
 
 ```python
-from isotopedb import Isotope, Chunk
+from isotopedb import Isotope, Chunk, LiteLLMProvider, LocalStorage
 
-# Quick setup with LiteLLM
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",
-    embedding_model="openai/text-embedding-3-small",
-    data_dir="./my_data",
+# Quick setup with LiteLLM + local storage
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",
+        embedding="openai/text-embedding-3-small",
+    ),
+    storage=LocalStorage("./my_data"),
 )
 
 # Ingest

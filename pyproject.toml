@@ -25,7 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Storage configurations
-local = ["chromadb>=0.4"]            # LocalStorage (Chroma + SQLite)
+chroma = ["chromadb>=0.4"]           # ChromaDB vector store
 # Provider configurations
 litellm = ["litellm>=1.0"]           # LiteLLMProvider
 # CLI

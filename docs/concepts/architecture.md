@@ -36,13 +36,15 @@ IsotopeDB has three layers:
 The `Isotope` class is the main entry point. It bundles configuration and creates pipelines:
 
 ```python
-from isotopedb import Isotope
+from isotopedb import Isotope, LiteLLMProvider, LocalStorage
 
 # Simple setup with LiteLLM + local stores
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",
-    embedding_model="openai/text-embedding-3-small",
-    data_dir="./my_data",
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",
+        embedding="openai/text-embedding-3-small",
+    ),
+    storage=LocalStorage("./my_data"),
 )
 
 # Create pipelines
@@ -51,8 +53,8 @@ retriever = iso.retriever(llm_model="openai/gpt-4o")
 ```
 
 `Isotope` handles:
-- Holding references to stores and components (or creating them via factory methods)
-- Reading behavioral defaults from `ISOTOPE_*` settings (questions per atom, dedup, default_k)
+- Holding references to stores and components (built from configuration objects)
+- Applying behavioral defaults from `Settings` (questions per atom, dedup, default_k)
 - Providing factory methods for `Ingestor` and `Retriever`
 
 ## Pipelines
@@ -233,24 +235,29 @@ LiteLLM provides a unified interface to 100+ LLM providers. This means:
 ## Configuration
 
 Behavioral settings (questions per atom, diversity, default_k, etc.) are configured via
-`ISOTOPE_*` environment variables or the `Settings` class. Provider configuration is explicit
-in code (e.g., `Isotope.with_litellm`) or via the CLI config file. See
+the `Settings` class (the CLI reads `ISOTOPE_*` env vars and passes them explicitly).
+Provider and storage configuration are explicit in code via configuration objects
+or via the CLI config file. See
 [Configuration Guide](../guides/configuration.md) for details.
 
 ```python
 # LiteLLM + local stores
-iso = Isotope.with_litellm(
-    llm_model="openai/gpt-4o",
-    embedding_model="openai/text-embedding-3-small",
+from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+
+iso = Isotope(
+    provider=LiteLLMProvider(
+        llm="openai/gpt-4o",
+        embedding="openai/text-embedding-3-small",
+    ),
+    storage=LocalStorage("./isotope_data"),
 )
 
-# Custom components
+# Explicit stores + custom provider
 iso = Isotope(
+    provider=my_provider_config,
     vector_store=my_vector_store,
     chunk_store=my_chunk_store,
     atom_store=my_atom_store,
-    embedder=my_embedder,
-    atomizer=my_atomizer,
-    question_generator=my_question_generator,
+    source_registry=my_source_registry,
 )
 ```
