@@ -50,7 +50,8 @@ except PackageNotFoundError:
                 pyproject = parent / "pyproject.toml"
                 if pyproject.exists():
                     data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-                    return data.get("project", {}).get("version")
+                    version = data.get("project", {}).get("version")
+                    return str(version) if version is not None else None
             return None
 
         __version__ = _read_version_from_pyproject() or "unknown"
