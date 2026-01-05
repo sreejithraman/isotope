@@ -15,7 +15,6 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
     def __init__(self, persist_dir: str, collection_name: str = "isotope") -> None:
         """Initialize the ChromaDB store."""
         Path(persist_dir).mkdir(parents=True, exist_ok=True)
-        self._persist_dir = persist_dir
         self._client = chromadb.PersistentClient(path=persist_dir)
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
@@ -25,22 +24,18 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
     def close(self) -> None:
         """Close the store and release resources.
 
-        ChromaDB doesn't have an official close method, so we clear the shared
-        system cache to release file handles. This is necessary to avoid
+        ChromaDB doesn't have an official close method, so we call the internal
+        _system.stop() to release file handles. This is necessary to avoid
         'too many open files' errors in test suites.
+
+        See: https://github.com/chroma-core/chroma/issues/5868
         """
-        # Clear reference to collection
         self._collection = None  # type: ignore[assignment]
 
-        # Clear the shared system client cache to release file handles
-        # This is a workaround for https://github.com/chroma-core/chroma/issues/5868
+        # ChromaDB lacks official close() - use internal _system.stop() workaround
         try:
-            from chromadb.api.shared_system_client import SharedSystemClient
-
-            identifier = SharedSystemClient._make_identifier(self._persist_dir, None, None)
-            if identifier in SharedSystemClient._identifier_to_system:
-                system = SharedSystemClient._identifier_to_system.pop(identifier)
-                system.stop()
+            if self._client is not None and hasattr(self._client, "_system"):
+                self._client._system.stop()
         except Exception:
             pass  # Best effort cleanup
 

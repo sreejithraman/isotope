@@ -19,19 +19,21 @@ def temp_dir():
         try:
             from chromadb.api.shared_system_client import SharedSystemClient
 
-            # Find and stop all systems that were created in this temp directory
-            identifiers_to_remove = [
-                identifier
-                for identifier in list(SharedSystemClient._identifier_to_system.keys())
-                if tmpdir in str(identifier)
-            ]
-            for identifier in identifiers_to_remove:
-                if identifier in SharedSystemClient._identifier_to_system:
-                    system = SharedSystemClient._identifier_to_system.pop(identifier)
-                    with contextlib.suppress(Exception):
-                        system.stop()
-        except ImportError:
-            pass  # chromadb not installed
+            # Guard against ChromaDB internal API changes
+            if hasattr(SharedSystemClient, "_identifier_to_system"):
+                # Find and stop all systems that were created in this temp directory
+                identifiers_to_remove = [
+                    identifier
+                    for identifier in list(SharedSystemClient._identifier_to_system.keys())
+                    if tmpdir in str(identifier)
+                ]
+                for identifier in identifiers_to_remove:
+                    if identifier in SharedSystemClient._identifier_to_system:
+                        system = SharedSystemClient._identifier_to_system.pop(identifier)
+                        with contextlib.suppress(Exception):
+                            system.stop()
+        except Exception:
+            pass  # Best effort cleanup - ChromaDB internals may change
 
 
 @pytest.fixture
