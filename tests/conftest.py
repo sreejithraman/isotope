@@ -1,5 +1,6 @@
 """Shared pytest fixtures."""
 
+import contextlib
 import os
 import tempfile
 
@@ -12,6 +13,26 @@ def temp_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
 
+        # Cleanup ChromaDB's shared system cache to release file handles
+        # This is necessary to avoid "too many open files" errors in test suites
+        # See: https://github.com/chroma-core/chroma/issues/5868
+        try:
+            from chromadb.api.shared_system_client import SharedSystemClient
+
+            # Find and stop all systems that were created in this temp directory
+            identifiers_to_remove = [
+                identifier
+                for identifier in list(SharedSystemClient._identifier_to_system.keys())
+                if tmpdir in str(identifier)
+            ]
+            for identifier in identifiers_to_remove:
+                if identifier in SharedSystemClient._identifier_to_system:
+                    system = SharedSystemClient._identifier_to_system.pop(identifier)
+                    with contextlib.suppress(Exception):
+                        system.stop()
+        except ImportError:
+            pass  # chromadb not installed
+
 
 @pytest.fixture
 def stores(temp_dir):
@@ -19,11 +40,17 @@ def stores(temp_dir):
     pytest.importorskip("chromadb", reason="This fixture requires chromadb")
     from isotope.stores import ChromaEmbeddedQuestionStore, SQLiteAtomStore, SQLiteChunkStore
 
-    return {
-        "embedded_question_store": ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma")),
+    chroma_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))
+    stores_dict = {
+        "embedded_question_store": chroma_store,
         "chunk_store": SQLiteChunkStore(os.path.join(temp_dir, "chunks.db")),
         "atom_store": SQLiteAtomStore(os.path.join(temp_dir, "atoms.db")),
     }
+    yield stores_dict
+
+    # Cleanup: close ChromaDB to release file handles
+    # This prevents "too many open files" errors in test suites
+    chroma_store.close()
 
 
 @pytest.fixture
