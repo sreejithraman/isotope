@@ -1,5 +1,6 @@
 # Isotope
 
+[![CI](https://github.com/sreejithraman/isotope/actions/workflows/ci.yml/badge.svg)](https://github.com/sreejithraman/isotope/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/isotope-rag.svg)](https://pypi.org/project/isotope-rag/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -188,10 +189,6 @@ Based on [arXiv:2405.12363](https://arxiv.org/abs/2405.12363):
 
 **🎓 Tutorials**
 - [Getting Started](docs/tutorials/getting-started.md) - Your first 10 minutes
-- *Coming soon: Building a FAQ bot, Hybrid retrieval, Custom providers*
-
-**🔌 API Reference**
-- *Coming soon: Full API documentation*
 
 ## When to Use Isotope
 
@@ -238,7 +235,7 @@ pre-commit install
 pytest  # Run tests
 ```
 
-See `CONTRIBUTING.md` for detailed guidelines (coming soon).
+See `CONTRIBUTING.md` for guidelines.
 
 ## Citation
 
