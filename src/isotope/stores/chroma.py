@@ -21,6 +21,26 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
             metadata={"hnsw:space": "cosine"},
         )
 
+    def close(self) -> None:
+        """Close the store and release resources.
+
+        ChromaDB doesn't have an official close method, so we call the internal
+        _system.stop() to release file handles. This is necessary to avoid
+        'too many open files' errors in test suites.
+
+        See: https://github.com/chroma-core/chroma/issues/5868
+        """
+        self._collection = None  # type: ignore[assignment]
+
+        # ChromaDB lacks official close() - use internal _system.stop() workaround
+        try:
+            if self._client is not None and hasattr(self._client, "_system"):
+                self._client._system.stop()
+        except Exception:
+            pass  # Best effort cleanup
+
+        self._client = None  # type: ignore[assignment]
+
     def add(self, questions: list[EmbeddedQuestion]) -> None:
         """Add questions with embeddings to the store."""
         if not questions:

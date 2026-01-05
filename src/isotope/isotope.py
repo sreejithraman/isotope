@@ -460,3 +460,18 @@ class Isotope:
         self._source_registry.delete(source)
 
         return {"deleted": True, "chunks_removed": len(chunk_ids)}
+
+    def close(self) -> None:
+        """Close the embedded question store and release resources.
+
+        Call this when you're done with the Isotope instance to release
+        ChromaDB file handles. This is especially important in test suites
+        to avoid 'too many open files' errors.
+
+        Note: SQLite stores (chunk_store, atom_store) use per-operation
+        connections and don't require explicit closing.
+
+        After calling close(), the Isotope instance should not be used.
+        """
+        if hasattr(self.embedded_question_store, "close"):
+            self.embedded_question_store.close()
