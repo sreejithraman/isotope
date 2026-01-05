@@ -40,6 +40,7 @@ except ImportError:
     YAML_AVAILABLE = False
 
 from isotope import __version__
+from isotope.question_generator import FilterScope
 
 app = typer.Typer(
     name="isotope",
@@ -81,7 +82,7 @@ def _parse_threshold(value: str | None) -> float | None:
     return float(value)
 
 
-def _parse_diversity_scope(value: str | None) -> str:
+def _parse_diversity_scope(value: str | None) -> FilterScope:
     """Parse diversity scope from env var, defaulting to 'global'."""
     if value is None or value == "":
         return "global"
@@ -89,7 +90,7 @@ def _parse_diversity_scope(value: str | None) -> str:
     if normalized not in {"global", "per_chunk", "per_atom"}:
         console.print(f"[yellow]Warning: Invalid diversity_scope '{value}', defaulting[/yellow]")
         return "global"
-    return normalized
+    return cast(FilterScope, normalized)
 
 
 def _get_behavioral_settings_from_env() -> dict:
@@ -210,7 +211,7 @@ def get_isotope(
         question_generator_prompt=env_settings["question_generator_prompt"],
         atomizer_prompt=env_settings["atomizer_prompt"],
         question_diversity_threshold=env_settings["diversity_threshold"],
-        diversity_scope=env_settings["diversity_scope"],  # type: ignore[arg-type]
+        diversity_scope=env_settings["diversity_scope"],
         default_k=env_settings["default_k"],
         synthesis_prompt=env_settings["synthesis_prompt"],
     )
@@ -314,7 +315,7 @@ def get_isotope(
             def build_llm_client(self) -> Any:
                 raise NotImplementedError(
                     "Custom provider does not support build_llm_client. "
-                    "Use --raw flag with 'isotope ask' or extend your provider."
+                    "Use --raw flag with 'isotope query' or extend your provider."
                 )
 
         return Isotope(
@@ -779,7 +780,7 @@ def delete(
         raise typer.Exit(1)
 
     # Confirm deletion
-    if not force and not plain:
+    if not force:
         console.print(f"[yellow]About to delete {len(chunk_ids)} chunks from {source}[/yellow]")
         confirm = typer.confirm("Continue?")
         if not confirm:
