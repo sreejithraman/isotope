@@ -4,7 +4,7 @@
 
 ```bash
 # Clone and setup (installs deps + pre-commit hooks)
-git clone <repo>
+git clone https://github.com/sreejithraman/isotope.git
 cd isotope
 make dev-setup
 ```
