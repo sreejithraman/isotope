@@ -6,9 +6,9 @@ import tempfile
 
 import pytest
 
-from isotopedb.models import Chunk
-from isotopedb.stores.base import ChunkStore
-from isotopedb.stores.sqlite_chunk import SQLiteChunkStore
+from isotope.models import Chunk
+from isotope.stores.base import ChunkStore
+from isotope.stores.sqlite_chunk import SQLiteChunkStore
 
 
 @pytest.fixture

@@ -8,9 +8,9 @@ import pytest
 
 pytest.importorskip("litellm", reason="Tests require litellm package")
 
-from isotopedb.models import Atom, Question
-from isotopedb.providers.litellm import LiteLLMClient
-from isotopedb.question_generator import ClientQuestionGenerator, QuestionGenerator
+from isotope.models import Atom, Question
+from isotope.providers.litellm import LiteLLMClient
+from isotope.question_generator import ClientQuestionGenerator, QuestionGenerator
 
 
 def mock_completion_response(questions: list[str]):
@@ -63,7 +63,7 @@ class TestClientQuestionGenerator:
         gen = ClientQuestionGenerator(llm_client=llm_client, temperature=None)
         assert gen.temperature is None
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_generate_questions(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(
             [
@@ -79,7 +79,7 @@ class TestClientQuestionGenerator:
         assert questions[0].text == "Who created Python?"
         assert questions[1].text == "What programming language did Guido create?"
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_questions_have_correct_chunk_id(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?", "Q2?"])
 
@@ -88,7 +88,7 @@ class TestClientQuestionGenerator:
         for q in questions:
             assert q.chunk_id == sample_atom.chunk_id
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_questions_have_correct_atom_id(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?", "Q2?"])
 
@@ -97,7 +97,7 @@ class TestClientQuestionGenerator:
         for q in questions:
             assert q.atom_id == sample_atom.id
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_questions_have_unique_ids(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?", "Q2?"])
 
@@ -105,7 +105,7 @@ class TestClientQuestionGenerator:
 
         assert questions[0].id != questions[1].id
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_handles_code_block_response(self, mock_completion, generator, sample_atom):
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -116,7 +116,7 @@ class TestClientQuestionGenerator:
 
         assert len(questions) == 2
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_fallback_on_invalid_json(self, mock_completion, generator, sample_atom):
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -128,7 +128,7 @@ class TestClientQuestionGenerator:
         assert len(questions) == 2
         assert "Who created Python?" in questions[0].text
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_adds_question_mark_if_missing(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(
             [
@@ -140,7 +140,7 @@ class TestClientQuestionGenerator:
 
         assert questions[0].text.endswith("?")
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_filters_empty_questions(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(
             [
@@ -155,7 +155,7 @@ class TestClientQuestionGenerator:
 
         assert len(questions) == 2
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_uses_chunk_content_context(self, mock_completion, generator, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?"])
 
@@ -171,7 +171,7 @@ class TestClientQuestionGenerator:
         gen = ClientQuestionGenerator(llm_client=llm_client, prompt_template=custom_prompt)
         assert gen.prompt_template == custom_prompt
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_temperature_passed_to_llm(self, mock_completion, llm_client, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?"])
         gen = ClientQuestionGenerator(llm_client=llm_client, temperature=0.9)
@@ -182,7 +182,7 @@ class TestClientQuestionGenerator:
         assert call_kwargs["temperature"] == 0.9
         assert call_kwargs["drop_params"] is True
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_temperature_none_not_passed(self, mock_completion, llm_client, sample_atom):
         mock_completion.return_value = mock_completion_response(["Q1?"])
         gen = ClientQuestionGenerator(llm_client=llm_client, temperature=None)

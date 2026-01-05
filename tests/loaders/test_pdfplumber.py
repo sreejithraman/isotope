@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from isotopedb.loaders.base import Loader
+from isotope.loaders.base import Loader
 
 HAS_PDFPLUMBER = importlib.util.find_spec("pdfplumber") is not None
 
@@ -23,19 +23,19 @@ def temp_dir():
 
 class TestPDFPlumberLoader:
     def test_is_loader(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         assert isinstance(PDFPlumberLoader(), Loader)
 
     def test_supports_pdf(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
         assert loader.supports("file.pdf") is True
         assert loader.supports("FILE.PDF") is True
 
     def test_does_not_support_other(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
         assert loader.supports("file.txt") is False
@@ -43,7 +43,7 @@ class TestPDFPlumberLoader:
         assert loader.supports("file.html") is False
 
     def test_load_nonexistent_file(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
         with pytest.raises(FileNotFoundError):
@@ -54,7 +54,7 @@ class TestPDFPlumberLoaderTableFormatting:
     """Test table-to-markdown conversion."""
 
     def test_tables_to_markdown_simple(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
 
@@ -67,7 +67,7 @@ class TestPDFPlumberLoaderTableFormatting:
         assert "| Row1Col1 | Row1Col2 |" in result
 
     def test_tables_to_markdown_with_none_values(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
 
@@ -80,7 +80,7 @@ class TestPDFPlumberLoaderTableFormatting:
         assert "|  | Value |" in result
 
     def test_tables_to_markdown_escapes_pipes(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
 
@@ -93,7 +93,7 @@ class TestPDFPlumberLoaderTableFormatting:
         assert "E\\|F" in result
 
     def test_tables_to_markdown_empty_table(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
 
@@ -104,7 +104,7 @@ class TestPDFPlumberLoaderTableFormatting:
         assert result == ""
 
     def test_tables_to_markdown_multiple_tables(self):
-        from isotopedb.loaders.pdfplumber_loader import PDFPlumberLoader
+        from isotope.loaders.pdfplumber_loader import PDFPlumberLoader
 
         loader = PDFPlumberLoader()
 

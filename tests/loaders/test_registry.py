@@ -6,9 +6,9 @@ import tempfile
 
 import pytest
 
-from isotopedb.loaders.registry import LoaderRegistry
-from isotopedb.loaders.text import TextLoader
-from isotopedb.models import Chunk
+from isotope.loaders.registry import LoaderRegistry
+from isotope.loaders.text import TextLoader
+from isotope.models import Chunk
 
 
 @pytest.fixture

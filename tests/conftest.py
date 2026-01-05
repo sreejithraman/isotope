@@ -17,10 +17,10 @@ def temp_dir():
 def stores(temp_dir):
     """Create store instances for testing (requires chromadb)."""
     pytest.importorskip("chromadb", reason="This fixture requires chromadb")
-    from isotopedb.stores import ChromaVectorStore, SQLiteAtomStore, SQLiteChunkStore
+    from isotope.stores import ChromaEmbeddedQuestionStore, SQLiteAtomStore, SQLiteChunkStore
 
     return {
-        "vector_store": ChromaVectorStore(os.path.join(temp_dir, "chroma")),
+        "embedded_question_store": ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma")),
         "chunk_store": SQLiteChunkStore(os.path.join(temp_dir, "chunks.db")),
         "atom_store": SQLiteAtomStore(os.path.join(temp_dir, "atoms.db")),
     }
@@ -29,8 +29,8 @@ def stores(temp_dir):
 @pytest.fixture
 def mock_embedder():
     """Create a mock embedder for testing."""
-    from isotopedb.embedder import Embedder
-    from isotopedb.models import EmbeddedQuestion, Question
+    from isotope.embedder import Embedder
+    from isotope.models import EmbeddedQuestion, Question
 
     class MockEmbedder(Embedder):
         """Mock embedder that returns fixed vectors."""
@@ -53,8 +53,8 @@ def mock_embedder():
 @pytest.fixture
 def mock_generator():
     """Create a mock question generator for testing."""
-    from isotopedb.models import Atom, Question
-    from isotopedb.question_generator import QuestionGenerator
+    from isotope.models import Atom, Question
+    from isotope.question_generator import QuestionGenerator
 
     class MockGenerator(QuestionGenerator):
         """Mock generator that returns fixed questions."""
@@ -78,8 +78,8 @@ def mock_generator():
 @pytest.fixture
 def mock_atomizer():
     """Create a mock atomizer for testing."""
-    from isotopedb.atomizer import Atomizer
-    from isotopedb.models import Atom, Chunk
+    from isotope.atomizer import Atomizer
+    from isotope.models import Atom, Chunk
 
     class MockAtomizer(Atomizer):
         """Mock atomizer that returns one atom per chunk."""

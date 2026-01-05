@@ -1,10 +1,10 @@
-# IsotopeDB Architecture
+# Isotope Architecture
 
-This document explains how IsotopeDB implements the Reverse RAG approach from [arXiv:2405.12363](./reverse-rag.md).
+This document explains how Isotope implements the Reverse RAG approach from [arXiv:2405.12363](./reverse-rag.md).
 
 ## System Overview
 
-IsotopeDB has three layers:
+Isotope has three layers:
 
 1. **High-level API** - The `Isotope` class for simple usage
 2. **Pipelines** - `Ingestor` and `Retriever` for orchestrated workflows
@@ -36,7 +36,7 @@ IsotopeDB has three layers:
 The `Isotope` class is the main entry point. It bundles configuration and creates pipelines:
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 # Simple setup with LiteLLM + local stores
 iso = Isotope(
@@ -116,7 +116,7 @@ results = retriever.get_context("authentication")
                     │              │             │                 │
                     ▼              ▼             ▼                 ▼
                ┌───────────┐ ┌──────────┐  ┌────────────┐   ┌─────────────┐
-               │ChunkStore │ │AtomStore │  │DiversityFilt│   │ VectorStore │
+               │ChunkStore │ │AtomStore │  │DiversityFilt│   │ EmbeddedQuestionStore │
                └───────────┘ └──────────┘  └────────────┘   └─────────────┘
 ```
 
@@ -141,7 +141,7 @@ Four abstract base classes define storage contracts:
 
 | ABC | Implementations | Stores |
 |-----|-----------------|--------|
-| `VectorStore` | `ChromaVectorStore` | Question embeddings |
+| `EmbeddedQuestionStore` | `ChromaEmbeddedQuestionStore` | Question embeddings |
 | `ChunkStore` | `SQLiteChunkStore` | Chunk content |
 | `AtomStore` | `SQLiteAtomStore` | Atom content |
 | `SourceRegistry` | `SQLiteSourceRegistry` | Source content hashes |
@@ -200,14 +200,14 @@ to detect changes and automatically cascades deletion of old data before adding 
 
 ## Component Mapping to Paper
 
-| Paper Concept | IsotopeDB Component |
+| Paper Concept | Isotope Component |
 |---------------|---------------------|
 | Document chunking | `Loader` + user chunking |
 | Atomic unit extraction | `Atomizer` (sentence or LLM) |
 | Question generation | `QuestionGenerator` |
 | Question deduplication | `DiversityFilter` |
 | Embedding | `Embedder` |
-| Vector index | `VectorStore` |
+| Vector index | `EmbeddedQuestionStore` |
 | Retrieval pipeline | `Retriever` |
 | Answer synthesis | `Retriever.get_answer()` with `llm_model` set |
 
@@ -223,7 +223,7 @@ Most users just need `Isotope`. Power users can customize pipelines or swap comp
 
 ### Why Separate Stores?
 
-We split storage into three stores (VectorStore, ChunkStore, AtomStore) because:
+We split storage into three stores (EmbeddedQuestionStore, ChunkStore, AtomStore) because:
 1. **Vector stores have specific needs**: Optimized for similarity search
 2. **Chunks need full-text retrieval**: For returning content to users
 3. **Atoms bridge the gap**: Track which questions came from which chunks
@@ -252,7 +252,7 @@ or via the CLI config file. See
 
 ```python
 # LiteLLM + local stores
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -265,7 +265,7 @@ iso = Isotope(
 # Explicit stores + custom provider
 iso = Isotope(
     provider=my_provider_config,
-    vector_store=my_vector_store,
+    embedded_question_store=my_embedded_question_store,
     chunk_store=my_chunk_store,
     atom_store=my_atom_store,
     source_registry=my_source_registry,

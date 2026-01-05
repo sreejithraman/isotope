@@ -1,8 +1,8 @@
-# AI Agent Guidelines for IsotopeDB
+# AI Agent Guidelines for Isotope
 
 ## Project Purpose
 
-IsotopeDB is a **Reverse RAG** database that indexes *questions*, not chunks. Instead of hoping user queries match document chunks, we pre-generate questions each chunk can answer and match query-to-question. This gives tighter semantic alignment. Based on arXiv:2405.12363.
+Isotope is a **Reverse RAG** library that indexes *questions*, not chunks. Instead of hoping user queries match document chunks, we pre-generate questions each chunk can answer and match query-to-question. This gives tighter semantic alignment. Based on arXiv:2405.12363.
 
 ## Commands
 
@@ -32,9 +32,9 @@ pytest -m 'not mock_integration'
 ## Codebase Structure
 
 ```
-src/isotopedb/
+src/isotope/
 ├── models/          # Pydantic data models (Chunk, Atom, Question, etc.)
-├── stores/          # Storage ABCs + implementations (VectorStore, ChunkStore, AtomStore, SourceRegistry)
+├── stores/          # Storage ABCs + implementations (EmbeddedQuestionStore, ChunkStore, AtomStore, SourceRegistry)
 ├── atomizer/        # Break chunks into atomic facts (SentenceAtomizer, LLMAtomizer)
 ├── embedder/        # Embedding wrapper (ClientEmbedder)
 ├── question_generator/  # Question generation + diversity filtering
@@ -55,7 +55,7 @@ src/isotopedb/
 ## Code Patterns
 
 **ABCs for extensibility**: All major components have abstract base classes:
-- `VectorStore`, `ChunkStore`, `AtomStore`, `SourceRegistry` in `stores/base.py`
+- `EmbeddedQuestionStore`, `ChunkStore`, `AtomStore`, `SourceRegistry` in `stores/base.py`
 - `Atomizer` in `atomizer/base.py`
 - `Embedder` in `embedder/base.py`
 - `QuestionGenerator` in `question_generator/base.py`
@@ -76,7 +76,7 @@ src/isotopedb/
 
 | To add... | Implement... | Reference |
 |-----------|--------------|-----------|
-| New vector store | `VectorStore` ABC | `ChromaVectorStore` |
+| New embedded question store | `EmbeddedQuestionStore` ABC | `ChromaEmbeddedQuestionStore` |
 | New chunk store | `ChunkStore` ABC | `SQLiteChunkStore` |
 | New atom store | `AtomStore` ABC | `SQLiteAtomStore` |
 | New atomizer | `Atomizer` ABC | `SentenceAtomizer`, `LLMAtomizer` |
@@ -97,10 +97,10 @@ isotope delete <source>     # Delete a source from the database
 
 ## Key Files to Read First
 
-1. `src/isotopedb/models/` - Data structures (start here)
-2. `src/isotopedb/stores/base.py` - Storage ABCs
-3. `src/isotopedb/isotope.py` - Central facade
-4. `src/isotopedb/config.py` - All configuration options
+1. `src/isotope/models/` - Data structures (start here)
+2. `src/isotope/stores/base.py` - Storage ABCs
+3. `src/isotope/isotope.py` - Central facade
+4. `src/isotope/settings.py` - All configuration options
 5. `README.md` - Concept overview and limitations
 
 ## Before PR
@@ -133,5 +133,5 @@ pytest                      # All tests must pass
 
 ## Common Tasks
 
-- **Add new config option**: Edit `config.py`, add `ISOTOPE_` prefixed env var
-- **Update exports**: Edit `src/isotopedb/__init__.py` and module `__init__.py` files
+- **Add new setting**: Edit `settings.py`, add field to `Settings` class
+- **Update exports**: Edit `src/isotope/__init__.py` and module `__init__.py` files

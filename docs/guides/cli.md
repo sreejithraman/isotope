@@ -4,18 +4,18 @@ Isotope includes a command-line interface for quick ingestion and querying workf
 
 ## Installation
 
-The CLI is included when you install `isotopedb` with CLI extras:
+The CLI is included when you install Isotope with CLI extras:
 
 ```bash
-pip install isotopedb[all]
+pip install isotope-rag[all]
 
 # Or pick specific extras:
-pip install isotopedb[cli]              # CLI only
-pip install "isotopedb[cli,litellm]"    # CLI + LiteLLM
-pip install "isotopedb[cli,chroma]"     # CLI + ChromaDB
+pip install isotope-rag[cli]              # CLI only
+pip install "isotope-rag[cli,litellm]"    # CLI + LiteLLM
+pip install "isotope-rag[cli,chroma]"     # CLI + ChromaDB
 ```
 
-Note: `isotopedb[cli]` does not include LiteLLM or storage backends. For LLM-synthesized
+Note: `isotope-rag[cli]` does not include LiteLLM or storage backends. For LLM-synthesized
 answers, add `litellm`. For ChromaDB vector store, add `chroma`. Or run queries with `--raw`.
 
 Verify it's working:

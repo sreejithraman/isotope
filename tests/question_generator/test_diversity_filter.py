@@ -3,8 +3,8 @@
 
 import pytest
 
-from isotopedb.models import EmbeddedQuestion, Question
-from isotopedb.question_generator import DiversityFilter
+from isotope.models import EmbeddedQuestion, Question
+from isotope.question_generator import DiversityFilter
 
 
 def make_eq(

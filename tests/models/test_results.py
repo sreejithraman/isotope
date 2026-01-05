@@ -4,10 +4,10 @@
 import pytest
 from pydantic import ValidationError
 
-from isotopedb.models.atom import Atom
-from isotopedb.models.chunk import Chunk
-from isotopedb.models.question import Question
-from isotopedb.models.results import QueryResponse, SearchResult
+from isotope.models.atom import Atom
+from isotope.models.chunk import Chunk
+from isotope.models.question import Question
+from isotope.models.results import QueryResponse, SearchResult
 
 
 class TestSearchResult:

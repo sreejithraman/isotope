@@ -1,6 +1,6 @@
-# IsotopeDB Documentation
+# Isotope Documentation
 
-Welcome to the IsotopeDB documentation.
+Welcome to the Isotope documentation.
 
 ## Quick Links
 
@@ -10,7 +10,7 @@ Welcome to the IsotopeDB documentation.
 
 ## Concepts
 
-Understanding the theory behind IsotopeDB:
+Understanding the theory behind Isotope:
 
 - [Reverse RAG Explained](./concepts/reverse-rag.md) - The paper (arXiv:2405.12363) and core insight
 - [Architecture](./concepts/architecture.md) - System design, `Isotope` class, and pipelines

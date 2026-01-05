@@ -1,6 +1,6 @@
-# Getting Started with IsotopeDB
+# Getting Started with Isotope
 
-This tutorial walks you through ingesting your first document and querying it with IsotopeDB. You'll be up and running in under 10 minutes.
+This tutorial walks you through ingesting your first document and querying it with Isotope. You'll be up and running in under 10 minutes.
 
 ## Prerequisites
 
@@ -10,12 +10,12 @@ This tutorial walks you through ingesting your first document and querying it wi
 ## Installation
 
 ```bash
-pip install isotopedb[all]
+pip install isotope-rag[all]
 ```
 
 ## Set Up Your API Key
 
-IsotopeDB uses LiteLLM under the hood, so it works with any major LLM provider. Set the API key for your provider:
+Isotope uses LiteLLM under the hood, so it works with any major LLM provider. Set the API key for your provider:
 
 ```bash
 # For Gemini (default)
@@ -49,7 +49,7 @@ including procedural, object-oriented, and functional programming.
 ### Step 2: Ingest It
 
 ```python
-from isotopedb import Isotope, Chunk, LiteLLMProvider, LocalStorage
+from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
 
 # Create an Isotope instance (LiteLLM + local stores)
 iso = Isotope(
@@ -156,7 +156,7 @@ See [CLI Reference](../guides/cli.md) for all commands.
 Here's everything in one script:
 
 ```python
-from isotopedb import Isotope, Chunk, LiteLLMProvider, LocalStorage
+from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
 
 # 1. Setup
 iso = Isotope(
@@ -208,7 +208,7 @@ This is the "Reverse RAG" approach—see [Reverse RAG Explained](../concepts/rev
 The `Isotope` class uses sensible defaults, but you can customize everything:
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -242,20 +242,20 @@ Want to understand or customize individual components?
 If you need full control, you can use the components directly:
 
 ```python
-from isotopedb import (
+from isotope import (
     Chunk,
     SentenceAtomizer,
     DiversityFilter,
-    ChromaVectorStore,
+    ChromaEmbeddedQuestionStore,
     SQLiteChunkStore,
     SQLiteAtomStore,
 )
-from isotopedb.embedder import ClientEmbedder
-from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-from isotopedb.question_generator import ClientQuestionGenerator
+from isotope.embedder import ClientEmbedder
+from isotope.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotope.question_generator import ClientQuestionGenerator
 
 # Create stores
-vector_store = ChromaVectorStore("./data/chroma")
+embedded_question_store = ChromaEmbeddedQuestionStore("./data/chroma")
 chunk_store = SQLiteChunkStore("./data/chunks.db")
 atom_store = SQLiteAtomStore("./data/atoms.db")
 
@@ -287,11 +287,11 @@ filtered = diversity_filter.filter(embedded)
 # Store
 chunk_store.put(chunk)
 atom_store.put_many(atoms)
-vector_store.add(filtered)
+embedded_question_store.add(filtered)
 
 # Query
 query_embedding = embedder.embed_text("Who made Python?")
-results = vector_store.search(query_embedding, k=3)
+results = embedded_question_store.search(query_embedding, k=3)
 
 for question, score in results:
     chunk = chunk_store.get(question.chunk_id)

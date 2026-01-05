@@ -9,9 +9,9 @@ import pytest
 
 pytest.importorskip("litellm", reason="Tests require litellm package")
 
-from isotopedb.models import Atom, Question
-from isotopedb.providers.litellm import LiteLLMClient
-from isotopedb.question_generator import (
+from isotope.models import Atom, Question
+from isotope.providers.litellm import LiteLLMClient
+from isotope.question_generator import (
     BatchGenerationError,
     ClientQuestionGenerator,
     QuestionGenerator,
@@ -51,7 +51,7 @@ class TestAsyncLLMClient:
     """Tests for async LLM client methods."""
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_acomplete(self, mock_acompletion, llm_client):
         """Test async completion using litellm.acompletion."""
         mock_acompletion.return_value = mock_acompletion_response(["Q1?"])
@@ -62,7 +62,7 @@ class TestAsyncLLMClient:
         mock_acompletion.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_acomplete_with_temperature(self, mock_acompletion, llm_client):
         """Test async completion passes temperature."""
         mock_acompletion.return_value = mock_acompletion_response(["Q1?"])
@@ -77,7 +77,7 @@ class TestAsyncQuestionGeneration:
     """Tests for async question generation."""
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_single_atom(self, mock_acompletion, generator, sample_atom):
         """Test async generation for a single atom."""
         mock_acompletion.return_value = mock_acompletion_response(
@@ -92,7 +92,7 @@ class TestAsyncQuestionGeneration:
         mock_acompletion.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_with_chunk_content(self, mock_acompletion, generator, sample_atom):
         """Test async generation with chunk context."""
         mock_acompletion.return_value = mock_acompletion_response(["Q1?"])
@@ -108,7 +108,7 @@ class TestAsyncBatchGeneration:
     """Tests for async batch question generation."""
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_batch_concurrent(self, mock_acompletion, generator):
         """Test concurrent batch generation."""
         mock_acompletion.return_value = mock_acompletion_response(["Q1?", "Q2?"])
@@ -124,7 +124,7 @@ class TestAsyncBatchGeneration:
         assert mock_acompletion.call_count == 5
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_batch_respects_concurrency_limit(self, mock_acompletion, generator):
         """Test that max_concurrent is respected."""
         active_count = 0
@@ -147,7 +147,7 @@ class TestAsyncBatchGeneration:
         assert max_active <= 3
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_batch_partial_failure_continues(self, mock_acompletion, generator):
         """Test that partial failures don't stop the entire batch."""
         call_count = 0
@@ -169,7 +169,7 @@ class TestAsyncBatchGeneration:
         assert len(questions) == 4
 
     @pytest.mark.asyncio
-    @patch("isotopedb.providers.litellm.client.litellm.acompletion")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_batch_raises_on_majority_failure(self, mock_acompletion, generator):
         """Test that BatchGenerationError is raised when >50% fail."""
         call_count = 0

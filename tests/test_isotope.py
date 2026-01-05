@@ -5,10 +5,10 @@ import os
 
 import pytest
 
-from isotopedb.configuration import LocalStorage
-from isotopedb.isotope import Isotope
-from isotopedb.stores import (
-    ChromaVectorStore,
+from isotope.configuration import LocalStorage
+from isotope.isotope import Isotope
+from isotope.stores import (
+    ChromaEmbeddedQuestionStore,
     SQLiteAtomStore,
     SQLiteChunkStore,
     SQLiteSourceRegistry,
@@ -23,38 +23,38 @@ class TestIsotopeInit:
             storage=LocalStorage(temp_dir),
         )
 
-        assert isinstance(iso.vector_store, ChromaVectorStore)
+        assert isinstance(iso.embedded_question_store, ChromaEmbeddedQuestionStore)
         assert isinstance(iso.chunk_store, SQLiteChunkStore)
         assert isinstance(iso.atom_store, SQLiteAtomStore)
 
     def test_init_with_explicit_stores(self, temp_dir, mock_provider):
         """Test initialization with explicit stores."""
-        vector_store = ChromaVectorStore(os.path.join(temp_dir, "chroma"))
+        embedded_question_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))
         chunk_store = SQLiteChunkStore(os.path.join(temp_dir, "chunks.db"))
         atom_store = SQLiteAtomStore(os.path.join(temp_dir, "atoms.db"))
         source_registry = SQLiteSourceRegistry(os.path.join(temp_dir, "sources.db"))
 
         iso = Isotope(
             provider=mock_provider,
-            vector_store=vector_store,
+            embedded_question_store=embedded_question_store,
             chunk_store=chunk_store,
             atom_store=atom_store,
             source_registry=source_registry,
         )
 
-        assert iso.vector_store is vector_store
+        assert iso.embedded_question_store is embedded_question_store
         assert iso.chunk_store is chunk_store
         assert iso.atom_store is atom_store
 
     def test_init_rejects_mixed_storage(self, temp_dir, mock_provider):
         """Test that mixing storage bundle with explicit stores raises error."""
-        vector_store = ChromaVectorStore(os.path.join(temp_dir, "chroma"))
+        embedded_question_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))
 
         with pytest.raises(ValueError, match="Cannot mix"):
             Isotope(
                 provider=mock_provider,
                 storage=LocalStorage(temp_dir),
-                vector_store=vector_store,
+                embedded_question_store=embedded_question_store,
             )
 
     def test_init_requires_storage_or_explicit_stores(self, mock_provider):
@@ -64,12 +64,12 @@ class TestIsotopeInit:
 
     def test_init_requires_all_explicit_stores(self, temp_dir, mock_provider):
         """Test that partial explicit stores raise error."""
-        vector_store = ChromaVectorStore(os.path.join(temp_dir, "chroma"))
+        embedded_question_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))
 
         with pytest.raises(ValueError, match="Must provide either"):
             Isotope(
                 provider=mock_provider,
-                vector_store=vector_store,
+                embedded_question_store=embedded_question_store,
                 # Missing chunk_store, atom_store, source_registry
             )
 
@@ -89,7 +89,7 @@ class TestIsotopeWithLiteLLM:
     def test_litellm_provider_creates_stores(self, temp_dir):
         """Test that LiteLLMProvider with LocalStorage creates stores."""
         pytest.importorskip("litellm", reason="This test requires litellm package")
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.configuration import LiteLLMProvider
 
         iso = Isotope(
             provider=LiteLLMProvider(
@@ -99,15 +99,15 @@ class TestIsotopeWithLiteLLM:
             storage=LocalStorage(temp_dir),
         )
 
-        assert isinstance(iso.vector_store, ChromaVectorStore)
+        assert isinstance(iso.embedded_question_store, ChromaEmbeddedQuestionStore)
         assert isinstance(iso.chunk_store, SQLiteChunkStore)
         assert isinstance(iso.atom_store, SQLiteAtomStore)
 
     def test_litellm_provider_creates_embedder(self, temp_dir):
         """Test that LiteLLMProvider creates ClientEmbedder."""
         pytest.importorskip("litellm", reason="This test requires litellm package")
-        from isotopedb.configuration import LiteLLMProvider
-        from isotopedb.embedder import ClientEmbedder
+        from isotope.configuration import LiteLLMProvider
+        from isotope.embedder import ClientEmbedder
 
         iso = Isotope(
             provider=LiteLLMProvider(
@@ -122,8 +122,8 @@ class TestIsotopeWithLiteLLM:
     def test_litellm_provider_creates_llm_atomizer_by_default(self, temp_dir):
         """Test that LiteLLMProvider creates LLM atomizer by default."""
         pytest.importorskip("litellm", reason="This test requires litellm package")
-        from isotopedb.atomizer import LLMAtomizer
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.atomizer import LLMAtomizer
+        from isotope.configuration import LiteLLMProvider
 
         iso = Isotope(
             provider=LiteLLMProvider(
@@ -138,8 +138,8 @@ class TestIsotopeWithLiteLLM:
     def test_litellm_provider_can_use_sentence_atomizer(self, temp_dir):
         """Test that LiteLLMProvider can use sentence atomizer."""
         pytest.importorskip("litellm", reason="This test requires litellm package")
-        from isotopedb.atomizer import SentenceAtomizer
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.atomizer import SentenceAtomizer
+        from isotope.configuration import LiteLLMProvider
 
         iso = Isotope(
             provider=LiteLLMProvider(
@@ -156,7 +156,7 @@ class TestIsotopeWithLiteLLM:
 class TestIsotopeRetriever:
     def test_retriever_creates_retriever(self, temp_dir, mock_provider):
         """Test that retriever() returns a Retriever instance."""
-        from isotopedb.retriever import Retriever
+        from isotope.retriever import Retriever
 
         iso = Isotope(
             provider=mock_provider,
@@ -165,14 +165,14 @@ class TestIsotopeRetriever:
         retriever = iso.retriever()
 
         assert isinstance(retriever, Retriever)
-        assert retriever.vector_store is iso.vector_store
+        assert retriever.embedded_question_store is iso.embedded_question_store
         assert retriever.chunk_store is iso.chunk_store
         assert retriever.atom_store is iso.atom_store
         assert retriever.embedder is iso.embedder
 
     def test_retriever_uses_default_k(self, temp_dir, mock_provider):
         """Test that retriever uses default_k from settings."""
-        from isotopedb.config import Settings
+        from isotope.settings import Settings
 
         iso = Isotope(
             provider=mock_provider,
@@ -197,7 +197,7 @@ class TestIsotopeRetriever:
         """Test that retriever respects llm_client override."""
         from unittest.mock import MagicMock
 
-        from isotopedb.providers import LLMClient
+        from isotope.providers import LLMClient
 
         mock_llm_client = MagicMock(spec=LLMClient)
 
@@ -234,7 +234,7 @@ class TestIsotopeRetriever:
 class TestIsotopeIngestor:
     def test_ingestor_creates_ingestor(self, temp_dir, mock_provider):
         """Test that ingestor() returns an Ingestor instance."""
-        from isotopedb.ingestor import Ingestor
+        from isotope.ingestor import Ingestor
 
         iso = Isotope(
             provider=mock_provider,
@@ -243,7 +243,7 @@ class TestIsotopeIngestor:
         ingestor = iso.ingestor()
 
         assert isinstance(ingestor, Ingestor)
-        assert ingestor.vector_store is iso.vector_store
+        assert ingestor.embedded_question_store is iso.embedded_question_store
         assert ingestor.chunk_store is iso.chunk_store
         assert ingestor.atom_store is iso.atom_store
         assert ingestor.embedder is iso.embedder
@@ -270,8 +270,8 @@ class TestIsotopeIngestor:
 
     def test_ingestor_creates_diversity_filter(self, temp_dir, mock_provider):
         """Test that ingestor creates diversity filter from settings."""
-        from isotopedb.config import Settings
-        from isotopedb.question_generator import DiversityFilter
+        from isotope.question_generator import DiversityFilter
+        from isotope.settings import Settings
 
         iso = Isotope(
             provider=mock_provider,
@@ -285,7 +285,7 @@ class TestIsotopeIngestor:
 
     def test_ingestor_has_diversity_filter_by_default(self, temp_dir, mock_provider):
         """Test that ingestor has diversity filter by default (threshold=0.85)."""
-        from isotopedb.question_generator import DiversityFilter
+        from isotope.question_generator import DiversityFilter
 
         iso = Isotope(
             provider=mock_provider,
@@ -299,7 +299,7 @@ class TestIsotopeIngestor:
 
     def test_ingestor_no_diversity_filter_when_none_threshold(self, temp_dir, mock_provider):
         """Test that ingestor has no diversity filter when threshold is None."""
-        from isotopedb.config import Settings
+        from isotope.settings import Settings
 
         iso = Isotope(
             provider=mock_provider,
@@ -312,7 +312,7 @@ class TestIsotopeIngestor:
 
     def test_ingestor_disable_diversity_filter(self, temp_dir, mock_provider):
         """Test that use_diversity_filter=False disables filter."""
-        from isotopedb.config import Settings
+        from isotope.settings import Settings
 
         iso = Isotope(
             provider=mock_provider,
@@ -325,7 +325,7 @@ class TestIsotopeIngestor:
 
     def test_ingestor_uses_diversity_scope_from_settings(self, temp_dir, mock_provider):
         """Test that ingestor uses diversity_scope from settings."""
-        from isotopedb.config import Settings
+        from isotope.settings import Settings
 
         iso = Isotope(
             provider=mock_provider,
@@ -338,7 +338,7 @@ class TestIsotopeIngestor:
 
     def test_ingestor_diversity_scope_override(self, temp_dir, mock_provider):
         """Test that diversity_scope parameter overrides settings."""
-        from isotopedb.config import Settings
+        from isotope.settings import Settings
 
         iso = Isotope(
             provider=mock_provider,
@@ -362,7 +362,7 @@ class TestIsotopeSharedStores:
         ingestor = iso.ingestor()
 
         # Should be the exact same instances
-        assert retriever.vector_store is ingestor.vector_store
+        assert retriever.embedded_question_store is ingestor.embedded_question_store
         assert retriever.chunk_store is ingestor.chunk_store
         assert retriever.atom_store is ingestor.atom_store
         assert retriever.embedder is ingestor.embedder
@@ -377,7 +377,7 @@ class TestIsotopeSharedStores:
         r1 = iso.retriever()
         r2 = iso.retriever(default_k=10)
 
-        assert r1.vector_store is r2.vector_store
+        assert r1.embedded_question_store is r2.embedded_question_store
         assert r1.chunk_store is r2.chunk_store
         assert r1.atom_store is r2.atom_store
         assert r1.embedder is r2.embedder

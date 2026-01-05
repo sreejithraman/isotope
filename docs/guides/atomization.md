@@ -2,7 +2,7 @@
 
 Atomization is the process of breaking document chunks into **atomic facts** - single, self-contained statements that can each be matched to questions.
 
-IsotopeDB provides two atomization strategies:
+Isotope provides two atomization strategies:
 
 ## Strategy Comparison
 
@@ -19,7 +19,7 @@ IsotopeDB provides two atomization strategies:
 Uses [pysbd](https://github.com/nipunsadvilkar/pySBD) for robust sentence boundary detection.
 
 ```python
-from isotopedb import SentenceAtomizer, Chunk
+from isotope import SentenceAtomizer, Chunk
 
 atomizer = SentenceAtomizer(min_length=10, language="en")
 
@@ -58,9 +58,9 @@ atoms = atomizer.atomize(chunk)
 Uses an LLM to extract atomic facts from chunks.
 
 ```python
-from isotopedb.atomizer import LLMAtomizer
-from isotopedb.providers.litellm import LiteLLMClient
-from isotopedb import Chunk
+from isotope.atomizer import LLMAtomizer
+from isotope.providers.litellm import LiteLLMClient
+from isotope import Chunk
 
 client = LiteLLMClient(model="openai/gpt-4o")
 atomizer = LLMAtomizer(llm_client=client)
@@ -126,7 +126,7 @@ atoms = atomizer.atomize(chunk)
 Configure atomization explicitly in code or via the CLI config file:
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -151,7 +151,7 @@ use_sentence_atomizer: true
 Implement the `Atomizer` ABC to create custom strategies:
 
 ```python
-from isotopedb import Atomizer, Atom, Chunk
+from isotope import Atomizer, Atom, Chunk
 
 class CustomAtomizer(Atomizer):
     def atomize(self, chunk: Chunk) -> list[Atom]:
@@ -194,9 +194,9 @@ You can combine strategies by routing chunks to the appropriate atomizer.
 Detect formatting signals to identify well-structured content:
 
 ```python
-from isotopedb import SentenceAtomizer, Chunk, Atom
-from isotopedb.atomizer import LLMAtomizer
-from isotopedb.providers.litellm import LiteLLMClient
+from isotope import SentenceAtomizer, Chunk, Atom
+from isotope.atomizer import LLMAtomizer
+from isotope.providers.litellm import LiteLLMClient
 import re
 
 sentence_atomizer = SentenceAtomizer()
@@ -224,9 +224,9 @@ def smart_atomize(chunk: Chunk) -> list[Atom]:
 Simpler approach using document source metadata:
 
 ```python
-from isotopedb import SentenceAtomizer, Chunk, Atom
-from isotopedb.atomizer import LLMAtomizer
-from isotopedb.providers.litellm import LiteLLMClient
+from isotope import SentenceAtomizer, Chunk, Atom
+from isotope.atomizer import LLMAtomizer
+from isotope.providers.litellm import LiteLLMClient
 
 sentence_atomizer = SentenceAtomizer()
 llm_client = LiteLLMClient(model="openai/gpt-4o")

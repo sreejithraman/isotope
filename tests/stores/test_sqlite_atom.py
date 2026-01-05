@@ -6,9 +6,9 @@ import tempfile
 
 import pytest
 
-from isotopedb.models import Atom
-from isotopedb.stores.base import AtomStore
-from isotopedb.stores.sqlite_atom import SQLiteAtomStore
+from isotope.models import Atom
+from isotope.stores.base import AtomStore
+from isotope.stores.sqlite_atom import SQLiteAtomStore
 
 
 @pytest.fixture

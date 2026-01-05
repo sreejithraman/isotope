@@ -7,9 +7,9 @@ import pytest
 
 pytest.importorskip("litellm", reason="Tests require litellm package")
 
-from isotopedb.embedder import ClientEmbedder, Embedder
-from isotopedb.models import EmbeddedQuestion, Question
-from isotopedb.providers.litellm import LiteLLMEmbeddingClient
+from isotope.embedder import ClientEmbedder, Embedder
+from isotope.models import EmbeddedQuestion, Question
+from isotope.providers.litellm import LiteLLMEmbeddingClient
 
 
 def mock_embedding_response(embeddings: list[list[float]]):
@@ -35,7 +35,7 @@ class TestClientEmbedder:
     def test_is_embedder(self, embedder):
         assert isinstance(embedder, Embedder)
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_text(self, mock_embedding, embedder):
         mock_embedding.return_value = mock_embedding_response([[0.1, 0.2, 0.3]])
 
@@ -44,7 +44,7 @@ class TestClientEmbedder:
         assert result == [0.1, 0.2, 0.3]
         mock_embedding.assert_called_once()
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_texts_batch(self, mock_embedding, embedder):
         mock_embedding.return_value = mock_embedding_response(
             [
@@ -59,14 +59,14 @@ class TestClientEmbedder:
         assert result[0] == [1.0, 0.0]
         assert result[1] == [0.0, 1.0]
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_texts_empty(self, mock_embedding, embedder):
         result = embedder.embed_texts([])
 
         assert result == []
         mock_embedding.assert_not_called()
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_texts_preserves_order(self, mock_embedding, embedder):
         # Simulate out-of-order response (can happen with some APIs)
         mock_response = MagicMock()
@@ -82,7 +82,7 @@ class TestClientEmbedder:
         assert result[0] == [1.0, 0.0]  # index 0
         assert result[1] == [0.0, 1.0]  # index 1
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_question(self, mock_embedding, embedder):
         mock_embedding.return_value = mock_embedding_response([[0.5, 0.5]])
 
@@ -93,7 +93,7 @@ class TestClientEmbedder:
         assert result.question == question
         assert result.embedding == [0.5, 0.5]
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_questions_batch(self, mock_embedding, embedder):
         mock_embedding.return_value = mock_embedding_response(
             [
@@ -115,14 +115,14 @@ class TestClientEmbedder:
         assert result[0].embedding == [1.0, 0.0]
         assert result[1].embedding == [0.0, 1.0]
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_questions_empty(self, mock_embedding, embedder):
         result = embedder.embed_questions([])
 
         assert result == []
         mock_embedding.assert_not_called()
 
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_embed_questions_preserves_question_data(self, mock_embedding, embedder):
         mock_embedding.return_value = mock_embedding_response([[0.1, 0.2]])
 

@@ -4,18 +4,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from isotopedb.atomizer import SentenceAtomizer
-from isotopedb.embedder import ClientEmbedder
-from isotopedb.ingestor import Ingestor
-from isotopedb.models import Chunk
-from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-from isotopedb.question_generator import ClientQuestionGenerator, DiversityFilter
+from isotope.atomizer import SentenceAtomizer
+from isotope.embedder import ClientEmbedder
+from isotope.ingestor import Ingestor
+from isotope.models import Chunk
+from isotope.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotope.question_generator import ClientQuestionGenerator, DiversityFilter
 
 
 class TestIngestorInit:
     def test_init_with_all_components(self, stores):
         ingestor = Ingestor(
-            vector_store=stores["vector_store"],
+            embedded_question_store=stores["embedded_question_store"],
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
@@ -26,7 +26,7 @@ class TestIngestorInit:
 
     def test_init_with_optional_diversity_filter(self, stores):
         ingestor = Ingestor(
-            vector_store=stores["vector_store"],
+            embedded_question_store=stores["embedded_question_store"],
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
@@ -39,8 +39,8 @@ class TestIngestorInit:
 
 class TestIngestChunks:
     @pytest.mark.mock_integration
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_ingest_single_chunk(self, mock_completion, mock_embedding, stores):
         # Setup mocks
         mock_completion.return_value = MagicMock(
@@ -55,7 +55,7 @@ class TestIngestChunks:
         )
 
         ingestor = Ingestor(
-            vector_store=stores["vector_store"],
+            embedded_question_store=stores["embedded_question_store"],
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
@@ -80,11 +80,11 @@ class TestIngestChunks:
         assert result["chunks"] == 1
 
     @pytest.mark.mock_integration
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_ingest_empty_list(self, mock_completion, mock_embedding, stores):
         ingestor = Ingestor(
-            vector_store=stores["vector_store"],
+            embedded_question_store=stores["embedded_question_store"],
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),
@@ -100,8 +100,8 @@ class TestIngestChunks:
 
 class TestIngestorProgress:
     @pytest.mark.mock_integration
-    @patch("isotopedb.providers.litellm.client.litellm.embedding")
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_progress_callback_called(self, mock_completion, mock_embedding, stores):
         mock_completion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
@@ -119,7 +119,7 @@ class TestIngestorProgress:
         mock_embedding.side_effect = make_embeddings
 
         ingestor = Ingestor(
-            vector_store=stores["vector_store"],
+            embedded_question_store=stores["embedded_question_store"],
             chunk_store=stores["chunk_store"],
             atom_store=stores["atom_store"],
             atomizer=SentenceAtomizer(),

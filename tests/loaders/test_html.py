@@ -8,8 +8,8 @@ import tempfile
 
 import pytest
 
-from isotopedb.loaders.base import Loader
-from isotopedb.models import Chunk
+from isotope.loaders.base import Loader
+from isotope.models import Chunk
 
 HAS_HTML_DEPS = (
     importlib.util.find_spec("bs4") is not None
@@ -68,12 +68,12 @@ def temp_dir():
 
 class TestHTMLLoader:
     def test_is_loader(self):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         assert isinstance(HTMLLoader(), Loader)
 
     def test_supports_html(self):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         assert loader.supports("file.html") is True
@@ -81,7 +81,7 @@ class TestHTMLLoader:
         assert loader.supports("FILE.HTML") is True
 
     def test_does_not_support_other(self):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         assert loader.supports("file.txt") is False
@@ -89,14 +89,14 @@ class TestHTMLLoader:
         assert loader.supports("file.xml") is False
 
     def test_load_nonexistent_file(self):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         with pytest.raises(FileNotFoundError):
             loader.load("/nonexistent/path/file.html")
 
     def test_load_simple_html(self, temp_dir):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         chunks = loader.load(os.path.join(temp_dir, "simple.html"))
@@ -107,7 +107,7 @@ class TestHTMLLoader:
         assert "paragraph" in chunks[0].content
 
     def test_chunk_metadata(self, temp_dir):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         chunks = loader.load(os.path.join(temp_dir, "simple.html"))
@@ -118,7 +118,7 @@ class TestHTMLLoader:
     def test_chunk_source(self, temp_dir):
         from pathlib import Path
 
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         path = os.path.join(temp_dir, "simple.html")
@@ -128,7 +128,7 @@ class TestHTMLLoader:
         assert chunks[0].source == str(Path(path).resolve())
 
     def test_removes_scripts_and_styles(self, temp_dir):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         chunks = loader.load(os.path.join(temp_dir, "complex.html"))
@@ -139,7 +139,7 @@ class TestHTMLLoader:
         assert "color: black" not in content
 
     def test_removes_nav_and_footer(self, temp_dir):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         chunks = loader.load(os.path.join(temp_dir, "complex.html"))
@@ -153,7 +153,7 @@ class TestHTMLLoader:
         assert "Important text" in content
 
     def test_load_empty_file(self, temp_dir):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         chunks = loader.load(os.path.join(temp_dir, "empty.html"))
@@ -161,7 +161,7 @@ class TestHTMLLoader:
         assert chunks == []
 
     def test_converts_to_markdown(self, temp_dir):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
         chunks = loader.load(os.path.join(temp_dir, "simple.html"))
@@ -175,7 +175,7 @@ class TestHTMLLoaderCleanMarkdown:
     """Test markdown cleanup."""
 
     def test_clean_markdown_removes_excessive_blanks(self):
-        from isotopedb.loaders.html import HTMLLoader
+        from isotope.loaders.html import HTMLLoader
 
         loader = HTMLLoader()
 

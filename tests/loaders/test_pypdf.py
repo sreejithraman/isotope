@@ -8,8 +8,8 @@ import tempfile
 
 import pytest
 
-from isotopedb.loaders.base import Loader
-from isotopedb.models import Chunk
+from isotope.loaders.base import Loader
+from isotope.models import Chunk
 
 HAS_PYPDF = importlib.util.find_spec("pypdf") is not None
 
@@ -47,19 +47,19 @@ def sample_pdf(temp_dir):
 
 class TestPyPDFLoader:
     def test_is_loader(self):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         assert isinstance(PyPDFLoader(), Loader)
 
     def test_supports_pdf(self):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         assert loader.supports("file.pdf") is True
         assert loader.supports("FILE.PDF") is True
 
     def test_does_not_support_other(self):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         assert loader.supports("file.txt") is False
@@ -67,14 +67,14 @@ class TestPyPDFLoader:
         assert loader.supports("file.html") is False
 
     def test_load_nonexistent_file(self):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         with pytest.raises(FileNotFoundError):
             loader.load("/nonexistent/path/file.pdf")
 
     def test_load_pdf_returns_chunks(self, sample_pdf):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         chunks = loader.load(sample_pdf)
@@ -85,7 +85,7 @@ class TestPyPDFLoader:
             assert isinstance(chunk, Chunk)
 
     def test_chunk_metadata(self, sample_pdf):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         chunks = loader.load(sample_pdf)
@@ -96,7 +96,7 @@ class TestPyPDFLoader:
             assert isinstance(chunk.metadata["page"], int)
 
     def test_chunk_source(self, sample_pdf):
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         chunks = loader.load(sample_pdf)
@@ -112,7 +112,7 @@ class TestPyPDFLoaderImportError:
         """Verify helpful error message when pypdf missing."""
         # This test would need to mock the import, which is complex
         # Instead, we verify the loader exists and can be instantiated
-        from isotopedb.loaders.pypdf_loader import PyPDFLoader
+        from isotope.loaders.pypdf_loader import PyPDFLoader
 
         loader = PyPDFLoader()
         assert loader is not None

@@ -1,8 +1,8 @@
 # tests/models/test_chunk.py
 """Tests for Chunk and Atom models."""
 
-from isotopedb.models.atom import Atom
-from isotopedb.models.chunk import Chunk
+from isotope.models.atom import Atom
+from isotope.models.chunk import Chunk
 
 
 class TestChunk:

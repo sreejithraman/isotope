@@ -10,18 +10,18 @@ class TestLocalStorage:
     def test_build_stores_creates_all_four(self, temp_dir):
         """Test that LocalStorage.build_stores() creates all four stores."""
         pytest.importorskip("chromadb", reason="This test requires chromadb")
-        from isotopedb.configuration import LocalStorage
-        from isotopedb.stores import (
-            ChromaVectorStore,
+        from isotope.configuration import LocalStorage
+        from isotope.stores import (
+            ChromaEmbeddedQuestionStore,
             SQLiteAtomStore,
             SQLiteChunkStore,
             SQLiteSourceRegistry,
         )
 
         storage = LocalStorage(temp_dir)
-        vector_store, chunk_store, atom_store, source_registry = storage.build_stores()
+        embedded_question_store, chunk_store, atom_store, source_registry = storage.build_stores()
 
-        assert isinstance(vector_store, ChromaVectorStore)
+        assert isinstance(embedded_question_store, ChromaEmbeddedQuestionStore)
         assert isinstance(chunk_store, SQLiteChunkStore)
         assert isinstance(atom_store, SQLiteAtomStore)
         assert isinstance(source_registry, SQLiteSourceRegistry)
@@ -29,7 +29,7 @@ class TestLocalStorage:
     def test_build_stores_creates_directory(self, temp_dir):
         """Test that LocalStorage creates directory if it doesn't exist."""
         pytest.importorskip("chromadb", reason="This test requires chromadb")
-        from isotopedb.configuration import LocalStorage
+        from isotope.configuration import LocalStorage
 
         new_dir = os.path.join(temp_dir, "new_storage")
         storage = LocalStorage(new_dir)
@@ -41,7 +41,7 @@ class TestLocalStorage:
         """Test that LocalStorage is immutable."""
         from dataclasses import FrozenInstanceError
 
-        from isotopedb.configuration import LocalStorage
+        from isotope.configuration import LocalStorage
 
         storage = LocalStorage(temp_dir)
 
@@ -53,8 +53,8 @@ class TestLiteLLMProvider:
     def test_build_embedder_returns_client_embedder(self, temp_dir):
         """Test that LiteLLMProvider.build_embedder() returns ClientEmbedder."""
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.configuration import LiteLLMProvider
-        from isotopedb.embedder import ClientEmbedder
+        from isotope.configuration import LiteLLMProvider
+        from isotope.embedder import ClientEmbedder
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -67,9 +67,9 @@ class TestLiteLLMProvider:
     def test_build_atomizer_returns_llm_atomizer_by_default(self, temp_dir):
         """Test that LiteLLMProvider.build_atomizer() returns LLMAtomizer by default."""
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.atomizer import LLMAtomizer
-        from isotopedb.config import Settings
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.atomizer import LLMAtomizer
+        from isotope.configuration import LiteLLMProvider
+        from isotope.settings import Settings
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -82,9 +82,9 @@ class TestLiteLLMProvider:
     def test_build_atomizer_respects_atomizer_type_sentence(self, temp_dir):
         """Test that LiteLLMProvider.build_atomizer() respects atomizer_type='sentence'."""
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.atomizer import SentenceAtomizer
-        from isotopedb.config import Settings
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.atomizer import SentenceAtomizer
+        from isotope.configuration import LiteLLMProvider
+        from isotope.settings import Settings
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -98,9 +98,9 @@ class TestLiteLLMProvider:
     def test_build_question_generator_returns_client_generator(self, temp_dir):
         """Test that LiteLLMProvider.build_question_generator() returns ClientQuestionGenerator."""
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.config import Settings
-        from isotopedb.configuration import LiteLLMProvider
-        from isotopedb.question_generator import ClientQuestionGenerator
+        from isotope.configuration import LiteLLMProvider
+        from isotope.question_generator import ClientQuestionGenerator
+        from isotope.settings import Settings
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -113,8 +113,8 @@ class TestLiteLLMProvider:
     def test_build_question_generator_uses_settings(self, temp_dir):
         """Test that LiteLLMProvider.build_question_generator() uses settings."""
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.config import Settings
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.configuration import LiteLLMProvider
+        from isotope.settings import Settings
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -130,7 +130,7 @@ class TestLiteLLMProvider:
         from dataclasses import FrozenInstanceError
 
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.configuration import LiteLLMProvider
+        from isotope.configuration import LiteLLMProvider
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -145,7 +145,7 @@ class TestProtocols:
     def test_litellm_provider_satisfies_protocol(self, temp_dir):
         """Test that LiteLLMProvider satisfies ProviderConfig protocol."""
         pytest.importorskip("litellm", reason="This test requires litellm")
-        from isotopedb.configuration import LiteLLMProvider, ProviderConfig
+        from isotope.configuration import LiteLLMProvider, ProviderConfig
 
         provider = LiteLLMProvider(
             llm="openai/gpt-4o",
@@ -157,7 +157,7 @@ class TestProtocols:
     def test_local_storage_satisfies_protocol(self, temp_dir):
         """Test that LocalStorage satisfies StorageConfig protocol."""
         pytest.importorskip("chromadb", reason="This test requires chromadb")
-        from isotopedb.configuration import LocalStorage, StorageConfig
+        from isotope.configuration import LocalStorage, StorageConfig
 
         storage = LocalStorage(temp_dir)
 

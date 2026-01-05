@@ -1,6 +1,6 @@
 # Reverse RAG: The Paper Explained
 
-IsotopeDB implements the approach described in **arXiv:2405.12363** - "Question-Based Retrieval using Atomic Units for Enterprise RAG".
+Isotope implements the approach described in **arXiv:2405.12363** - "Question-Based Retrieval using Atomic Units for Enterprise RAG".
 
 ## The Problem with Traditional RAG
 
@@ -68,7 +68,7 @@ The paper found that:
 2. **50% retention is sufficient**: After deduplicating similar questions, retaining ~50% of questions maintains maximum retrieval performance
 3. **Even 20% retention works**: Aggressive deduplication (keeping only 20% of questions) shows minimal performance degradation
 
-This is why IsotopeDB includes a `DiversityFilter` with a default threshold of 0.85 - it removes near-duplicate questions while preserving diverse coverage.
+This is why Isotope includes a `DiversityFilter` with a default threshold of 0.85 - it removes near-duplicate questions while preserving diverse coverage.
 
 ## The Trade-off
 
@@ -97,4 +97,4 @@ The system doesn't fail - it returns best-effort matches with low confidence sco
 ## Further Reading
 
 - [arXiv:2405.12363](https://arxiv.org/abs/2405.12363) - The original paper
-- [Architecture](./architecture.md) - How IsotopeDB implements these concepts
+- [Architecture](./architecture.md) - How Isotope implements these concepts

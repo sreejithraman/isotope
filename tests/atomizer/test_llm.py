@@ -8,9 +8,9 @@ import pytest
 
 pytest.importorskip("litellm", reason="Tests require litellm package")
 
-from isotopedb.atomizer import Atomizer, LLMAtomizer
-from isotopedb.models import Chunk
-from isotopedb.providers.litellm import LiteLLMClient
+from isotope.atomizer import Atomizer, LLMAtomizer
+from isotope.models import Chunk
+from isotope.providers.litellm import LiteLLMClient
 
 
 def mock_completion_response(facts: list[str]):
@@ -37,7 +37,7 @@ class TestLLMAtomizer:
     def test_is_atomizer(self, atomizer):
         assert isinstance(atomizer, Atomizer)
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_extracts_atomic_facts(self, mock_completion, atomizer):
         mock_completion.return_value = mock_completion_response(
             [
@@ -57,7 +57,7 @@ class TestLLMAtomizer:
         assert atoms[1].content == "Python is interpreted."
         mock_completion.assert_called_once()
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_assigns_correct_chunk_id(self, mock_completion, atomizer):
         mock_completion.return_value = mock_completion_response(["Fact 1", "Fact 2"])
 
@@ -67,7 +67,7 @@ class TestLLMAtomizer:
         for atom in atoms:
             assert atom.chunk_id == chunk.id
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_assigns_sequential_index(self, mock_completion, atomizer):
         mock_completion.return_value = mock_completion_response(
             [
@@ -94,7 +94,7 @@ class TestLLMAtomizer:
         atoms = atomizer.atomize(chunk)
         assert atoms == []
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_handles_code_block_response(self, mock_completion, atomizer):
         # Some LLMs wrap JSON in code blocks
         mock_response = MagicMock()
@@ -108,7 +108,7 @@ class TestLLMAtomizer:
         assert len(atoms) == 2
         assert atoms[0].content == "Fact 1"
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_fallback_on_invalid_json(self, mock_completion, atomizer):
         # If LLM returns non-JSON, fall back to line splitting
         mock_response = MagicMock()
@@ -122,7 +122,7 @@ class TestLLMAtomizer:
         assert len(atoms) == 3
         assert atoms[0].content == "Fact 1"
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_filters_empty_facts(self, mock_completion, atomizer):
         mock_completion.return_value = mock_completion_response(
             [
@@ -156,7 +156,7 @@ class TestLLMAtomizer:
         atomizer = LLMAtomizer(llm_client=llm_client, temperature=None)
         assert atomizer.temperature is None
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_temperature_passed_to_llm(self, mock_completion, llm_client):
         mock_completion.return_value = mock_completion_response(["Fact 1"])
         atomizer = LLMAtomizer(llm_client=llm_client, temperature=0.5)
@@ -168,7 +168,7 @@ class TestLLMAtomizer:
         assert call_kwargs["temperature"] == 0.5
         assert call_kwargs["drop_params"] is True
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_temperature_none_not_passed(self, mock_completion, llm_client):
         mock_completion.return_value = mock_completion_response(["Fact 1"])
         atomizer = LLMAtomizer(llm_client=llm_client, temperature=None)
@@ -180,7 +180,7 @@ class TestLLMAtomizer:
         assert "temperature" not in call_kwargs
         assert call_kwargs["drop_params"] is True
 
-    @patch("isotopedb.providers.litellm.client.litellm.completion")
+    @patch("isotope.providers.litellm.client.litellm.completion")
     def test_each_atom_has_unique_id(self, mock_completion, atomizer):
         mock_completion.return_value = mock_completion_response(["Fact 1", "Fact 2"])
 

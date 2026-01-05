@@ -1,4 +1,4 @@
-# Contributing to IsotopeDB
+# Contributing to Isotope
 
 ## Development Setup
 

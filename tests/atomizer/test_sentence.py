@@ -3,9 +3,9 @@
 
 import pytest
 
-from isotopedb.atomizer.base import Atomizer
-from isotopedb.atomizer.sentence import SentenceAtomizer
-from isotopedb.models import Chunk
+from isotope.atomizer.base import Atomizer
+from isotope.atomizer.sentence import SentenceAtomizer
+from isotope.models import Chunk
 
 
 @pytest.fixture

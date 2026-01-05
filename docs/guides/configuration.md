@@ -1,6 +1,6 @@
 # Configuration Guide
 
-IsotopeDB separates configuration into three parts:
+Isotope separates configuration into three parts:
 
 - **Provider configuration**: Which LLM/embedding service to use (LiteLLM, custom, etc.)
 - **Storage configuration**: Where data lives (local Chroma + SQLite or custom stores)
@@ -11,7 +11,7 @@ IsotopeDB separates configuration into three parts:
 ### Using LiteLLM (Recommended)
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 # Simple setup with LiteLLM + local storage
 iso = Isotope(
@@ -33,9 +33,9 @@ retriever = iso.retriever()
 ### Using Explicit Stores (Enterprise)
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider
-from isotopedb.stores import (
-    ChromaVectorStore,
+from isotope import Isotope, LiteLLMProvider
+from isotope.stores import (
+    ChromaEmbeddedQuestionStore,
     SQLiteChunkStore,
     SQLiteAtomStore,
     SQLiteSourceRegistry,
@@ -46,7 +46,7 @@ iso = Isotope(
         llm="openai/gpt-4o",
         embedding="openai/text-embedding-3-small",
     ),
-    vector_store=ChromaVectorStore("./data/chroma"),
+    embedded_question_store=ChromaEmbeddedQuestionStore("./data/chroma"),
     chunk_store=SQLiteChunkStore("./data/chunks.db"),
     atom_store=SQLiteAtomStore("./data/atoms.db"),
     source_registry=SQLiteSourceRegistry("./data/sources.db"),
@@ -65,7 +65,7 @@ a `StorageConfig` (builds stores) or explicit store instances.
 ### Path 1: LiteLLMProvider + LocalStorage (Recommended)
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -78,19 +78,19 @@ iso = Isotope(
 ```
 
 This creates:
-- Local stores (ChromaVectorStore, SQLiteChunkStore, SQLiteAtomStore, SQLiteSourceRegistry)
+- Local stores (ChromaEmbeddedQuestionStore, SQLiteChunkStore, SQLiteAtomStore, SQLiteSourceRegistry)
 - LiteLLM-backed components via `LiteLLMProvider`
 
-Requires extras: `isotopedb[chroma]` for `LocalStorage`, `isotopedb[litellm]` for `LiteLLMProvider`.
+Requires extras: `isotope-rag[chroma]` for `LocalStorage`, `isotope-rag[litellm]` for `LiteLLMProvider`.
 
 ### Path 2: Explicit Stores
 
 For enterprise deployments or custom storage implementations:
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider
-from isotopedb.stores import (
-    ChromaVectorStore,
+from isotope import Isotope, LiteLLMProvider
+from isotope.stores import (
+    ChromaEmbeddedQuestionStore,
     SQLiteChunkStore,
     SQLiteAtomStore,
     SQLiteSourceRegistry,
@@ -101,7 +101,7 @@ iso = Isotope(
         llm="openai/gpt-4o",
         embedding="openai/text-embedding-3-small",
     ),
-    vector_store=ChromaVectorStore("./data/chroma"),
+    embedded_question_store=ChromaEmbeddedQuestionStore("./data/chroma"),
     chunk_store=SQLiteChunkStore("./data/chunks.db"),
     atom_store=SQLiteAtomStore("./data/atoms.db"),
     source_registry=SQLiteSourceRegistry("./data/sources.db"),
@@ -114,7 +114,7 @@ Implement `ProviderConfig` to plug in custom embedders/atomizers/generators:
 
 ```python
 from dataclasses import dataclass
-from isotopedb import Isotope, LocalStorage, Settings
+from isotope import Isotope, LocalStorage, Settings
 
 @dataclass(frozen=True)
 class BedrockProvider:
@@ -211,7 +211,7 @@ and passes them explicitly.
 
 ## Provider API Keys
 
-IsotopeDB uses [LiteLLM](https://docs.litellm.ai/) for LLM and embedding calls. Set the appropriate API key for your provider:
+Isotope uses [LiteLLM](https://docs.litellm.ai/) for LLM and embedding calls. Set the appropriate API key for your provider:
 
 ### OpenAI
 
@@ -220,7 +220,7 @@ export OPENAI_API_KEY="your-openai-api-key"
 ```
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -238,7 +238,7 @@ export GOOGLE_API_KEY="your-gemini-api-key"
 ```
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -256,7 +256,7 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 ```
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -276,7 +276,7 @@ export AZURE_API_VERSION="2024-02-15-preview"
 ```
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage
+from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
@@ -291,25 +291,25 @@ See the [LiteLLM provider list](https://docs.litellm.ai/docs/providers) for more
 
 ## Imports
 
-LiteLLM provider clients and model constants live in `isotopedb.providers.litellm`:
+LiteLLM provider clients and model constants live in `isotope.providers.litellm`:
 
 ```python
 # Configuration objects
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage, Settings
-from isotopedb.configuration import ProviderConfig, StorageConfig
+from isotope import Isotope, LiteLLMProvider, LocalStorage, Settings
+from isotope.configuration import ProviderConfig, StorageConfig
 
 # LiteLLM provider clients + model constants
-from isotopedb.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-from isotopedb.providers.litellm import ChatModels, EmbeddingModels
+from isotope.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
+from isotope.providers.litellm import ChatModels, EmbeddingModels
 
 # Component wrappers (use any LLMClient / EmbeddingClient)
-from isotopedb.atomizer import LLMAtomizer
-from isotopedb.embedder import ClientEmbedder
-from isotopedb.question_generator import ClientQuestionGenerator
+from isotope.atomizer import LLMAtomizer
+from isotope.embedder import ClientEmbedder
+from isotope.question_generator import ClientQuestionGenerator
 
 # Abstract base classes (for custom implementations)
-from isotopedb import Embedder, QuestionGenerator, Atomizer
-from isotopedb.providers import LLMClient, EmbeddingClient
+from isotope import Embedder, QuestionGenerator, Atomizer
+from isotope.providers import LLMClient, EmbeddingClient
 ```
 
 ## Configuration Details
@@ -393,7 +393,7 @@ iso = Isotope(
 
 ### Prompt Customization
 
-You can customize the prompts used by IsotopeDB for atomization, question generation, and answer synthesis.
+You can customize the prompts used by Isotope for atomization, question generation, and answer synthesis.
 In Python, set these on `Settings`; in the CLI, use the `ISOTOPE_*` env vars shown below.
 
 #### Atomizer Prompt (`ISOTOPE_ATOMIZER_PROMPT`)
@@ -428,7 +428,7 @@ export ISOTOPE_SYNTHESIS_PROMPT="Answer based on context:\n\n{context}\n\nQuesti
 ## Accessing Settings in Code
 
 ```python
-from isotopedb import Isotope, LiteLLMProvider, LocalStorage, Settings
+from isotope import Isotope, LiteLLMProvider, LocalStorage, Settings
 
 # Settings are plain Python objects (no env auto-loading)
 settings = Settings(

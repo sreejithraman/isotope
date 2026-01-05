@@ -4,7 +4,7 @@
 import pytest
 from pydantic import ValidationError
 
-from isotopedb.models.question import EmbeddedQuestion, Question
+from isotope.models.question import EmbeddedQuestion, Question
 
 
 class TestQuestion:

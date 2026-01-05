@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from isotopedb.models import Atom
+from isotope.models import Atom
 
 
 class TestAtom:

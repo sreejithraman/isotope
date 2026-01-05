@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "isotopedb"
+name = "isotope-rag"
 version = "0.1.0"
 description = "Reverse RAG database - index questions, not chunks"
 readme = "README.md"
@@ -44,21 +44,21 @@ all = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
-    "ruff==0.14.10",
+    "ruff>=0.14",
     "mypy>=1.10",
     "pre-commit>=3.7",
     "litellm>=1.0",
 ]
 
 [project.scripts]
-isotope = "isotopedb.cli:app"
+isotope = "isotope.cli:app"
 
 [project.urls]
 Repository = "https://github.com/sreejithraman/isotope"
 Documentation = "https://github.com/sreejithraman/isotope#readme"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/isotopedb"]
+packages = ["src/isotope"]
 
 [tool.ruff]
 line-length = 100

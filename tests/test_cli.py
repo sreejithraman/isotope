@@ -6,11 +6,11 @@ import tempfile
 
 import pytest
 
-pytest.importorskip("typer", reason="Tests require typer package (pip install isotopedb[cli])")
+pytest.importorskip("typer", reason="Tests require typer package (pip install isotope[cli])")
 
 from typer.testing import CliRunner
 
-from isotopedb.cli import app
+from isotope.cli import app
 
 
 @pytest.fixture
