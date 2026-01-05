@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-pytest.importorskip("typer", reason="Tests require typer package (pip install isotope[cli])")
+pytest.importorskip("typer", reason="Tests require typer package (pip install isotope-rag[cli])")
 
 from typer.testing import CliRunner
 

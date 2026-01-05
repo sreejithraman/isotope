@@ -23,7 +23,7 @@ def _create_missing_dependency_class(class_name: str, package: str) -> type:
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             raise ImportError(
                 f"{class_name} requires the '{package}' package. "
-                f"Install it with: pip install isotope[{package}]"
+                f"Install it with: pip install isotope-rag[{package}]"
             )
 
         def __class_getitem__(cls, item: Any) -> type:

@@ -14,7 +14,7 @@ pytest
 pytest tests/test_retriever.py
 
 # Run a specific test
-pytest tests/test_retriever.py::test_query_synthesis -v
+pytest tests/test_retriever.py::TestRetrieverGetAnswer::test_get_answer_returns_response_with_synthesis -v
 
 # Format code
 ruff format src tests
@@ -37,14 +37,15 @@ src/isotope/
 ├── stores/          # Storage ABCs + implementations (EmbeddedQuestionStore, ChunkStore, AtomStore, SourceRegistry)
 ├── atomizer/        # Break chunks into atomic facts (SentenceAtomizer, LLMAtomizer)
 ├── embedder/        # Embedding wrapper (ClientEmbedder)
+├── configuration/   # Provider/storage configuration objects (LiteLLMProvider, LocalStorage)
 ├── question_generator/  # Question generation + diversity filtering
 ├── loaders/         # File loaders (text, PDF, HTML) with registry pattern
 ├── providers/       # LLM/embedding provider clients (LiteLLMClient, LiteLLMEmbeddingClient)
 ├── isotope.py       # Central configuration facade
 ├── ingestor.py      # Ingestion pipeline
 ├── retriever.py     # Query pipeline with LLM synthesis
-├── cli.py           # Typer CLI (isotope config/ingest/query/list/status/delete)
-├── settings.py      # Settings (pydantic-settings, ISOTOPE_* env vars)
+├── cli.py           # Typer CLI (isotope init/config/ingest/query/list/status/delete)
+├── settings.py      # Settings (Pydantic BaseModel; library does not read env vars)
 └── _optional.py     # Optional dependency handling
 ```
 
@@ -93,6 +94,7 @@ isotope query "<question>"  # Query with LLM synthesis (--raw for no synthesis)
 isotope list                # List indexed sources
 isotope status              # Show database statistics
 isotope delete <source>     # Delete a source from the database
+isotope init                # Create an isotope.yaml config file
 ```
 
 ## Key Files to Read First

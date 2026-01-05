@@ -115,7 +115,7 @@ class Ingestor:
         self.chunk_store.put_many(chunks)
         progress("storing", 1, 1, "Storing chunks complete")
 
-        # Step 3: Atomize
+        # Step 2-3: Atomize chunks and store atoms
         progress("atomizing", 0, len(chunks), "Atomizing chunks...")
         all_atoms = []
         for i, chunk in enumerate(chunks):

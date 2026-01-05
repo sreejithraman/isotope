@@ -40,7 +40,22 @@ try:
 
     __version__ = version("isotope-rag")
 except PackageNotFoundError:
-    __version__ = "unknown"
+    # Development / source-tree fallback (e.g. running tests without installing the wheel).
+    try:
+        import tomllib
+        from pathlib import Path
+
+        def _read_version_from_pyproject() -> str | None:
+            for parent in Path(__file__).resolve().parents:
+                pyproject = parent / "pyproject.toml"
+                if pyproject.exists():
+                    data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+                    return data.get("project", {}).get("version")
+            return None
+
+        __version__ = _read_version_from_pyproject() or "unknown"
+    except Exception:
+        __version__ = "unknown"
 
 # Core models
 # Abstract base classes

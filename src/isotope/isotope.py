@@ -196,6 +196,7 @@ class Isotope:
         self,
         *,
         llm_client: LLMClient | None = None,
+        llm_model: str | None = None,
         synthesis_prompt: str | None = None,
         synthesis_temperature: float | None = None,
         default_k: int | None = None,
@@ -204,6 +205,8 @@ class Isotope:
 
         Args:
             llm_client: LLM client for answer synthesis. Pass None to disable synthesis.
+            llm_model: Convenience option for answer synthesis using LiteLLM.
+                If set and llm_client is None, Isotope will create a LiteLLMClient(model=llm_model).
             synthesis_prompt: Custom synthesis prompt template.
             synthesis_temperature: Temperature for synthesis LLM calls.
             default_k: Number of results to return. If None, uses settings default.
@@ -212,6 +215,11 @@ class Isotope:
             Configured Retriever instance.
         """
         from isotope.retriever import Retriever
+
+        if llm_client is None and llm_model is not None:
+            from isotope.providers import LiteLLMClient
+
+            llm_client = LiteLLMClient(model=llm_model)
 
         return Retriever(
             embedded_question_store=self.embedded_question_store,

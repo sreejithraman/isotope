@@ -1,4 +1,4 @@
-# src/isotope/config.py
+# src/isotope/settings.py
 """Configuration management for Isotope.
 
 This module contains behavioral settings that apply regardless of which

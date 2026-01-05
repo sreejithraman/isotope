@@ -29,7 +29,7 @@ try:
     from rich.table import Table
 except ImportError as e:
     raise SystemExit(
-        "CLI requires additional dependencies.\nInstall with: pip install isotope[cli]"
+        "CLI requires additional dependencies.\nInstall with: pip install isotope-rag[cli]"
     ) from e
 
 try:
@@ -109,6 +109,7 @@ def _get_behavioral_settings_from_env() -> dict:
         "diversity_scope": _parse_diversity_scope(os.environ.get("ISOTOPE_DIVERSITY_SCOPE")),
         "default_k": int(os.environ.get("ISOTOPE_DEFAULT_K", "5")),
         "synthesis_prompt": os.environ.get("ISOTOPE_SYNTHESIS_PROMPT") or None,
+        "max_concurrent_questions": int(os.environ.get("ISOTOPE_MAX_CONCURRENT_QUESTIONS", "10")),
     }
 
 
@@ -214,6 +215,7 @@ def get_isotope(
         diversity_scope=env_settings["diversity_scope"],
         default_k=env_settings["default_k"],
         synthesis_prompt=env_settings["synthesis_prompt"],
+        max_concurrent_questions=env_settings["max_concurrent_questions"],
     )
 
     if provider == "litellm":
@@ -390,6 +392,11 @@ def config(
     )
     table.add_row("diversity_scope", env_settings["diversity_scope"], "env var")
     table.add_row("default_k", str(env_settings["default_k"]), "env var")
+    table.add_row(
+        "max_concurrent_questions",
+        str(env_settings["max_concurrent_questions"]),
+        "env var",
+    )
 
     console.print(table)
 
@@ -459,6 +466,7 @@ def ingest(
     total_chunks = 0
     total_atoms = 0
     total_questions = 0
+    total_questions_filtered = 0
     skipped_count = 0
     ingested_count = 0
 
@@ -475,6 +483,7 @@ def ingest(
                 total_chunks += result.get("chunks", 0)
                 total_atoms += result.get("atoms", 0)
                 total_questions += result.get("questions", 0)
+                total_questions_filtered += result.get("questions_filtered", 0)
                 if not plain:
                     console.print(f"[green]Ingested {filepath}[/green]")
         except (OSError, ValueError, RuntimeError) as e:
@@ -486,14 +495,18 @@ def ingest(
     if plain:
         console.print(f"Ingested {ingested_count} files ({total_chunks} chunks)")
         console.print(f"Created {total_atoms} atoms")
-        console.print(f"Generated {total_questions} questions")
+        console.print(f"Indexed {total_questions} questions")
+        if total_questions_filtered > 0:
+            console.print(f"Filtered {total_questions_filtered} similar questions")
         if skipped_count > 0:
             console.print(f"Skipped {skipped_count} unchanged files")
     else:
         console.print()
         console.print(f"[green]Ingested {ingested_count} files ({total_chunks} chunks)[/green]")
         console.print(f"[green]Created {total_atoms} atoms[/green]")
-        console.print(f"[green]Generated {total_questions} questions[/green]")
+        console.print(f"[green]Indexed {total_questions} questions[/green]")
+        if total_questions_filtered > 0:
+            console.print(f"[dim]Filtered {total_questions_filtered} similar questions[/dim]")
         if skipped_count > 0:
             console.print(f"[dim]Skipped {skipped_count} unchanged files[/dim]")
 

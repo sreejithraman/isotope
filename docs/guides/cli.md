@@ -15,8 +15,9 @@ pip install "isotope-rag[cli,litellm]"    # CLI + LiteLLM
 pip install "isotope-rag[cli,chroma]"     # CLI + ChromaDB
 ```
 
-Note: `isotope-rag[cli]` does not include LiteLLM or storage backends. For LLM-synthesized
-answers, add `litellm`. For ChromaDB vector store, add `chroma`. Or run queries with `--raw`.
+Note: `isotope-rag[cli]` installs the CLI only. To ingest/query you also need a provider +
+storage backend (e.g. `isotope-rag[cli,litellm,chroma]` or `isotope-rag[all]`). `--raw` disables
+answer synthesis but still requires embeddings.
 
 Verify it's working:
 
@@ -68,9 +69,9 @@ isotope ingest docs/ --config ./isotope.yaml
 
 **Output:**
 ```
-Ingested 3 chunks
+Ingested 2 files (3 chunks)
 Created 12 atoms
-Generated 89 questions
+Indexed 89 questions
 Filtered 15 similar questions
 ```
 

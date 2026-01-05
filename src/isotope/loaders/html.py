@@ -13,7 +13,7 @@ class HTMLLoader(Loader):
     Cleans HTML by removing scripts, styles, and navigation elements,
     then converts to markdown format for better LLM consumption.
 
-    Requires: pip install isotope[html]
+    Requires: pip install isotope-rag[html]
     """
 
     SUPPORTED_EXTENSIONS = {".html", ".htm"}
@@ -45,14 +45,15 @@ class HTMLLoader(Loader):
         except ImportError:
             raise ImportError(
                 "beautifulsoup4 is required for HTML support. "
-                "Install with: pip install isotope[html]"
+                "Install with: pip install isotope-rag[html]"
             ) from None
 
         try:
             from markdownify import markdownify
         except ImportError:
             raise ImportError(
-                "markdownify is required for HTML support. Install with: pip install isotope[html]"
+                "markdownify is required for HTML support. "
+                "Install with: pip install isotope-rag[html]"
             ) from None
 
         file_path = Path(path)

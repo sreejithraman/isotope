@@ -13,7 +13,7 @@ class PyPDFLoader(Loader):
     A lightweight, pure Python PDF loader suitable for basic text extraction.
     For documents with tables or complex layouts, consider PDFPlumberLoader.
 
-    Requires: pip install isotope[pdf-text]
+    Requires: pip install isotope-rag[pdf-text]
     """
 
     SUPPORTED_EXTENSIONS = {".pdf"}
@@ -42,7 +42,7 @@ class PyPDFLoader(Loader):
         except ImportError:
             raise ImportError(
                 "pypdf is required for PDF text extraction. "
-                "Install with: pip install isotope[pdf-text]"
+                "Install with: pip install isotope-rag[pdf-text]"
             ) from None
 
         file_path = Path(path)

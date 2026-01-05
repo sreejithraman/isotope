@@ -4,7 +4,7 @@
 This module contains LLM and embedding provider abstractions:
 - LLMClient: Abstract base class for LLM completion providers
 - EmbeddingClient: Abstract base class for embedding providers
-- LiteLLM implementations (requires: pip install isotope[litellm])
+- LiteLLM implementations (requires: pip install isotope-rag[litellm])
 
 Usage:
     from isotope.providers import LLMClient, EmbeddingClient

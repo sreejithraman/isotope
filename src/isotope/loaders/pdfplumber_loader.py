@@ -14,7 +14,7 @@ class PDFPlumberLoader(Loader):
     A feature-rich PDF loader with excellent table detection and layout analysis.
     Best for documents with tables, complex layouts, or structured content.
 
-    Requires: pip install isotope[pdf]
+    Requires: pip install isotope-rag[pdf]
     """
 
     SUPPORTED_EXTENSIONS = {".pdf"}
@@ -45,7 +45,7 @@ class PDFPlumberLoader(Loader):
         except ImportError:
             raise ImportError(
                 "pdfplumber is required for full PDF support with table extraction. "
-                "Install with: pip install isotope[pdf]"
+                "Install with: pip install isotope-rag[pdf]"
             ) from None
 
         file_path = Path(path)

@@ -81,8 +81,11 @@ pip install isotope-rag[litellm,chroma]  # Add LiteLLM + ChromaDB
 ### Option 1: Command Line (fastest)
 
 ```bash
+# 0. Configure models (writes isotope.yaml)
+isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+
 # 1. Ingest your docs
-isotope ingest docs/ --source my-docs
+isotope ingest docs/
 
 # 2. Ask questions
 isotope query "How do I authenticate?"
