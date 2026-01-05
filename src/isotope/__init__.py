@@ -36,10 +36,10 @@ Enterprise (Explicit Stores):
 """
 
 try:
-    from importlib.metadata import version
+    from importlib.metadata import PackageNotFoundError, version
 
     __version__ = version("isotope-rag")
-except Exception:
+except PackageNotFoundError:
     __version__ = "unknown"
 
 # Core models

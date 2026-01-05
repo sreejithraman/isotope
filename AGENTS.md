@@ -44,7 +44,7 @@ src/isotope/
 ├── ingestor.py      # Ingestion pipeline
 ├── retriever.py     # Query pipeline with LLM synthesis
 ├── cli.py           # Typer CLI (isotope config/ingest/query/list/status/delete)
-├── config.py        # Settings (pydantic-settings, ISOTOPE_* env vars)
+├── settings.py      # Settings (pydantic-settings, ISOTOPE_* env vars)
 └── _optional.py     # Optional dependency handling
 ```
 

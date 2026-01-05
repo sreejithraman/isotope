@@ -65,17 +65,10 @@ class ClientQuestionGenerator(QuestionGenerator):
         response_text = response_text.strip()
 
         try:
-            if response_text.startswith("```"):
-                lines = response_text.split("\n")
-                json_lines = []
-                in_block = False
-                for line in lines:
-                    if line.startswith("```"):
-                        in_block = not in_block
-                        continue
-                    if in_block:
-                        json_lines.append(line)
-                response_text = "\n".join(json_lines)
+            # Handle potential markdown code blocks (even with introductory text)
+            json_match = re.search(r"```(?:json)?\n(.*?)\n```", response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
 
             question_texts = json.loads(response_text)
         except json.JSONDecodeError:

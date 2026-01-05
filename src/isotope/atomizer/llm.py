@@ -71,19 +71,10 @@ class LLMAtomizer(Atomizer):
 
         # Parse JSON response
         try:
-            # Handle potential markdown code blocks
-            if response_text.startswith("```"):
-                # Extract content between code blocks
-                lines = response_text.split("\n")
-                json_lines = []
-                in_block = False
-                for line in lines:
-                    if line.startswith("```"):
-                        in_block = not in_block
-                        continue
-                    if in_block:
-                        json_lines.append(line)
-                response_text = "\n".join(json_lines)
+            # Handle potential markdown code blocks (even with introductory text)
+            json_match = re.search(r"```(?:json)?\n(.*?)\n```", response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
 
             facts = json.loads(response_text)
         except json.JSONDecodeError:

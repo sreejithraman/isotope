@@ -476,8 +476,10 @@ def ingest(
                 total_questions += result.get("questions", 0)
                 if not plain:
                     console.print(f"[green]Ingested {filepath}[/green]")
-        except Exception as e:
-            console.print(f"[yellow]Warning: Failed to ingest {filepath}: {e}[/yellow]")
+        except (OSError, ValueError, RuntimeError) as e:
+            console.print(
+                f"[yellow]Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}[/yellow]"
+            )
 
     # Summary
     if plain:
