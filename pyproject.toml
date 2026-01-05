@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "isotope-rag"
+version = "0.1.0"
+description = "Reverse RAG database - index questions, not chunks"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Sree Raman" }]
+keywords = ["rag", "embeddings", "vector-database", "question-generation", "document-processing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "pydantic>=2.0,<3",
+    "pysbd>=0.3.4,<1",
+    "numpy>=1.24,<3",
+]
+
+[project.optional-dependencies]
+# Storage configurations
+chroma = ["chromadb>=0.4"]           # ChromaDB vector store
+# Provider configurations
+litellm = ["litellm>=1.0"]           # LiteLLMProvider
+# CLI
+cli = ["typer>=0.9", "rich>=13.0", "pyyaml>=6.0"]
+# Document loaders
+pdf = ["pdfplumber>=0.11"]           # Full PDF support (text + tables)
+pdf-text = ["pypdf>=4.0"]            # Text extraction only (lightweight)
+html = ["beautifulsoup4>=4.12", "markdownify>=0.13"]
+loaders = ["pdfplumber>=0.11", "beautifulsoup4>=4.12", "markdownify>=0.13"]
+# Bundles
+all = [
+    "chromadb>=0.4", "litellm>=1.0", "typer>=0.9", "rich>=13.0", "pyyaml>=6.0",
+    "pdfplumber>=0.11", "beautifulsoup4>=4.12", "markdownify>=0.13",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.14",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "litellm>=1.0",
+]
+
+[project.scripts]
+isotope = "isotope.cli:app"
+
+[project.urls]
+Repository = "https://github.com/sreejithraman/isotope"
+Documentation = "https://github.com/sreejithraman/isotope#readme"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/isotope"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pysbd",
+    "chromadb.*",
+    "litellm",
+    "typer",
+    "rich.*",
+    "numpy",
+    "pdfplumber",
+    "pypdf",
+    "bs4",
+    "markdownify",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "mock_integration: tests that mock external LLM APIs (use -m 'not mock_integration' to skip)",
+]

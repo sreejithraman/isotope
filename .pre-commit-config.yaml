@@ -1,0 +1,14 @@
+# See https://pre-commit.com for more information
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+# Note: mypy and pytest run in GitHub Actions CI
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      - id: ruff-format
+        files: ^(src|tests)/
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^(src|tests)/
