@@ -56,7 +56,6 @@ typecheck:
 	mypy src
 
 build:
-	pip install build
 	python -m build
 
 release: lint test build
@@ -67,7 +66,7 @@ endif
 	@git diff --quiet || (echo "Error: Uncommitted changes in working tree" && exit 1)
 	@git diff --cached --quiet || (echo "Error: Staged changes not committed" && exit 1)
 	@# Check tag doesn't already exist
-	@git rev-parse "v$(VERSION)" >/dev/null 2>&1 && echo "Error: Tag v$(VERSION) already exists" && exit 1 || true
+	@if git show-ref --verify --quiet "refs/tags/v$(VERSION)"; then echo "Error: Tag v$(VERSION) already exists"; exit 1; fi
 	@# Verify VERSION matches pyproject.toml
 	@python -c "import tomllib; v=tomllib.load(open('pyproject.toml','rb'))['project']['version']; exit(0 if v=='$(VERSION)' else print(f'Error: VERSION=$(VERSION) but pyproject.toml has {v}') or 1)"
 	@echo "Creating release v$(VERSION)..."
