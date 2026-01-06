@@ -261,7 +261,7 @@ isotope config
 │ Setting                      │ Value                   │ Source      │
 ├──────────────────────────────┼─────────────────────────┼─────────────┤
 │ provider                     │ litellm                 │ config file │
-│ llm_model                    │ openai/gpt-4o           │ config file │
+│ llm_model                    │ openai/gpt-5-mini-2025-08-07 │ config file │
 │ embedding_model              │ openai/text-embedding-3-small │ config file │
 │                              │                         │             │
 │ questions_per_atom           │ 15                      │ env var     │
@@ -289,7 +289,7 @@ isotope init [options]
 **Example:**
 
 ```bash
-isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+isotope init --provider litellm --llm-model openai/gpt-5-mini-2025-08-07 --embedding-model openai/text-embedding-3-small
 ```
 
 ## Global Options

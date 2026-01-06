@@ -23,7 +23,7 @@ class LiteLLMProvider:
 
     Args:
         llm: LiteLLM model identifier for LLM calls (atomization, question generation).
-             Examples: "openai/gpt-4o", "anthropic/claude-sonnet-4-5-20250929"
+             Examples: "openai/gpt-5-mini-2025-08-07", "anthropic/claude-sonnet-4-5-20250929"
         embedding: LiteLLM model identifier for embeddings.
                    Examples: "openai/text-embedding-3-small", "openai/text-embedding-3-large"
         atomizer_type: Type of atomizer to use. "llm" uses the LLM for intelligent
@@ -32,13 +32,13 @@ class LiteLLMProvider:
 
     Example:
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
 
         # With sentence atomizer (faster, no LLM calls for atomization)
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
             atomizer_type="sentence",
         )

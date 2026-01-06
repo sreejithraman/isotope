@@ -15,7 +15,10 @@ Example:
     from isotope import Isotope, LiteLLMProvider, LocalStorage
 
     iso = Isotope(
-        provider=LiteLLMProvider(llm="openai/gpt-4o", embedding="text-embedding-3-small"),
+        provider=LiteLLMProvider(
+            llm="openai/gpt-5-mini-2025-08-07",
+            embedding="text-embedding-3-small",
+        ),
         storage=LocalStorage("./data"),
     )
 """

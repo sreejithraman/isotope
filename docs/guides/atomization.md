@@ -62,7 +62,7 @@ from isotope.atomizer import LLMAtomizer
 from isotope.providers.litellm import LiteLLMClient
 from isotope import Chunk
 
-client = LiteLLMClient(model="openai/gpt-4o")
+client = LiteLLMClient(model="openai/gpt-5-mini-2025-08-07")
 atomizer = LLMAtomizer(llm_client=client)
 
 chunk = Chunk(
@@ -130,7 +130,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
         atomizer_type="sentence",  # Use sentence-based atomizer
     ),
@@ -141,7 +141,7 @@ iso = Isotope(
 ```yaml
 # isotope.yaml
 provider: litellm
-llm_model: openai/gpt-4o
+llm_model: openai/gpt-5-mini-2025-08-07
 embedding_model: openai/text-embedding-3-small
 use_sentence_atomizer: true
 ```
@@ -200,7 +200,7 @@ from isotope.providers.litellm import LiteLLMClient
 import re
 
 sentence_atomizer = SentenceAtomizer()
-llm_client = LiteLLMClient(model="openai/gpt-4o")
+llm_client = LiteLLMClient(model="openai/gpt-5-mini-2025-08-07")
 llm_atomizer = LLMAtomizer(llm_client=llm_client)
 
 def smart_atomize(chunk: Chunk) -> list[Atom]:
@@ -229,7 +229,7 @@ from isotope.atomizer import LLMAtomizer
 from isotope.providers.litellm import LiteLLMClient
 
 sentence_atomizer = SentenceAtomizer()
-llm_client = LiteLLMClient(model="openai/gpt-4o")
+llm_client = LiteLLMClient(model="openai/gpt-5-mini-2025-08-07")
 llm_atomizer = LLMAtomizer(llm_client=llm_client)
 
 def smart_atomize(chunk: Chunk) -> list[Atom]:

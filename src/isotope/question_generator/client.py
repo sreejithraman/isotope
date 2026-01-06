@@ -36,7 +36,7 @@ class ClientQuestionGenerator(QuestionGenerator):
         from isotope.providers.litellm import LiteLLMClient
         from isotope.question_generator import ClientQuestionGenerator
 
-        client = LiteLLMClient(model="openai/gpt-4o")
+        client = LiteLLMClient(model="openai/gpt-5-mini-2025-08-07")
         generator = ClientQuestionGenerator(llm_client=client)
     """
 

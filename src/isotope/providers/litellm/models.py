@@ -24,7 +24,7 @@ class ChatModels:
     # OpenAI - GPT 5 Series
     GPT_52 = "openai/gpt-5.2"
     GPT_52_PRO = "openai/gpt-5.2-pro"
-    GPT_5_MINI = "openai/gpt-5-mini"
+    GPT_5_MINI = "openai/gpt-5-mini-2025-08-07"
     GPT_5_NANO = "openai/gpt-5-nano"
 
     # Anthropic - Claude 4.5 Series
@@ -57,7 +57,7 @@ class EmbeddingModels:
     TEXT_3_LARGE = "openai/text-embedding-3-large"
 
     # Google Gemini
-    GEMINI_004 = "gemini/text-embedding-004"
+    GEMINI_EMBEDDING_001 = "gemini/gemini-embedding-001"
 
     # AWS Bedrock
     BEDROCK_TITAN_V2 = "bedrock/amazon.titan-embed-text-v2:0"

@@ -54,7 +54,7 @@ from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
 # Create an Isotope instance (LiteLLM + local stores)
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
         atomizer_type="sentence",  # Faster, no LLM for atomization
     ),
@@ -86,7 +86,7 @@ That's it! Isotope automatically:
 
 ```python
 # Create a retriever (pass llm_model to enable synthesis)
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 
 # Ask a question
 response = retriever.get_answer("Who invented Python?")
@@ -125,7 +125,7 @@ Isotope also has a command-line interface for quick workflows:
 
 ```bash
 # One-time: create CLI config (or set ISOTOPE_LITELLM_* env vars)
-isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+isotope init --provider litellm --llm-model openai/gpt-5-mini-2025-08-07 --embedding-model openai/text-embedding-3-small
 
 # Ingest a file or directory
 isotope ingest python-intro.txt
@@ -161,7 +161,7 @@ from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
 # 1. Setup
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
         atomizer_type="sentence",
     ),
@@ -179,7 +179,7 @@ result = ingestor.ingest_chunks([chunk])
 print(f"Indexed {result['questions']} questions from {result['atoms']} atoms")
 
 # 3. Query
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 response = retriever.get_answer("Who created Python?")
 print(f"\nAnswer: {response.answer}")
 ```
@@ -212,7 +212,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",                        # LLM for generation/synthesis
+        llm="openai/gpt-5-mini-2025-08-07",                        # LLM for generation/synthesis
         embedding="openai/text-embedding-3-small",  # Embedding model
     ),
     storage=LocalStorage("./my_data"),
@@ -261,7 +261,7 @@ atom_store = SQLiteAtomStore("./data/atoms.db")
 
 # Create components
 atomizer = SentenceAtomizer()
-embedding_client = LiteLLMEmbeddingClient(model="gemini/text-embedding-004")
+embedding_client = LiteLLMEmbeddingClient(model="gemini/gemini-embedding-001")
 llm_client = LiteLLMClient(model="gemini/gemini-3-flash-preview")
 embedder = ClientEmbedder(embedding_client=embedding_client)
 question_generator = ClientQuestionGenerator(llm_client=llm_client, num_questions=10)

@@ -25,7 +25,7 @@ class LiteLLMClient(LLMClient):
 
         Args:
             model: LiteLLM model identifier.
-                   Examples: "openai/gpt-4o", "anthropic/claude-sonnet-4-5-20250929"
+                   Examples: "openai/gpt-5-mini-2025-08-07", "anthropic/claude-sonnet-4-5-20250929"
         """
         self.model = model
 
@@ -88,12 +88,12 @@ class LiteLLMEmbeddingClient(EmbeddingClient):
         embeddings = client.embed(["Hello world", "How are you?"])
     """
 
-    def __init__(self, model: str = EmbeddingModels.GEMINI_004) -> None:
+    def __init__(self, model: str = EmbeddingModels.GEMINI_EMBEDDING_001) -> None:
         """Initialize the LiteLLM embedding client.
 
         Args:
             model: LiteLLM embedding model identifier.
-                   Examples: "openai/text-embedding-3-small", "gemini/text-embedding-004"
+                   Examples: "openai/text-embedding-3-small", "gemini/gemini-embedding-001"
         """
         self.model = model
 

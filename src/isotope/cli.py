@@ -73,6 +73,154 @@ def main(
 
 DEFAULT_DATA_DIR = "./isotope_data"
 CONFIG_FILES = ["isotope.yaml", "isotope.yml", ".isotoperc"]
+ENV_FILE = ".env"
+
+# Mapping of model prefixes to required environment variables
+API_KEY_MAPPING = {
+    "openai/": "OPENAI_API_KEY",
+    "anthropic/": "ANTHROPIC_API_KEY",
+    "gemini/": "GEMINI_API_KEY",
+    "cohere/": "COHERE_API_KEY",
+    "mistral/": "MISTRAL_API_KEY",
+    "groq/": "GROQ_API_KEY",
+    "together/": "TOGETHER_API_KEY",
+    "replicate/": "REPLICATE_API_KEY",
+    "azure/": "AZURE_API_KEY",
+}
+
+
+def _get_required_api_key_var(model: str) -> str | None:
+    """Determine which API key env var is required for a given model."""
+    for prefix, env_var in API_KEY_MAPPING.items():
+        if model.startswith(prefix):
+            return env_var
+    # Default to OpenAI for unknown prefixes
+    return "OPENAI_API_KEY"
+
+
+def _check_api_key(env_var: str) -> bool:
+    """Check if an API key is set."""
+    return bool(os.environ.get(env_var))
+
+
+def _load_env_file() -> None:
+    """Load environment variables from .env file if it exists."""
+    env_path = Path(ENV_FILE)
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    key = key.strip()
+                    value = value.strip().strip("'\"")
+                    if key and value and key not in os.environ:
+                        os.environ[key] = value
+
+
+def _prompt_for_api_key(env_var: str, provider_name: str) -> str | None:
+    """Prompt user for API key if not set."""
+    console.print()
+    console.print(f"[yellow]No {env_var} found in environment.[/yellow]")
+    console.print(f"[dim]Get your API key from {provider_name}[/dim]")
+    console.print()
+
+    api_key = typer.prompt(
+        "Enter your API key (or press Enter to skip)",
+        default="",
+        show_default=False,
+    )
+
+    if not api_key:
+        return None
+
+    return api_key
+
+
+def _save_api_key_to_env(env_var: str, api_key: str) -> bool:
+    """Save API key to .env file."""
+    env_path = Path(ENV_FILE)
+
+    # Read existing content
+    existing_lines: list[str] = []
+    if env_path.exists():
+        with open(env_path) as f:
+            existing_lines = f.readlines()
+
+    # Check if key already exists
+    key_exists = False
+    new_lines = []
+    for line in existing_lines:
+        if line.strip().startswith(f"{env_var}="):
+            new_lines.append(f"{env_var}={api_key}\n")
+            key_exists = True
+        else:
+            new_lines.append(line)
+
+    # Add key if it doesn't exist
+    if not key_exists:
+        if new_lines and not new_lines[-1].endswith("\n"):
+            new_lines.append("\n")
+        new_lines.append(f"{env_var}={api_key}\n")
+
+    # Write file
+    with open(env_path, "w") as f:
+        f.writelines(new_lines)
+
+    return True
+
+
+def _ensure_api_key(model: str) -> bool:
+    """Ensure API key is available, prompting if necessary. Returns True if key is available."""
+    # Load .env file first
+    _load_env_file()
+
+    env_var = _get_required_api_key_var(model)
+    if not env_var:
+        return True  # No key required
+
+    if _check_api_key(env_var):
+        return True  # Key already set
+
+    # Determine provider name for help text
+    provider_urls = {
+        "OPENAI_API_KEY": "https://platform.openai.com/api-keys",
+        "ANTHROPIC_API_KEY": "https://console.anthropic.com/",
+        "GEMINI_API_KEY": "https://makersuite.google.com/app/apikey",
+        "COHERE_API_KEY": "https://dashboard.cohere.com/api-keys",
+        "MISTRAL_API_KEY": "https://console.mistral.ai/",
+        "GROQ_API_KEY": "https://console.groq.com/keys",
+        "TOGETHER_API_KEY": "https://api.together.xyz/",
+        "REPLICATE_API_KEY": "https://replicate.com/account/api-tokens",
+        "AZURE_API_KEY": "https://portal.azure.com/",
+    }
+
+    provider_url = provider_urls.get(env_var, "your provider's dashboard")
+    api_key = _prompt_for_api_key(env_var, provider_url)
+
+    if not api_key:
+        console.print("[dim]Skipping API key setup. Set it later with:[/dim]")
+        console.print(f"  export {env_var}=your-key-here")
+        return False
+
+    # Set in current environment
+    os.environ[env_var] = api_key
+
+    # Offer to save
+    if typer.confirm("Save to .env file for future use?", default=True):
+        _save_api_key_to_env(env_var, api_key)
+        console.print(f"[green]Saved to {ENV_FILE}[/green]")
+
+        # Ensure .env is in .gitignore
+        gitignore_path = Path(".gitignore")
+        if gitignore_path.exists():
+            content = gitignore_path.read_text()
+            if ".env" not in content:
+                with open(gitignore_path, "a") as f:
+                    f.write("\n# Environment variables\n.env\n")
+                console.print("[dim]Added .env to .gitignore[/dim]")
+
+    return True
 
 
 def _parse_threshold(value: str | None) -> float | None:
@@ -232,11 +380,11 @@ def get_isotope(
             console.print()
             console.print("Either create isotope.yaml:")
             console.print("  provider: litellm")
-            console.print("  llm_model: openai/gpt-4o")
+            console.print("  llm_model: openai/gpt-5-mini-2025-08-07")
             console.print("  embedding_model: openai/text-embedding-3-small")
             console.print()
             console.print("Or set environment variables:")
-            console.print("  export ISOTOPE_LITELLM_LLM_MODEL=openai/gpt-4o")
+            console.print("  export ISOTOPE_LITELLM_LLM_MODEL=openai/gpt-5-mini-2025-08-07")
             console.print("  export ISOTOPE_LITELLM_EMBEDDING_MODEL=openai/text-embedding-3-small")
             raise typer.Exit(1)
 
@@ -437,6 +585,13 @@ def ingest(
         console.print(f"[red]Error: Path not found: {path}[/red]")
         raise typer.Exit(1)
 
+    # Load config and ensure API key is available
+    cli_config = load_config(Path(config_file) if config_file else None)
+    llm_model = cli_config.get("llm_model") or os.environ.get("ISOTOPE_LITELLM_LLM_MODEL")
+    if llm_model and not _ensure_api_key(llm_model):
+        console.print("[red]Error: API key required for ingestion.[/red]")
+        raise typer.Exit(1)
+
     # Create Isotope
     try:
         iso = get_isotope(data_dir, config_file)
@@ -552,6 +707,14 @@ def query(
     if not os.path.exists(effective_data_dir):
         console.print(f"[red]Error: Data directory not found: {effective_data_dir}[/red]")
         console.print("[dim]Run 'isotope ingest' first to create the database.[/dim]")
+        raise typer.Exit(1)
+
+    # Ensure API key is available (needed for embeddings)
+    embedding_model = cli_config.get("embedding_model") or os.environ.get(
+        "ISOTOPE_LITELLM_EMBEDDING_MODEL"
+    )
+    if embedding_model and not _ensure_api_key(embedding_model):
+        console.print("[red]Error: API key required for querying.[/red]")
         raise typer.Exit(1)
 
     # Create Isotope and retriever
@@ -844,7 +1007,7 @@ def init(
 provider: litellm
 
 # LiteLLM model identifiers
-llm_model: {llm_model or "openai/gpt-4o"}
+llm_model: {llm_model or "openai/gpt-5-mini-2025-08-07"}
 embedding_model: {embedding_model or "openai/text-embedding-3-small"}
 
 # Optional: Use sentence-based atomizer instead of LLM
@@ -874,13 +1037,19 @@ atomizer: my_package.MyAtomizer
 
     config_path.write_text(content)
     console.print(f"[green]Created {config_path}[/green]")
-    console.print()
-    console.print("Next steps:")
+
     if provider == "litellm":
-        console.print("  1. Set your API key: export OPENAI_API_KEY=...")
-        console.print("  2. Ingest documents: isotope ingest ./docs")
-        console.print("  3. Query: isotope query 'your question'")
+        # Check for API key and prompt if needed
+        effective_model = llm_model or "openai/gpt-5-mini-2025-08-07"
+        _ensure_api_key(effective_model)
+
+        console.print()
+        console.print("[bold]Ready![/bold] Try these commands:")
+        console.print("  isotope ingest ./docs")
+        console.print("  isotope query 'your question'")
     else:
+        console.print()
+        console.print("Next steps:")
         console.print("  1. Implement your custom classes")
         console.print("  2. Update the class paths in isotope.yaml")
         console.print("  3. Ingest documents: isotope ingest ./docs")

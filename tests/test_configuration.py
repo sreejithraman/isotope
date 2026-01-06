@@ -57,7 +57,7 @@ class TestLiteLLMProvider:
         from isotope.embedder import ClientEmbedder
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
         embedder = provider.build_embedder()
@@ -72,7 +72,7 @@ class TestLiteLLMProvider:
         from isotope.settings import Settings
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
         atomizer = provider.build_atomizer(Settings())
@@ -87,7 +87,7 @@ class TestLiteLLMProvider:
         from isotope.settings import Settings
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
             atomizer_type="sentence",
         )
@@ -103,7 +103,7 @@ class TestLiteLLMProvider:
         from isotope.settings import Settings
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
         generator = provider.build_question_generator(Settings())
@@ -117,7 +117,7 @@ class TestLiteLLMProvider:
         from isotope.settings import Settings
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
         settings = Settings(questions_per_atom=20)
@@ -133,7 +133,7 @@ class TestLiteLLMProvider:
         from isotope.configuration import LiteLLMProvider
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
 
@@ -148,7 +148,7 @@ class TestProtocols:
         from isotope.configuration import LiteLLMProvider, ProviderConfig
 
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
 

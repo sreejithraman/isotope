@@ -16,7 +16,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 # Simple setup with LiteLLM + local storage
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     storage=LocalStorage("./my_data"),
@@ -27,7 +27,7 @@ ingestor = iso.ingestor()
 retriever = iso.retriever()
 
 # For synthesized answers, pass llm_model to the retriever:
-# retriever = iso.retriever(llm_model="openai/gpt-4o")
+# retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 ```
 
 ### Using Explicit Stores (Enterprise)
@@ -43,7 +43,7 @@ from isotope.stores import (
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     embedded_question_store=ChromaEmbeddedQuestionStore("./data/chroma"),
@@ -69,7 +69,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",            # LiteLLM model format
+        llm="openai/gpt-5-mini-2025-08-07",            # LiteLLM model format
         embedding="openai/text-embedding-3-small",
         atomizer_type="llm",            # or "sentence"
     ),
@@ -98,7 +98,7 @@ from isotope.stores import (
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     embedded_question_store=ChromaEmbeddedQuestionStore("./data/chroma"),
@@ -143,7 +143,7 @@ to a specific file if needed.
 
 ```bash
 # Create config for LiteLLM
-isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+isotope init --provider litellm --llm-model openai/gpt-5-mini-2025-08-07 --embedding-model openai/text-embedding-3-small
 
 # Or create manually
 ```
@@ -155,7 +155,7 @@ isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model open
 
 # LiteLLM provider
 provider: litellm
-llm_model: openai/gpt-4o
+llm_model: openai/gpt-5-mini-2025-08-07
 embedding_model: openai/text-embedding-3-small
 
 # Optional settings
@@ -188,7 +188,7 @@ atomizer_kwargs: {}
 If no config file is found, the CLI falls back to LiteLLM environment variables:
 
 ```bash
-export ISOTOPE_LITELLM_LLM_MODEL=openai/gpt-4o
+export ISOTOPE_LITELLM_LLM_MODEL=openai/gpt-5-mini-2025-08-07
 export ISOTOPE_LITELLM_EMBEDDING_MODEL=openai/text-embedding-3-small
 ```
 
@@ -224,7 +224,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     storage=LocalStorage("./isotope_data"),
@@ -242,8 +242,8 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="gemini/gemini-2.0-flash",
-        embedding="gemini/text-embedding-004",
+        llm="gemini/gemini-3-flash-preview",
+        embedding="gemini/gemini-embedding-001",
     ),
     storage=LocalStorage("./isotope_data"),
 )
@@ -439,7 +439,7 @@ settings = Settings(
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     storage=LocalStorage("./isotope_data"),
