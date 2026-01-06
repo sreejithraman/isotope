@@ -130,7 +130,7 @@ class Isotope:
             )
 
         # Build provider components
-        self.embedder = provider.build_embedder()
+        self.embedder = provider.build_embedder(self._settings)
         self._atomizer = provider.build_atomizer(self._settings)
         self._question_generator = provider.build_question_generator(self._settings)
 
@@ -228,7 +228,7 @@ class Isotope:
         if llm_client is None and llm_model is not None:
             from isotope.providers import LiteLLMClient
 
-            llm_client = LiteLLMClient(model=llm_model)
+            llm_client = LiteLLMClient(model=llm_model, num_retries=self._settings.num_retries)
 
         return Retriever(
             embedded_question_store=self.embedded_question_store,

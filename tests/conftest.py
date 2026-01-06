@@ -136,7 +136,7 @@ def mock_provider(mock_embedder, mock_atomizer, mock_generator):
         _atomizer: Any
         _question_generator: Any
 
-        def build_embedder(self) -> Any:
+        def build_embedder(self, settings: Any) -> Any:
             return self._embedder
 
         def build_atomizer(self, settings: Any) -> Any:

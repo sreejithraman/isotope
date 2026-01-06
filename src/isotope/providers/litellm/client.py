@@ -18,16 +18,26 @@ class LiteLLMClient(LLMClient):
 
         client = LiteLLMClient(model=ChatModels.GEMINI_3_FLASH)
         response = client.complete([{"role": "user", "content": "Hello"}])
+
+        # With retry for rate-limited APIs
+        client = LiteLLMClient(model=ChatModels.GEMINI_3_FLASH, num_retries=5)
     """
 
-    def __init__(self, model: str = ChatModels.GEMINI_3_FLASH) -> None:
+    def __init__(
+        self,
+        model: str = ChatModels.GEMINI_3_FLASH,
+        num_retries: int = 3,
+    ) -> None:
         """Initialize the LiteLLM client.
 
         Args:
             model: LiteLLM model identifier.
                    Examples: "openai/gpt-5-mini-2025-08-07", "anthropic/claude-sonnet-4-5-20250929"
+            num_retries: Number of retries on rate limit errors. LiteLLM handles
+                        exponential backoff automatically. Default: 3.
         """
         self.model = model
+        self.num_retries = num_retries
 
     def complete(
         self,
@@ -39,6 +49,7 @@ class LiteLLMClient(LLMClient):
             "model": self.model,
             "messages": messages,
             "drop_params": True,
+            "num_retries": self.num_retries,
         }
         if temperature is not None:
             completion_kwargs["temperature"] = temperature
@@ -62,6 +73,7 @@ class LiteLLMClient(LLMClient):
             "model": self.model,
             "messages": messages,
             "drop_params": True,
+            "num_retries": self.num_retries,
         }
         if temperature is not None:
             completion_kwargs["temperature"] = temperature
@@ -86,16 +98,26 @@ class LiteLLMEmbeddingClient(EmbeddingClient):
 
         client = LiteLLMEmbeddingClient(model=EmbeddingModels.TEXT_3_SMALL)
         embeddings = client.embed(["Hello world", "How are you?"])
+
+        # With retry for rate-limited APIs
+        client = LiteLLMEmbeddingClient(model=EmbeddingModels.TEXT_3_SMALL, num_retries=5)
     """
 
-    def __init__(self, model: str = EmbeddingModels.GEMINI_EMBEDDING_001) -> None:
+    def __init__(
+        self,
+        model: str = EmbeddingModels.GEMINI_EMBEDDING_001,
+        num_retries: int = 3,
+    ) -> None:
         """Initialize the LiteLLM embedding client.
 
         Args:
             model: LiteLLM embedding model identifier.
                    Examples: "openai/text-embedding-3-small", "gemini/gemini-embedding-001"
+            num_retries: Number of retries on rate limit errors. LiteLLM handles
+                        exponential backoff automatically. Default: 3.
         """
         self.model = model
+        self.num_retries = num_retries
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings using LiteLLM."""
@@ -105,6 +127,7 @@ class LiteLLMEmbeddingClient(EmbeddingClient):
         response = litellm.embedding(
             model=self.model,
             input=texts,
+            num_retries=self.num_retries,
         )
         # Sort by index to maintain order
         sorted_data = sorted(response.data, key=lambda x: x["index"])

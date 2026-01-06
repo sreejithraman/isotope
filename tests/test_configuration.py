@@ -55,12 +55,13 @@ class TestLiteLLMProvider:
         pytest.importorskip("litellm", reason="This test requires litellm")
         from isotope.configuration import LiteLLMProvider
         from isotope.embedder import ClientEmbedder
+        from isotope.settings import Settings
 
         provider = LiteLLMProvider(
             llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
-        embedder = provider.build_embedder()
+        embedder = provider.build_embedder(Settings())
 
         assert isinstance(embedder, ClientEmbedder)
 

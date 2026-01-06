@@ -94,8 +94,8 @@ def _get_required_api_key_var(model: str) -> str | None:
     for prefix, env_var in API_KEY_MAPPING.items():
         if model.startswith(prefix):
             return env_var
-    # Default to OpenAI for unknown prefixes
-    return "OPENAI_API_KEY"
+    # Unknown prefixes don't require API keys (e.g., ollama/, local models)
+    return None
 
 
 def _check_api_key(env_var: str) -> bool:
@@ -257,7 +257,9 @@ def _get_behavioral_settings_from_env() -> dict:
         "diversity_scope": _parse_diversity_scope(os.environ.get("ISOTOPE_DIVERSITY_SCOPE")),
         "default_k": int(os.environ.get("ISOTOPE_DEFAULT_K", "5")),
         "synthesis_prompt": os.environ.get("ISOTOPE_SYNTHESIS_PROMPT") or None,
-        "max_concurrent_questions": int(os.environ.get("ISOTOPE_MAX_CONCURRENT_QUESTIONS", "10")),
+        "max_concurrent_questions": os.environ.get("ISOTOPE_MAX_CONCURRENT_QUESTIONS"),
+        "num_retries": os.environ.get("ISOTOPE_NUM_RETRIES"),
+        "rate_limit_profile": os.environ.get("ISOTOPE_RATE_LIMIT_PROFILE"),
     }
 
 
@@ -354,17 +356,47 @@ def get_isotope(
     # Get behavioral settings from env vars (CLI reads env, passes to library)
     env_settings = _get_behavioral_settings_from_env()
 
-    # Build Settings from env vars
-    settings = Settings(
-        questions_per_atom=env_settings["questions_per_atom"],
-        question_generator_prompt=env_settings["question_generator_prompt"],
-        atomizer_prompt=env_settings["atomizer_prompt"],
-        question_diversity_threshold=env_settings["diversity_threshold"],
-        diversity_scope=env_settings["diversity_scope"],
-        default_k=env_settings["default_k"],
-        synthesis_prompt=env_settings["synthesis_prompt"],
-        max_concurrent_questions=env_settings["max_concurrent_questions"],
-    )
+    # Determine rate limit profile (config file takes precedence over env var)
+    rate_limit_profile = config.get("rate_limit_profile") or env_settings.get("rate_limit_profile")
+
+    # Build Settings - start with profile if specified, then apply overrides
+    if rate_limit_profile:
+        settings = Settings.with_profile(
+            rate_limit_profile,  # type: ignore[arg-type]
+            questions_per_atom=env_settings["questions_per_atom"],
+            question_generator_prompt=env_settings["question_generator_prompt"],
+            atomizer_prompt=env_settings["atomizer_prompt"],
+            question_diversity_threshold=env_settings["diversity_threshold"],
+            diversity_scope=env_settings["diversity_scope"],
+            default_k=env_settings["default_k"],
+            synthesis_prompt=env_settings["synthesis_prompt"],
+        )
+        # Apply individual overrides from env vars if explicitly set
+        if env_settings.get("max_concurrent_questions"):
+            settings = settings.model_copy(
+                update={"max_concurrent_questions": int(env_settings["max_concurrent_questions"])}
+            )
+        if env_settings.get("num_retries"):
+            settings = settings.model_copy(update={"num_retries": int(env_settings["num_retries"])})
+    else:
+        # No profile - use direct settings with defaults
+        settings = Settings(
+            questions_per_atom=env_settings["questions_per_atom"],
+            question_generator_prompt=env_settings["question_generator_prompt"],
+            atomizer_prompt=env_settings["atomizer_prompt"],
+            question_diversity_threshold=env_settings["diversity_threshold"],
+            diversity_scope=env_settings["diversity_scope"],
+            default_k=env_settings["default_k"],
+            synthesis_prompt=env_settings["synthesis_prompt"],
+            max_concurrent_questions=(
+                int(env_settings["max_concurrent_questions"])
+                if env_settings.get("max_concurrent_questions")
+                else 10
+            ),
+            num_retries=(
+                int(env_settings["num_retries"]) if env_settings.get("num_retries") else 3
+            ),
+        )
 
     if provider == "litellm":
         # LiteLLM provider
@@ -453,7 +485,7 @@ def get_isotope(
             _atomizer: Any
             _question_generator: Any
 
-            def build_embedder(self) -> Any:
+            def build_embedder(self, settings: Settings) -> Any:
                 return self._embedder
 
             def build_atomizer(self, settings: Settings) -> Any:
@@ -462,7 +494,7 @@ def get_isotope(
             def build_question_generator(self, settings: Settings) -> Any:
                 return self._question_generator
 
-            def build_llm_client(self) -> Any:
+            def build_llm_client(self, settings: Settings | None = None) -> Any:
                 raise NotImplementedError(
                     "Custom provider does not support build_llm_client. "
                     "Use --raw flag with 'isotope query' or extend your provider."
@@ -529,8 +561,18 @@ def config(
         )
         table.add_row("atomizer", cli_config.get("atomizer", "(not set)"), "config file")
 
-    # Behavioral settings (from env vars, read by CLI)
+    # Rate limit profile (from config file or env var)
     table.add_row("", "", "")  # Separator
+    rate_limit_profile = cli_config.get("rate_limit_profile") or env_settings.get(
+        "rate_limit_profile"
+    )
+    table.add_row(
+        "rate_limit_profile",
+        rate_limit_profile or "(none)",
+        "config file" if cli_config.get("rate_limit_profile") else "env var",
+    )
+
+    # Behavioral settings (from env vars, read by CLI)
     table.add_row("questions_per_atom", str(env_settings["questions_per_atom"]), "env var")
     threshold = env_settings["diversity_threshold"]
     table.add_row(
@@ -542,7 +584,12 @@ def config(
     table.add_row("default_k", str(env_settings["default_k"]), "env var")
     table.add_row(
         "max_concurrent_questions",
-        str(env_settings["max_concurrent_questions"]),
+        env_settings["max_concurrent_questions"] or "(default: 10)",
+        "env var",
+    )
+    table.add_row(
+        "num_retries",
+        env_settings["num_retries"] or "(default: 3)",
         "env var",
     )
 
