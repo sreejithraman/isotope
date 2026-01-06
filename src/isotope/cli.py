@@ -26,6 +26,7 @@ try:
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
     from rich.table import Table
 except ImportError as e:
     raise SystemExit(
@@ -623,6 +624,11 @@ def ingest(
         "--plain",
         help="Plain output (no colors/formatting)",
     ),
+    no_progress: bool = typer.Option(
+        False,
+        "--no-progress",
+        help="Disable progress bars",
+    ),
 ) -> None:
     """Ingest a file or directory into the database."""
     from isotope.loaders import LoaderRegistry
@@ -672,26 +678,95 @@ def ingest(
     skipped_count = 0
     ingested_count = 0
 
-    for filepath in files:
-        try:
-            result = iso.ingest_file(filepath)
+    # Determine if we should show progress bars
+    show_progress = not plain and not no_progress and console.is_terminal
 
-            if result.get("skipped"):
-                skipped_count += 1
-                if not plain:
-                    console.print(f"[dim]Skipped {filepath}: {result['reason']}[/dim]")
-            else:
-                ingested_count += 1
-                total_chunks += result.get("chunks", 0)
-                total_atoms += result.get("atoms", 0)
-                total_questions += result.get("questions", 0)
-                total_questions_filtered += result.get("questions_filtered", 0)
-                if not plain:
+    def process_result(result: dict, filepath: str) -> None:
+        """Process ingestion result and update counters."""
+        nonlocal total_chunks, total_atoms, total_questions, total_questions_filtered
+        nonlocal skipped_count, ingested_count
+
+        if result.get("skipped"):
+            skipped_count += 1
+        else:
+            ingested_count += 1
+            total_chunks += result.get("chunks", 0)
+            total_atoms += result.get("atoms", 0)
+            total_questions += result.get("questions", 0)
+            total_questions_filtered += result.get("questions_filtered", 0)
+
+    if show_progress:
+        # Progress bar display
+        stage_names = {
+            "storing": "Storing",
+            "atomizing": "Atomizing",
+            "generating": "Generating",
+            "embedding": "Embedding",
+            "filtering": "Filtering",
+            "indexing": "Indexing",
+        }
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold]{task.fields[stage]:>12}", justify="right"),
+            BarColumn(bar_width=20),
+            TaskProgressColumn(),
+            TextColumn("{task.description}", style="dim"),
+            console=console,
+        ) as progress:
+            files_task = progress.add_task("", total=len(files), stage="Files")
+            stage_task = progress.add_task("", total=100, stage="", visible=False)
+
+            for i, filepath in enumerate(files):
+                filename = os.path.basename(filepath)
+                progress.update(files_task, description=filename, completed=i)
+
+                def on_progress(event: str, current: int, total: int, message: str) -> None:
+                    stage_name = stage_names.get(event, event.capitalize())
+                    if total > 1:
+                        progress.update(
+                            stage_task,
+                            visible=True,
+                            stage=stage_name,
+                            description=f"({current}/{total})",
+                            total=total,
+                            completed=current,
+                        )
+                    else:
+                        # Indeterminate progress - use spinner
+                        progress.update(
+                            stage_task,
+                            visible=True,
+                            stage=stage_name,
+                            description=message,
+                            total=None,
+                        )
+
+                try:
+                    result = iso.ingest_file(filepath, on_progress=on_progress)
+                    process_result(result, filepath)
+                except (OSError, ValueError, RuntimeError) as e:
+                    err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
+                    console.print(f"[yellow]{err_msg}[/yellow]")
+
+                progress.update(stage_task, visible=False)
+
+            progress.update(files_task, completed=len(files), description="Done")
+    else:
+        # Non-progress fallback (original behavior)
+        for filepath in files:
+            try:
+                result = iso.ingest_file(filepath)
+                process_result(result, filepath)
+
+                if result.get("skipped"):
+                    if not plain:
+                        console.print(f"[dim]Skipped {filepath}: {result['reason']}[/dim]")
+                elif not plain:
                     console.print(f"[green]Ingested {filepath}[/green]")
-        except (OSError, ValueError, RuntimeError) as e:
-            console.print(
-                f"[yellow]Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}[/yellow]"
-            )
+            except (OSError, ValueError, RuntimeError) as e:
+                err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
+                console.print(f"[yellow]{err_msg}[/yellow]")
 
     # Summary
     if plain:

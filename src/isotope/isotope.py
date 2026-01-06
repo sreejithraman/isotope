@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from isotope.configuration import ProviderConfig, StorageConfig
-    from isotope.ingestor import Ingestor
+    from isotope.ingestor import Ingestor, ProgressCallback
     from isotope.loaders import LoaderRegistry
     from isotope.providers import LLMClient
     from isotope.question_generator import DiversityFilter, FilterScope
@@ -310,6 +310,7 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> dict:
         """Ingest a file, skipping if content unchanged.
 
@@ -325,6 +326,7 @@ class Isotope:
             diversity_filter: Custom diversity filter for question deduplication
             use_diversity_filter: Whether to use diversity filter
             diversity_scope: Scope for diversity filtering
+            on_progress: Optional callback for progress updates
 
         Returns:
             Dict with ingestion statistics or skip info:
@@ -367,7 +369,7 @@ class Isotope:
             use_diversity_filter=use_diversity_filter,
             diversity_scope=diversity_scope,
         )
-        result = ingestor.ingest_chunks(chunks)
+        result = ingestor.ingest_chunks(chunks, on_progress=on_progress)
 
         # Track the new hash after successful ingestion
         self._source_registry.set_hash(source, content_hash)
@@ -383,6 +385,7 @@ class Isotope:
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
         max_concurrent_questions: int | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> dict:
         """Ingest a file with async question generation, skipping if content unchanged.
 
@@ -398,6 +401,7 @@ class Isotope:
             diversity_scope: Scope for diversity filtering
             max_concurrent_questions: Maximum concurrent async requests.
                                      If None, uses settings default.
+            on_progress: Optional callback for progress updates
 
         Returns:
             Dict with ingestion statistics or skip info:
@@ -441,7 +445,7 @@ class Isotope:
             diversity_scope=diversity_scope,
             max_concurrent_questions=max_concurrent_questions,
         )
-        result = await ingestor.aingest_chunks(chunks)
+        result = await ingestor.aingest_chunks(chunks, on_progress=on_progress)
 
         # Track the new hash after successful ingestion
         self._source_registry.set_hash(source, content_hash)
