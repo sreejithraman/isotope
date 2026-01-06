@@ -26,7 +26,7 @@ try:
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 except ImportError as e:
     raise SystemExit(
@@ -710,24 +710,34 @@ def ingest(
             SpinnerColumn(),
             TextColumn("[bold]{task.fields[stage]:>12}", justify="right"),
             BarColumn(bar_width=20),
-            TaskProgressColumn(),
+            TextColumn("{task.fields[progress_text]}", style="cyan"),
             TextColumn("{task.description}", style="dim"),
             console=console,
         ) as progress:
-            files_task = progress.add_task("", total=len(files), stage="Files")
-            stage_task = progress.add_task("", total=100, stage="", visible=False)
+            file_count = len(files)
+            files_task = progress.add_task(
+                "", total=file_count, stage="Files", progress_text=f"0/{file_count}"
+            )
+            stage_task = progress.add_task("", total=100, stage="", visible=False, progress_text="")
 
             for i, filepath in enumerate(files):
                 filename = os.path.basename(filepath)
-                progress.update(files_task, description=filename, completed=i)
+                progress.update(
+                    files_task,
+                    description=filename,
+                    completed=i,
+                    progress_text=f"{i + 1}/{file_count}",
+                )
 
                 def on_progress(event: str, current: int, total: int, message: str) -> None:
                     stage_name = stage_names.get(event, event.capitalize())
                     if total > 1:
+                        pct = int(100 * current / total)
                         progress.update(
                             stage_task,
                             visible=True,
                             stage=stage_name,
+                            progress_text=f"{pct}%",
                             description=f"({current}/{total})",
                             total=total,
                             completed=current,
@@ -738,6 +748,7 @@ def ingest(
                             stage_task,
                             visible=True,
                             stage=stage_name,
+                            progress_text="",
                             description=message,
                             total=None,
                         )
@@ -751,7 +762,7 @@ def ingest(
 
                 progress.update(stage_task, visible=False)
 
-            progress.update(files_task, completed=len(files), description="Done")
+            progress.update(files_task, completed=file_count, progress_text="Done", description="")
     else:
         # Non-progress fallback (original behavior)
         for filepath in files:
