@@ -41,7 +41,16 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,chroma]" pip-audit
       - name: Run pip-audit
-        run: pip-audit
+        # Ignored vulnerabilities with no available fix:
+        # - urllib3 CVEs: chromadb -> kubernetes pins urllib3<2.4.0
+        # - pdfminer-six: no patched version available (pdfplumber dependency)
+        run: |
+          pip-audit \
+            --ignore-vuln CVE-2025-50182 \
+            --ignore-vuln CVE-2025-50181 \
+            --ignore-vuln CVE-2025-66418 \
+            --ignore-vuln CVE-2025-66471 \
+            --ignore-vuln GHSA-f83h-ghpp-7wcc
 
   type-check:
     runs-on: ubuntu-latest
