@@ -25,3 +25,22 @@ Pre-commit hooks run automatically on commit. If you need to fix issues manually
 ```bash
 make fix
 ```
+
+## CI Structure
+
+```
+format ──┐
+lint ────┼──► type-check ──┐
+         │                 │
+         ├──► test ────────┼──► ci (gate)
+         │                 │
+         ├──► test-loaders─┘
+         │
+security─┘
+```
+
+The `ci` gate job aggregates all results into a single required check for branch protection.
+
+**Adding new CI jobs:** Add the job to `.github/workflows/ci.yml`, then add it to the `needs` list in the `ci` gate job.
+
+**Python 3.13:** Tested experimentally—failures don't block PRs until dependencies fully support it.

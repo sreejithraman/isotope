@@ -96,6 +96,8 @@ jobs:
       - name: Run loader tests
         run: pytest tests/loaders/
 
+  # Gate job: Aggregates all CI results into a single required check.
+  # When adding new jobs, add them to the `needs` list below.
   ci:
     name: CI
     runs-on: ubuntu-latest
