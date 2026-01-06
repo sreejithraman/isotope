@@ -22,6 +22,12 @@ dependencies = [
     "pydantic>=2.0,<3",
     "pysbd>=0.3.4,<1",
     "numpy>=1.24,<3",
+    # Security constraints for transitive dependencies
+    "aiohttp>=3.13.3",      # CVE-2025-69223 through CVE-2025-69230
+    "pillow>=11.3.0",       # PYSEC-2025-61
+    "requests>=2.32.4",     # CVE-2024-47081
+    "setuptools>=78.1.1",   # CVE-2024-6345, PYSEC-2022-43012, PYSEC-2025-49
+    "werkzeug>=3.1.4",      # CVE-2025-66221
 ]
 
 [project.optional-dependencies]

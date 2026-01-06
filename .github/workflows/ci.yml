@@ -6,9 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   format:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
@@ -17,50 +22,106 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
         with:
           args: check src tests
 
-  type-check:
+  security:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
       - name: Install dependencies
+        run: pip install -e ".[dev,chroma]" pip-audit
+      - name: Run pip-audit
+        # Ignored vulnerabilities with no available fix:
+        # - urllib3 CVEs: chromadb -> kubernetes pins urllib3<2.4.0
+        # - pdfminer-six: no patched version available (pdfplumber dependency)
         run: |
-          pip install -e ".[dev,chroma]"
+          pip-audit \
+            --ignore-vuln CVE-2025-50182 \
+            --ignore-vuln CVE-2025-50181 \
+            --ignore-vuln CVE-2025-66418 \
+            --ignore-vuln CVE-2025-66471 \
+            --ignore-vuln GHSA-f83h-ghpp-7wcc
+
+  type-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [format, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -e ".[dev,chroma]"
       - name: Run mypy
         run: mypy src
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [format, lint]
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
+        include:
+          - python-version: "3.13"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental || false }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
       - name: Install dependencies
-        run: |
-          pip install -e ".[dev,chroma]"
+        run: pip install -e ".[dev,chroma]"
       - name: Run tests
         run: pytest
 
   test-loaders:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [format, lint]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
       - name: Install dependencies with loaders
-        run: |
-          pip install -e ".[dev,all]"
+        run: pip install -e ".[dev,all]"
       - name: Run loader tests
         run: pytest tests/loaders/
+
+  # Gate job: Aggregates all CI results into a single required check.
+  # When adding new jobs, add them to the `needs` list below.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [format, lint, security, type-check, test, test-loaders]
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more checks failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more checks were cancelled"
+            exit 1
+          fi
+          echo "All checks passed!"
