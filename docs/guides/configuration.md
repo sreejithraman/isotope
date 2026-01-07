@@ -182,10 +182,9 @@ settings:
   num_retries: 5                 # retry count on failures
   rate_limit_profile: aggressive # aggressive | conservative
   synthesis_temperature: 0.3     # answer synthesis temperature
+  generation_preset: cloud       # cloud | local (auto-detects if omitted)
+  batch_size: 1                  # atoms per LLM prompt (overrides preset)
 ```
-
-Note: `generation_preset` and `batch_size` are Settings-only today. Configure them in code
-when constructing `Settings` (see below).
 
 ### Configuration Precedence
 
@@ -252,10 +251,12 @@ The CLI supports a subset via `ISOTOPE_*` env vars and YAML `settings:`.
 | `ISOTOPE_ATOMIZER_PROMPT` | (default prompt) | Custom atomization prompt template |
 | `ISOTOPE_SYNTHESIS_PROMPT` | (default prompt) | Custom answer synthesis prompt template |
 
-### Settings-only Fields (no CLI env vars)
+### YAML-only Settings (no env var support)
 
-| Field | Default | Description |
-|-------|---------|-------------|
+These settings can be configured in `isotope.yaml` under the `settings:` section, but have no corresponding `ISOTOPE_*` environment variables:
+
+| YAML Key | Default | Description |
+|----------|---------|-------------|
 | `generation_preset` | `None` | `cloud` or `local` preset for batching (auto-detects from model if omitted) |
 | `batch_size` | `None` | Atoms per LLM prompt (overrides preset when set) |
 | `synthesis_temperature` | `0.3` | Temperature for answer synthesis |

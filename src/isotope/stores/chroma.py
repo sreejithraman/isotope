@@ -110,21 +110,35 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
         return self._collection.count()
 
     def sample(self, n: int = 5, chunk_ids: list[str] | None = None) -> list[Question]:
-        """Get a random sample of questions."""
+        """Get a random sample of questions.
+
+        For memory efficiency, fetches only IDs first, samples from those,
+        then retrieves metadata only for the sampled items.
+        """
         import random
 
         if self._collection.count() == 0:
             return []
 
-        if chunk_ids is not None:
-            if not chunk_ids:
-                return []
-            results = self._collection.get(
-                where={"chunk_id": {"$in": chunk_ids}},  # type: ignore[dict-item]
-                include=["metadatas"],
-            )
-        else:
-            results = self._collection.get(include=["metadatas"])
+        where_filter = {"chunk_id": {"$in": chunk_ids}} if chunk_ids else None
+
+        if chunk_ids is not None and not chunk_ids:
+            return []
+
+        # Fetch only IDs first to minimize memory usage
+        all_ids = self._collection.get(
+            where=where_filter,  # type: ignore[arg-type]
+            include=[],
+        )["ids"]
+
+        if not all_ids:
+            return []
+
+        # Sample from IDs
+        sampled_ids = random.sample(all_ids, min(n, len(all_ids)))
+
+        # Fetch metadata only for sampled items
+        results = self._collection.get(ids=sampled_ids, include=["metadatas"])
 
         questions = []
         for qid, meta in zip(results["ids"], results["metadatas"] or [], strict=True):
@@ -137,10 +151,7 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
                 )
             )
 
-        if not questions:
-            return []
-
-        return random.sample(questions, min(n, len(questions)))
+        return questions
 
     def count_by_chunk_ids(self, chunk_ids: list[str]) -> int:
         """Count questions associated with given chunk IDs."""
