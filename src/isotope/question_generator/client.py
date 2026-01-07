@@ -164,7 +164,9 @@ class ClientQuestionGenerator(AsyncOnlyGeneratorMixin, QuestionGenerator):
                     key = str(i)
                     if key in parsed and isinstance(parsed[key], list):
                         all_questions.extend(self._create_questions(parsed[key], atom))
-                return all_questions
+                # Only return if we found questions; otherwise try other strategies
+                if all_questions:
+                    return all_questions
         except json.JSONDecodeError:
             pass
 
@@ -175,7 +177,9 @@ class ClientQuestionGenerator(AsyncOnlyGeneratorMixin, QuestionGenerator):
                 for atom, question_texts in zip(atoms, parsed, strict=True):
                     if isinstance(question_texts, list):
                         all_questions.extend(self._create_questions(question_texts, atom))
-                return all_questions
+                # Only return if we found questions; otherwise try other strategies
+                if all_questions:
+                    return all_questions
         except json.JSONDecodeError:
             pass
 

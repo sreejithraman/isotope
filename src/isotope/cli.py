@@ -868,17 +868,89 @@ def ingest(
             total_questions += result.get("questions", 0)
             total_questions_filtered += result.get("questions_filtered", 0)
 
-    if show_progress:
-        # Progress bar display
-        stage_names = {
-            "storing": "Storing",
-            "atomizing": "Atomizing",
-            "generating": "Generating",
-            "embedding": "Embedding",
-            "filtering": "Filtering",
-            "indexing": "Indexing",
-        }
+    # Stage names for progress display
+    stage_names = {
+        "storing": "Storing",
+        "atomizing": "Atomizing",
+        "generating": "Generating",
+        "embedding": "Embedding",
+        "filtering": "Filtering",
+        "indexing": "Indexing",
+    }
 
+    def ingest_files_with_progress(progress: Progress) -> None:
+        """Ingest files with progress bar display."""
+        nonlocal failed_count
+        file_count = len(files)
+        files_task = progress.add_task(
+            "", total=file_count, stage="Files", progress_text=f"0/{file_count}"
+        )
+        stage_task = progress.add_task("", total=100, stage="", visible=False, progress_text="")
+
+        for i, filepath in enumerate(files):
+            filename = os.path.basename(filepath)
+            progress.update(
+                files_task,
+                description=filename,
+                completed=i,
+                progress_text=f"{i + 1}/{file_count}",
+            )
+
+            def on_progress(event: str, current: int, total: int, message: str) -> None:
+                stage_name = stage_names.get(event, event.capitalize())
+                if total > 1:
+                    pct = int(100 * current / total)
+                    progress.update(
+                        stage_task,
+                        visible=True,
+                        stage=stage_name,
+                        progress_text=f"{pct}%",
+                        description=f"({current}/{total})",
+                        total=total,
+                        completed=current,
+                    )
+                else:
+                    # Indeterminate progress - use spinner
+                    progress.update(
+                        stage_task,
+                        visible=True,
+                        stage=stage_name,
+                        progress_text="",
+                        description=message,
+                        total=None,
+                    )
+
+            try:
+                result = iso.ingest_file(filepath, on_progress=on_progress)
+                process_result(result, filepath)
+            except (OSError, ValueError, RuntimeError) as e:
+                failed_count += 1
+                err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
+                console.print(f"[yellow]{err_msg}[/yellow]")
+
+            progress.update(stage_task, visible=False)
+
+        progress.update(files_task, completed=file_count, progress_text="Done", description="")
+
+    def ingest_files_simple() -> None:
+        """Ingest files with simple console output."""
+        nonlocal failed_count
+        for filepath in files:
+            try:
+                result = iso.ingest_file(filepath)
+                process_result(result, filepath)
+
+                if not plain:
+                    if result.get("skipped"):
+                        console.print(f"[dim]Skipped {filepath}: {result['reason']}[/dim]")
+                    else:
+                        console.print(f"[green]Ingested {filepath}[/green]")
+            except (OSError, ValueError, RuntimeError) as e:
+                failed_count += 1
+                err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
+                console.print(f"[yellow]{err_msg}[/yellow]")
+
+    if show_progress:
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold]{task.fields[stage]:>12}", justify="right"),
@@ -887,72 +959,9 @@ def ingest(
             TextColumn("{task.description}", style="dim"),
             console=console,
         ) as progress:
-            file_count = len(files)
-            files_task = progress.add_task(
-                "", total=file_count, stage="Files", progress_text=f"0/{file_count}"
-            )
-            stage_task = progress.add_task("", total=100, stage="", visible=False, progress_text="")
-
-            for i, filepath in enumerate(files):
-                filename = os.path.basename(filepath)
-                progress.update(
-                    files_task,
-                    description=filename,
-                    completed=i,
-                    progress_text=f"{i + 1}/{file_count}",
-                )
-
-                def on_progress(event: str, current: int, total: int, message: str) -> None:
-                    stage_name = stage_names.get(event, event.capitalize())
-                    if total > 1:
-                        pct = int(100 * current / total)
-                        progress.update(
-                            stage_task,
-                            visible=True,
-                            stage=stage_name,
-                            progress_text=f"{pct}%",
-                            description=f"({current}/{total})",
-                            total=total,
-                            completed=current,
-                        )
-                    else:
-                        # Indeterminate progress - use spinner
-                        progress.update(
-                            stage_task,
-                            visible=True,
-                            stage=stage_name,
-                            progress_text="",
-                            description=message,
-                            total=None,
-                        )
-
-                try:
-                    result = iso.ingest_file(filepath, on_progress=on_progress)
-                    process_result(result, filepath)
-                except (OSError, ValueError, RuntimeError) as e:
-                    failed_count += 1
-                    err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
-                    console.print(f"[yellow]{err_msg}[/yellow]")
-
-                progress.update(stage_task, visible=False)
-
-            progress.update(files_task, completed=file_count, progress_text="Done", description="")
+            ingest_files_with_progress(progress)
     else:
-        # Non-progress fallback (original behavior)
-        for filepath in files:
-            try:
-                result = iso.ingest_file(filepath)
-                process_result(result, filepath)
-
-                if result.get("skipped"):
-                    if not plain:
-                        console.print(f"[dim]Skipped {filepath}: {result['reason']}[/dim]")
-                elif not plain:
-                    console.print(f"[green]Ingested {filepath}[/green]")
-            except (OSError, ValueError, RuntimeError) as e:
-                failed_count += 1
-                err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
-                console.print(f"[yellow]{err_msg}[/yellow]")
+        ingest_files_simple()
 
     # Summary
     if plain:
@@ -1495,7 +1504,9 @@ def init(
                 "Choose",
                 default="3",
             )
-            rate_limited = rate_limit_choice == "1" or rate_limit_choice == "3"
+            # Treat "Not sure" as rate-limited for safety
+            is_high_rate_limit = rate_limit_choice == "2"
+            rate_limited = not is_high_rate_limit
 
             # Ask about priority
             console.print()
