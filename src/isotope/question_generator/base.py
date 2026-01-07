@@ -132,6 +132,10 @@ class AsyncOnlyGeneratorMixin:
 
     Provides generate_batch() that runs agenerate_batch() with asyncio.run().
     Use this for I/O-bound implementations like API calls.
+
+    Note: The sync generate_batch() method uses asyncio.run(), which cannot be
+    called from within an already-running event loop (e.g., Jupyter notebooks,
+    async web frameworks). In async contexts, use agenerate_batch() directly.
     """
 
     def generate_batch(

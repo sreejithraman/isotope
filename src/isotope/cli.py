@@ -72,7 +72,7 @@ def main(
     ),
 ) -> None:
     """Isotope - Reverse RAG database."""
-    pass
+    _load_env_file()
 
 
 DEFAULT_DATA_DIR = "./isotope_data"
@@ -81,18 +81,27 @@ ENV_FILE = ".env"
 
 
 def _load_env_file() -> None:
-    """Load environment variables from .env file if it exists."""
+    """Load environment variables from .env file if it exists.
+
+    This is called automatically at CLI startup so that API keys saved by
+    `isotope init` are available for subsequent commands.
+    """
     env_path = Path(ENV_FILE)
-    if env_path.exists():
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, _, value = line.partition("=")
-                    key = key.strip()
-                    value = value.strip().strip("'\"")
-                    if key and value and key not in os.environ:
-                        os.environ[key] = value
+    if not env_path.exists():
+        return
+
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                # Don't override existing env vars
+                if key not in os.environ:
+                    os.environ[key] = value
 
 
 def _collect_api_keys() -> tuple[str | None, str | None]:
@@ -106,7 +115,9 @@ def _collect_api_keys() -> tuple[str | None, str | None]:
         "Enter your LLM API key (leave empty if not needed)",
         default="",
         show_default=False,
+        hide_input=True,
     )
+    llm_key = llm_key.strip() if llm_key else None
 
     if not llm_key:
         return None, None
@@ -129,7 +140,9 @@ def _collect_api_keys() -> tuple[str | None, str | None]:
             "Enter embedding API key",
             default="",
             show_default=False,
+            hide_input=True,
         )
+        embed_key = embed_key.strip() if embed_key else None
     else:
         embed_key = None
 
@@ -214,6 +227,20 @@ def _parse_diversity_scope(value: str | None) -> FilterScope:
     return cast(FilterScope, normalized)
 
 
+def _safe_int_env(env_var: str) -> int | None:
+    """Parse int from env var with user-friendly error on invalid value."""
+    value = os.environ.get(env_var)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        console.print(
+            f"[yellow]Warning: Invalid integer for {env_var}='{value}', ignoring[/yellow]"
+        )
+        return None
+
+
 def _get_behavioral_settings_from_env() -> dict:
     """Read behavioral settings from ISOTOPE_* environment variables.
 
@@ -226,8 +253,8 @@ def _get_behavioral_settings_from_env() -> dict:
     result: dict = {}
 
     # Only include values that are explicitly set in environment
-    if "ISOTOPE_QUESTIONS_PER_ATOM" in os.environ:
-        result["questions_per_atom"] = int(os.environ["ISOTOPE_QUESTIONS_PER_ATOM"])
+    if (val := _safe_int_env("ISOTOPE_QUESTIONS_PER_ATOM")) is not None:
+        result["questions_per_atom"] = val
     if "ISOTOPE_QUESTION_GENERATOR_PROMPT" in os.environ:
         result["question_generator_prompt"] = (
             os.environ["ISOTOPE_QUESTION_GENERATOR_PROMPT"] or None
@@ -235,19 +262,19 @@ def _get_behavioral_settings_from_env() -> dict:
     if "ISOTOPE_ATOMIZER_PROMPT" in os.environ:
         result["atomizer_prompt"] = os.environ["ISOTOPE_ATOMIZER_PROMPT"] or None
     if "ISOTOPE_QUESTION_DIVERSITY_THRESHOLD" in os.environ:
-        result["diversity_threshold"] = _parse_threshold(
+        result["question_diversity_threshold"] = _parse_threshold(
             os.environ["ISOTOPE_QUESTION_DIVERSITY_THRESHOLD"]
         )
     if "ISOTOPE_DIVERSITY_SCOPE" in os.environ:
         result["diversity_scope"] = _parse_diversity_scope(os.environ["ISOTOPE_DIVERSITY_SCOPE"])
-    if "ISOTOPE_DEFAULT_K" in os.environ:
-        result["default_k"] = int(os.environ["ISOTOPE_DEFAULT_K"])
+    if (val := _safe_int_env("ISOTOPE_DEFAULT_K")) is not None:
+        result["default_k"] = val
     if "ISOTOPE_SYNTHESIS_PROMPT" in os.environ:
         result["synthesis_prompt"] = os.environ["ISOTOPE_SYNTHESIS_PROMPT"] or None
-    if "ISOTOPE_MAX_CONCURRENT_LLM_CALLS" in os.environ:
-        result["max_concurrent_llm_calls"] = int(os.environ["ISOTOPE_MAX_CONCURRENT_LLM_CALLS"])
-    if "ISOTOPE_NUM_RETRIES" in os.environ:
-        result["num_retries"] = int(os.environ["ISOTOPE_NUM_RETRIES"])
+    if (val := _safe_int_env("ISOTOPE_MAX_CONCURRENT_LLM_CALLS")) is not None:
+        result["max_concurrent_llm_calls"] = val
+    if (val := _safe_int_env("ISOTOPE_NUM_RETRIES")) is not None:
+        result["num_retries"] = val
     if "ISOTOPE_RATE_LIMIT_PROFILE" in os.environ:
         result["rate_limit_profile"] = os.environ["ISOTOPE_RATE_LIMIT_PROFILE"]
     if "ISOTOPE_USE_SENTENCE_ATOMIZER" in os.environ:
@@ -276,8 +303,8 @@ def _get_settings_from_yaml(config: dict) -> dict:
         "questions_per_atom": "questions_per_atom",
         "question_generator_prompt": "question_generator_prompt",
         "atomizer_prompt": "atomizer_prompt",
-        "question_diversity_threshold": "diversity_threshold",
-        "diversity_threshold": "diversity_threshold",  # alias
+        "question_diversity_threshold": "question_diversity_threshold",
+        "diversity_threshold": "question_diversity_threshold",  # alias
         "diversity_scope": "diversity_scope",
         "default_k": "default_k",
         "synthesis_prompt": "synthesis_prompt",
@@ -285,6 +312,8 @@ def _get_settings_from_yaml(config: dict) -> dict:
         "max_concurrent_llm_calls": "max_concurrent_llm_calls",
         "num_retries": "num_retries",
         "rate_limit_profile": "rate_limit_profile",
+        "batch_size": "batch_size",
+        "generation_preset": "generation_preset",
     }
 
     for yaml_key, settings_key in key_mappings.items():
@@ -717,7 +746,9 @@ def config(
         str(settings.question_diversity_threshold)
         if settings.question_diversity_threshold is not None
         else "disabled",
-        _get_setting_source("diversity_threshold", yaml_settings, env_settings, cli_config),
+        _get_setting_source(
+            "question_diversity_threshold", yaml_settings, env_settings, cli_config
+        ),
     )
     table.add_row(
         "diversity_scope",
@@ -818,6 +849,7 @@ def ingest(
     total_questions_filtered = 0
     skipped_count = 0
     ingested_count = 0
+    failed_count = 0
 
     # Determine if we should show progress bars
     show_progress = not plain and not no_progress and console.is_terminal
@@ -898,6 +930,7 @@ def ingest(
                     result = iso.ingest_file(filepath, on_progress=on_progress)
                     process_result(result, filepath)
                 except (OSError, ValueError, RuntimeError) as e:
+                    failed_count += 1
                     err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
                     console.print(f"[yellow]{err_msg}[/yellow]")
 
@@ -917,6 +950,7 @@ def ingest(
                 elif not plain:
                     console.print(f"[green]Ingested {filepath}[/green]")
             except (OSError, ValueError, RuntimeError) as e:
+                failed_count += 1
                 err_msg = f"Warning: Failed to ingest {filepath} ({type(e).__name__}): {e}"
                 console.print(f"[yellow]{err_msg}[/yellow]")
 
@@ -938,6 +972,10 @@ def ingest(
             console.print(f"[dim]Filtered {total_questions_filtered} similar questions[/dim]")
         if skipped_count > 0:
             console.print(f"[dim]Skipped {skipped_count} unchanged files[/dim]")
+
+    # Exit with error if all files failed
+    if failed_count > 0 and ingested_count == 0:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -1289,7 +1327,7 @@ def _is_local_model(model: str) -> bool:
 
 def _get_settings_for_init(
     is_local: bool, rate_limited: bool | None, priority: str
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """Get settings based on user's environment and priority.
 
     Returns a dict of settings that differ from defaults.
@@ -1353,7 +1391,7 @@ def _get_settings_for_init(
 def _generate_config_content(
     llm_model: str,
     embedding_model: str,
-    settings: dict[str, any],
+    settings: dict[str, Any],
 ) -> str:
     """Generate isotope.yaml content with settings."""
     # Start with provider config

@@ -175,10 +175,10 @@ class Settings(BaseModel):
         batch_size = preset_config["batch_size"]
         max_concurrent = preset_config["max_concurrent_llm_calls"]
 
-        # Override with explicit settings
+        # Override with explicit settings (use model_fields_set to detect explicit values)
         if self.batch_size is not None:
             batch_size = self.batch_size
-        if self.max_concurrent_llm_calls != 10:  # Check if explicitly set (not default)
+        if "max_concurrent_llm_calls" in self.model_fields_set:
             max_concurrent = self.max_concurrent_llm_calls
 
         return batch_size, max_concurrent
