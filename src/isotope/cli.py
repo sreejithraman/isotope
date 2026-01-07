@@ -514,6 +514,18 @@ def get_isotope(
             console.print("  export ISOTOPE_LITELLM_EMBEDDING_MODEL=openai/text-embedding-3-small")
             raise typer.Exit(1)
 
+        # Check for API key and warn if missing (for non-local models)
+        if not _is_local_model(llm_model) and not os.environ.get("ISOTOPE_LLM_API_KEY"):
+            console.print()
+            console.print("[yellow]Warning: No ISOTOPE_LLM_API_KEY found.[/yellow]")
+            console.print("Run 'isotope init' to configure your API key, or set it manually:")
+            console.print("  export ISOTOPE_LLM_API_KEY=your-api-key")
+            console.print()
+            console.print(
+                "[dim]Provider-specific env vars (e.g., OPENAI_API_KEY) may still work.[/dim]"
+            )
+            console.print()
+
         # use_sentence_atomizer now comes from Settings (via YAML or env var)
         # API keys from env vars (set by isotope init or manually)
         llm_api_key = os.environ.get("ISOTOPE_LLM_API_KEY")
