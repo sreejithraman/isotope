@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 if TYPE_CHECKING:
     from isotope.isotope import Isotope
+    from isotope.settings import Settings
     from isotope.stores import (
         ChromaEmbeddedQuestionStore,
         SQLiteAtomStore,
@@ -48,6 +49,8 @@ app = typer.Typer(
     help="Isotope - Reverse RAG database. Index questions, not chunks.",
     no_args_is_help=True,
 )
+questions_app = typer.Typer(help="Inspect generated questions")
+app.add_typer(questions_app, name="questions")
 console = Console()
 
 
@@ -76,33 +79,6 @@ DEFAULT_DATA_DIR = "./isotope_data"
 CONFIG_FILES = ["isotope.yaml", "isotope.yml", ".isotoperc"]
 ENV_FILE = ".env"
 
-# Mapping of model prefixes to required environment variables
-API_KEY_MAPPING = {
-    "openai/": "OPENAI_API_KEY",
-    "anthropic/": "ANTHROPIC_API_KEY",
-    "gemini/": "GEMINI_API_KEY",
-    "cohere/": "COHERE_API_KEY",
-    "mistral/": "MISTRAL_API_KEY",
-    "groq/": "GROQ_API_KEY",
-    "together/": "TOGETHER_API_KEY",
-    "replicate/": "REPLICATE_API_KEY",
-    "azure/": "AZURE_API_KEY",
-}
-
-
-def _get_required_api_key_var(model: str) -> str | None:
-    """Determine which API key env var is required for a given model."""
-    for prefix, env_var in API_KEY_MAPPING.items():
-        if model.startswith(prefix):
-            return env_var
-    # Unknown prefixes don't require API keys (e.g., ollama/, local models)
-    return None
-
-
-def _check_api_key(env_var: str) -> bool:
-    """Check if an API key is set."""
-    return bool(os.environ.get(env_var))
-
 
 def _load_env_file() -> None:
     """Load environment variables from .env file if it exists."""
@@ -119,23 +95,45 @@ def _load_env_file() -> None:
                         os.environ[key] = value
 
 
-def _prompt_for_api_key(env_var: str, provider_name: str) -> str | None:
-    """Prompt user for API key if not set."""
-    console.print()
-    console.print(f"[yellow]No {env_var} found in environment.[/yellow]")
-    console.print(f"[dim]Get your API key from {provider_name}[/dim]")
-    console.print()
+def _collect_api_keys() -> tuple[str | None, str | None]:
+    """Collect API keys from user interactively.
 
-    api_key = typer.prompt(
-        "Enter your API key (or press Enter to skip)",
+    Returns:
+        Tuple of (llm_api_key, embedding_api_key). Either can be None if not needed.
+    """
+    console.print()
+    llm_key = typer.prompt(
+        "Enter your LLM API key (leave empty if not needed)",
         default="",
         show_default=False,
     )
 
-    if not api_key:
-        return None
+    if not llm_key:
+        return None, None
 
-    return api_key
+    # Ask about embedding API key
+    console.print()
+    embed_choice = typer.prompt(
+        "Enter your embedding API key:\n"
+        "  [1] Same as LLM\n"
+        "  [2] None (not needed)\n"
+        "  [3] Different key\n"
+        "Choose",
+        default="1",
+    )
+
+    if embed_choice == "1":
+        embed_key = llm_key
+    elif embed_choice == "3":
+        embed_key = typer.prompt(
+            "Enter embedding API key",
+            default="",
+            show_default=False,
+        )
+    else:
+        embed_key = None
+
+    return llm_key, embed_key
 
 
 def _save_api_key_to_env(env_var: str, api_key: str) -> bool:
@@ -171,46 +169,22 @@ def _save_api_key_to_env(env_var: str, api_key: str) -> bool:
     return True
 
 
-def _ensure_api_key(model: str) -> bool:
-    """Ensure API key is available, prompting if necessary. Returns True if key is available."""
-    # Load .env file first
-    _load_env_file()
+def _save_api_keys_and_update_gitignore(llm_key: str | None, embed_key: str | None) -> None:
+    """Save API keys to .env and ensure .env is in .gitignore."""
+    saved_any = False
 
-    env_var = _get_required_api_key_var(model)
-    if not env_var:
-        return True  # No key required
+    if llm_key:
+        _save_api_key_to_env("ISOTOPE_LLM_API_KEY", llm_key)
+        os.environ["ISOTOPE_LLM_API_KEY"] = llm_key
+        saved_any = True
 
-    if _check_api_key(env_var):
-        return True  # Key already set
+    if embed_key and embed_key != llm_key:
+        _save_api_key_to_env("ISOTOPE_EMBEDDING_API_KEY", embed_key)
+        os.environ["ISOTOPE_EMBEDDING_API_KEY"] = embed_key
+        saved_any = True
 
-    # Determine provider name for help text
-    provider_urls = {
-        "OPENAI_API_KEY": "https://platform.openai.com/api-keys",
-        "ANTHROPIC_API_KEY": "https://console.anthropic.com/",
-        "GEMINI_API_KEY": "https://makersuite.google.com/app/apikey",
-        "COHERE_API_KEY": "https://dashboard.cohere.com/api-keys",
-        "MISTRAL_API_KEY": "https://console.mistral.ai/",
-        "GROQ_API_KEY": "https://console.groq.com/keys",
-        "TOGETHER_API_KEY": "https://api.together.xyz/",
-        "REPLICATE_API_KEY": "https://replicate.com/account/api-tokens",
-        "AZURE_API_KEY": "https://portal.azure.com/",
-    }
-
-    provider_url = provider_urls.get(env_var, "your provider's dashboard")
-    api_key = _prompt_for_api_key(env_var, provider_url)
-
-    if not api_key:
-        console.print("[dim]Skipping API key setup. Set it later with:[/dim]")
-        console.print(f"  export {env_var}=your-key-here")
-        return False
-
-    # Set in current environment
-    os.environ[env_var] = api_key
-
-    # Offer to save
-    if typer.confirm("Save to .env file for future use?", default=True):
-        _save_api_key_to_env(env_var, api_key)
-        console.print(f"[green]Saved to {ENV_FILE}[/green]")
+    if saved_any:
+        console.print(f"[green]Saved API key(s) to {ENV_FILE}[/green]")
 
         # Ensure .env is in .gitignore
         gitignore_path = Path(".gitignore")
@@ -220,8 +194,6 @@ def _ensure_api_key(model: str) -> bool:
                 with open(gitignore_path, "a") as f:
                     f.write("\n# Environment variables\n.env\n")
                 console.print("[dim]Added .env to .gitignore[/dim]")
-
-    return True
 
 
 def _parse_threshold(value: str | None) -> float | None:
@@ -247,21 +219,113 @@ def _get_behavioral_settings_from_env() -> dict:
 
     This is the CLI (application layer) reading env vars and preparing
     them to pass explicitly to the library.
+
+    Returns values that were explicitly set (not defaults), to allow proper
+    precedence: YAML settings are used unless overridden by env vars.
     """
-    return {
-        "questions_per_atom": int(os.environ.get("ISOTOPE_QUESTIONS_PER_ATOM", "15")),
-        "question_generator_prompt": os.environ.get("ISOTOPE_QUESTION_GENERATOR_PROMPT") or None,
-        "atomizer_prompt": os.environ.get("ISOTOPE_ATOMIZER_PROMPT") or None,
-        "diversity_threshold": _parse_threshold(
-            os.environ.get("ISOTOPE_QUESTION_DIVERSITY_THRESHOLD", "0.85")
-        ),
-        "diversity_scope": _parse_diversity_scope(os.environ.get("ISOTOPE_DIVERSITY_SCOPE")),
-        "default_k": int(os.environ.get("ISOTOPE_DEFAULT_K", "5")),
-        "synthesis_prompt": os.environ.get("ISOTOPE_SYNTHESIS_PROMPT") or None,
-        "max_concurrent_questions": os.environ.get("ISOTOPE_MAX_CONCURRENT_QUESTIONS"),
-        "num_retries": os.environ.get("ISOTOPE_NUM_RETRIES"),
-        "rate_limit_profile": os.environ.get("ISOTOPE_RATE_LIMIT_PROFILE"),
+    result: dict = {}
+
+    # Only include values that are explicitly set in environment
+    if "ISOTOPE_QUESTIONS_PER_ATOM" in os.environ:
+        result["questions_per_atom"] = int(os.environ["ISOTOPE_QUESTIONS_PER_ATOM"])
+    if "ISOTOPE_QUESTION_GENERATOR_PROMPT" in os.environ:
+        result["question_generator_prompt"] = (
+            os.environ["ISOTOPE_QUESTION_GENERATOR_PROMPT"] or None
+        )
+    if "ISOTOPE_ATOMIZER_PROMPT" in os.environ:
+        result["atomizer_prompt"] = os.environ["ISOTOPE_ATOMIZER_PROMPT"] or None
+    if "ISOTOPE_QUESTION_DIVERSITY_THRESHOLD" in os.environ:
+        result["diversity_threshold"] = _parse_threshold(
+            os.environ["ISOTOPE_QUESTION_DIVERSITY_THRESHOLD"]
+        )
+    if "ISOTOPE_DIVERSITY_SCOPE" in os.environ:
+        result["diversity_scope"] = _parse_diversity_scope(os.environ["ISOTOPE_DIVERSITY_SCOPE"])
+    if "ISOTOPE_DEFAULT_K" in os.environ:
+        result["default_k"] = int(os.environ["ISOTOPE_DEFAULT_K"])
+    if "ISOTOPE_SYNTHESIS_PROMPT" in os.environ:
+        result["synthesis_prompt"] = os.environ["ISOTOPE_SYNTHESIS_PROMPT"] or None
+    if "ISOTOPE_MAX_CONCURRENT_LLM_CALLS" in os.environ:
+        result["max_concurrent_llm_calls"] = int(os.environ["ISOTOPE_MAX_CONCURRENT_LLM_CALLS"])
+    if "ISOTOPE_NUM_RETRIES" in os.environ:
+        result["num_retries"] = int(os.environ["ISOTOPE_NUM_RETRIES"])
+    if "ISOTOPE_RATE_LIMIT_PROFILE" in os.environ:
+        result["rate_limit_profile"] = os.environ["ISOTOPE_RATE_LIMIT_PROFILE"]
+    if "ISOTOPE_USE_SENTENCE_ATOMIZER" in os.environ:
+        result["use_sentence_atomizer"] = os.environ["ISOTOPE_USE_SENTENCE_ATOMIZER"].lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+
+    return result
+
+
+def _get_settings_from_yaml(config: dict) -> dict:
+    """Extract settings from YAML config file.
+
+    Settings can be in a 'settings:' section or at the root level for backwards compat.
+    """
+    result: dict = {}
+
+    # Get settings from the 'settings:' section if present
+    yaml_settings = config.get("settings", {}) or {}
+
+    # Map YAML keys to Settings field names
+    key_mappings = {
+        "use_sentence_atomizer": "use_sentence_atomizer",
+        "questions_per_atom": "questions_per_atom",
+        "question_generator_prompt": "question_generator_prompt",
+        "atomizer_prompt": "atomizer_prompt",
+        "question_diversity_threshold": "diversity_threshold",
+        "diversity_threshold": "diversity_threshold",  # alias
+        "diversity_scope": "diversity_scope",
+        "default_k": "default_k",
+        "synthesis_prompt": "synthesis_prompt",
+        "synthesis_temperature": "synthesis_temperature",
+        "max_concurrent_llm_calls": "max_concurrent_llm_calls",
+        "num_retries": "num_retries",
+        "rate_limit_profile": "rate_limit_profile",
     }
+
+    for yaml_key, settings_key in key_mappings.items():
+        if yaml_key in yaml_settings:
+            result[settings_key] = yaml_settings[yaml_key]
+
+    # Also check root level for backwards compat (use_sentence_atomizer, rate_limit_profile)
+    if "use_sentence_atomizer" in config and "use_sentence_atomizer" not in result:
+        result["use_sentence_atomizer"] = config["use_sentence_atomizer"]
+    if "rate_limit_profile" in config and "rate_limit_profile" not in result:
+        result["rate_limit_profile"] = config["rate_limit_profile"]
+
+    return result
+
+
+def _build_settings(config: dict, env_settings: dict) -> Settings:
+    """Build Settings object from YAML config and env vars.
+
+    Precedence (highest to lowest):
+    1. Environment variables (for CI/CD override)
+    2. YAML settings: section
+    3. Settings class defaults
+    """
+    from isotope.settings import Settings
+
+    yaml_settings = _get_settings_from_yaml(config)
+
+    # Merge: env vars override YAML, which overrides defaults
+    merged = {**yaml_settings, **env_settings}
+
+    # Handle rate_limit_profile specially - it affects multiple settings
+    rate_limit_profile = merged.pop("rate_limit_profile", None)
+
+    if rate_limit_profile:
+        # Start with profile, then apply overrides
+        settings = Settings.with_profile(rate_limit_profile, **merged)
+    else:
+        # Use merged settings directly
+        settings = Settings(**merged)
+
+    return settings
 
 
 class StoreBundle(TypedDict):
@@ -306,6 +370,69 @@ def find_config_file() -> Path | None:
     return None
 
 
+# Known valid config keys for YAML validation
+VALID_ROOT_KEYS = {
+    # Provider config
+    "provider",
+    "llm_model",
+    "embedding_model",
+    "data_dir",
+    # Custom provider
+    "embedder",
+    "question_generator",
+    "atomizer",
+    "embedder_kwargs",
+    "question_generator_kwargs",
+    "atomizer_kwargs",
+    # Settings section
+    "settings",
+    # Legacy/backwards compat
+    "use_sentence_atomizer",
+    "rate_limit_profile",
+}
+
+VALID_SETTINGS_KEYS = {
+    "use_sentence_atomizer",
+    "questions_per_atom",
+    "question_generator_prompt",
+    "atomizer_prompt",
+    "question_diversity_threshold",
+    "diversity_threshold",  # alias
+    "diversity_scope",
+    "default_k",
+    "synthesis_prompt",
+    "synthesis_temperature",
+    "max_concurrent_llm_calls",
+    "num_retries",
+    "rate_limit_profile",
+    "batch_size",
+    "generation_preset",
+}
+
+
+def _validate_config(config: dict[str, Any], config_path: Path) -> None:
+    """Validate config and warn about unknown keys."""
+    # Check root level keys
+    unknown_root = set(config.keys()) - VALID_ROOT_KEYS
+    if unknown_root:
+        console.print(
+            f"[yellow]Warning: Unknown config keys in {config_path}: "
+            f"{', '.join(sorted(unknown_root))}[/yellow]"
+        )
+        console.print("[dim]These keys will be ignored. Check for typos.[/dim]")
+
+    # Check settings section keys
+    settings = config.get("settings", {})
+    if isinstance(settings, dict):
+        unknown_settings = set(settings.keys()) - VALID_SETTINGS_KEYS
+        if unknown_settings:
+            console.print(
+                f"[yellow]Warning: Unknown settings keys: "
+                f"{', '.join(sorted(unknown_settings))}[/yellow]"
+            )
+            console.print("[dim]These settings will be ignored. Check for typos.[/dim]")
+
+
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
     """Load configuration from YAML file."""
     if config_path is None:
@@ -321,6 +448,9 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
 
     with open(config_path) as f:
         config = yaml.safe_load(f) or {}
+
+    # Validate config and warn about unknown keys
+    _validate_config(config, config_path)
 
     return config
 
@@ -338,7 +468,12 @@ def get_isotope(
 ) -> Isotope:
     """Create an Isotope instance based on configuration.
 
-    Configuration is loaded from:
+    Configuration is loaded from (highest to lowest precedence):
+    1. Environment variables (for CI/CD override)
+    2. YAML config file (isotope.yaml settings: section)
+    3. Settings class defaults
+
+    Provider config is loaded from:
     1. Explicit config_path if provided
     2. isotope.yaml in current/parent directories
     3. Falls back to LiteLLM with env vars if no config found
@@ -347,57 +482,15 @@ def get_isotope(
 
     from isotope.configuration import LiteLLMProvider, LocalStorage
     from isotope.isotope import Isotope
-    from isotope.settings import Settings
 
     config = load_config(Path(config_path) if config_path else None)
     effective_data_dir = data_dir or config.get("data_dir") or DEFAULT_DATA_DIR
 
     provider = config.get("provider", "litellm")
 
-    # Get behavioral settings from env vars (CLI reads env, passes to library)
+    # Build settings from YAML and env vars (env vars override YAML)
     env_settings = _get_behavioral_settings_from_env()
-
-    # Determine rate limit profile (config file takes precedence over env var)
-    rate_limit_profile = config.get("rate_limit_profile") or env_settings.get("rate_limit_profile")
-
-    # Build Settings - start with profile if specified, then apply overrides
-    if rate_limit_profile:
-        settings = Settings.with_profile(
-            rate_limit_profile,  # type: ignore[arg-type]
-            questions_per_atom=env_settings["questions_per_atom"],
-            question_generator_prompt=env_settings["question_generator_prompt"],
-            atomizer_prompt=env_settings["atomizer_prompt"],
-            question_diversity_threshold=env_settings["diversity_threshold"],
-            diversity_scope=env_settings["diversity_scope"],
-            default_k=env_settings["default_k"],
-            synthesis_prompt=env_settings["synthesis_prompt"],
-        )
-        # Apply individual overrides from env vars if explicitly set
-        if env_settings.get("max_concurrent_questions"):
-            settings = settings.model_copy(
-                update={"max_concurrent_questions": int(env_settings["max_concurrent_questions"])}
-            )
-        if env_settings.get("num_retries"):
-            settings = settings.model_copy(update={"num_retries": int(env_settings["num_retries"])})
-    else:
-        # No profile - use direct settings with defaults
-        settings = Settings(
-            questions_per_atom=env_settings["questions_per_atom"],
-            question_generator_prompt=env_settings["question_generator_prompt"],
-            atomizer_prompt=env_settings["atomizer_prompt"],
-            question_diversity_threshold=env_settings["diversity_threshold"],
-            diversity_scope=env_settings["diversity_scope"],
-            default_k=env_settings["default_k"],
-            synthesis_prompt=env_settings["synthesis_prompt"],
-            max_concurrent_questions=(
-                int(env_settings["max_concurrent_questions"])
-                if env_settings.get("max_concurrent_questions")
-                else 10
-            ),
-            num_retries=(
-                int(env_settings["num_retries"]) if env_settings.get("num_retries") else 3
-            ),
-        )
+    settings = _build_settings(config, env_settings)
 
     if provider == "litellm":
         # LiteLLM provider
@@ -421,13 +514,17 @@ def get_isotope(
             console.print("  export ISOTOPE_LITELLM_EMBEDDING_MODEL=openai/text-embedding-3-small")
             raise typer.Exit(1)
 
-        use_sentence_atomizer = config.get("use_sentence_atomizer", False)
-
+        # use_sentence_atomizer now comes from Settings (via YAML or env var)
+        # API keys from env vars (set by isotope init or manually)
+        llm_api_key = os.environ.get("ISOTOPE_LLM_API_KEY")
+        embedding_api_key = os.environ.get("ISOTOPE_EMBEDDING_API_KEY")
         return Isotope(
             provider=LiteLLMProvider(
                 llm=llm_model,
                 embedding=embedding_model,
-                atomizer_type="sentence" if use_sentence_atomizer else "llm",
+                atomizer_type="sentence" if settings.use_sentence_atomizer else "llm",
+                llm_api_key=llm_api_key,
+                embedding_api_key=embedding_api_key,
             ),
             storage=LocalStorage(effective_data_dir),
             settings=settings,
@@ -517,6 +614,20 @@ def get_isotope(
         raise typer.Exit(1)
 
 
+def _get_setting_source(
+    key: str, yaml_settings: dict, env_settings: dict, yaml_config: dict
+) -> str:
+    """Determine the source of a setting value."""
+    if key in env_settings:
+        return "env var"
+    if key in yaml_settings:
+        return "yaml"
+    # Check root-level for backwards compat
+    if key in yaml_config:
+        return "yaml (root)"
+    return "default"
+
+
 @app.command()
 def config(
     config_file: str = typer.Option(
@@ -527,9 +638,14 @@ def config(
     ),
 ) -> None:
     """Show current configuration settings."""
-    # Read behavioral settings from env vars (application layer)
-    env_settings = _get_behavioral_settings_from_env()
+
+    # Load all config sources
     cli_config = load_config(Path(config_file) if config_file else None)
+    env_settings = _get_behavioral_settings_from_env()
+    yaml_settings = _get_settings_from_yaml(cli_config)
+
+    # Build the effective settings
+    settings = _build_settings(cli_config, env_settings)
 
     table = Table(title="Isotope Configuration")
     table.add_column("Setting", style="cyan")
@@ -538,7 +654,7 @@ def config(
 
     # Provider config (from config file or env)
     provider = cli_config.get("provider", "litellm")
-    table.add_row("provider", provider, "config file" if cli_config else "default")
+    table.add_row("provider", provider, "yaml" if cli_config else "default")
 
     if provider == "litellm":
         llm_model = cli_config.get("llm_model") or os.environ.get("ISOTOPE_LITELLM_LLM_MODEL")
@@ -548,50 +664,68 @@ def config(
         table.add_row(
             "llm_model",
             llm_model or "(not set)",
-            "config file" if cli_config.get("llm_model") else "env var",
+            "yaml" if cli_config.get("llm_model") else "env var",
         )
         table.add_row(
             "embedding_model",
             embedding_model or "(not set)",
-            "config file" if cli_config.get("embedding_model") else "env var",
+            "yaml" if cli_config.get("embedding_model") else "env var",
         )
     elif provider == "custom":
-        table.add_row("embedder", cli_config.get("embedder", "(not set)"), "config file")
+        table.add_row("embedder", cli_config.get("embedder", "(not set)"), "yaml")
         table.add_row(
-            "question_generator", cli_config.get("question_generator", "(not set)"), "config file"
+            "question_generator", cli_config.get("question_generator", "(not set)"), "yaml"
         )
-        table.add_row("atomizer", cli_config.get("atomizer", "(not set)"), "config file")
+        table.add_row("atomizer", cli_config.get("atomizer", "(not set)"), "yaml")
 
-    # Rate limit profile (from config file or env var)
-    table.add_row("", "", "")  # Separator
-    rate_limit_profile = cli_config.get("rate_limit_profile") or env_settings.get(
-        "rate_limit_profile"
-    )
+    # Data directory
+    data_dir = cli_config.get("data_dir") or DEFAULT_DATA_DIR
     table.add_row(
-        "rate_limit_profile",
-        rate_limit_profile or "(none)",
-        "config file" if cli_config.get("rate_limit_profile") else "env var",
+        "data_dir",
+        data_dir,
+        "yaml" if cli_config.get("data_dir") else "default",
     )
 
-    # Behavioral settings (from env vars, read by CLI)
-    table.add_row("questions_per_atom", str(env_settings["questions_per_atom"]), "env var")
-    threshold = env_settings["diversity_threshold"]
+    # Separator for behavioral settings
+    table.add_row("", "", "")
+
+    # Behavioral settings - show all with effective values and sources
     table.add_row(
-        "question_diversity_threshold",
-        str(threshold) if threshold is not None else "disabled",
-        "env var",
+        "use_sentence_atomizer",
+        str(settings.use_sentence_atomizer),
+        _get_setting_source("use_sentence_atomizer", yaml_settings, env_settings, cli_config),
     )
-    table.add_row("diversity_scope", env_settings["diversity_scope"], "env var")
-    table.add_row("default_k", str(env_settings["default_k"]), "env var")
     table.add_row(
-        "max_concurrent_questions",
-        env_settings["max_concurrent_questions"] or "(default: 10)",
-        "env var",
+        "questions_per_atom",
+        str(settings.questions_per_atom),
+        _get_setting_source("questions_per_atom", yaml_settings, env_settings, cli_config),
+    )
+    table.add_row(
+        "diversity_threshold",
+        str(settings.question_diversity_threshold)
+        if settings.question_diversity_threshold is not None
+        else "disabled",
+        _get_setting_source("diversity_threshold", yaml_settings, env_settings, cli_config),
+    )
+    table.add_row(
+        "diversity_scope",
+        settings.diversity_scope,
+        _get_setting_source("diversity_scope", yaml_settings, env_settings, cli_config),
+    )
+    table.add_row(
+        "max_concurrent_llm_calls",
+        str(settings.max_concurrent_llm_calls),
+        _get_setting_source("max_concurrent_llm_calls", yaml_settings, env_settings, cli_config),
     )
     table.add_row(
         "num_retries",
-        env_settings["num_retries"] or "(default: 3)",
-        "env var",
+        str(settings.num_retries),
+        _get_setting_source("num_retries", yaml_settings, env_settings, cli_config),
+    )
+    table.add_row(
+        "default_k",
+        str(settings.default_k),
+        _get_setting_source("default_k", yaml_settings, env_settings, cli_config),
     )
 
     console.print(table)
@@ -602,6 +736,8 @@ def config(
         console.print(f"\n[dim]Config file: {config_path}[/dim]")
     else:
         console.print("\n[dim]No config file found. Using env vars / defaults.[/dim]")
+
+    console.print("\n[dim]Precedence: env var > yaml settings > default[/dim]")
 
 
 @app.command()
@@ -636,13 +772,6 @@ def ingest(
     # Check path exists
     if not os.path.exists(path):
         console.print(f"[red]Error: Path not found: {path}[/red]")
-        raise typer.Exit(1)
-
-    # Load config and ensure API key is available
-    cli_config = load_config(Path(config_file) if config_file else None)
-    llm_model = cli_config.get("llm_model") or os.environ.get("ISOTOPE_LITELLM_LLM_MODEL")
-    if llm_model and not _ensure_api_key(llm_model):
-        console.print("[red]Error: API key required for ingestion.[/red]")
         raise typer.Exit(1)
 
     # Create Isotope
@@ -826,6 +955,12 @@ def query(
         "-r",
         help="Return raw chunks without LLM synthesis",
     ),
+    show_matched_questions: bool = typer.Option(
+        False,
+        "--show-matched-questions",
+        "-q",
+        help="Show which generated questions matched",
+    ),
     plain: bool = typer.Option(
         False,
         "--plain",
@@ -840,14 +975,6 @@ def query(
     if not os.path.exists(effective_data_dir):
         console.print(f"[red]Error: Data directory not found: {effective_data_dir}[/red]")
         console.print("[dim]Run 'isotope ingest' first to create the database.[/dim]")
-        raise typer.Exit(1)
-
-    # Ensure API key is available (needed for embeddings)
-    embedding_model = cli_config.get("embedding_model") or os.environ.get(
-        "ISOTOPE_LITELLM_EMBEDDING_MODEL"
-    )
-    if embedding_model and not _ensure_api_key(embedding_model):
-        console.print("[red]Error: API key required for querying.[/red]")
         raise typer.Exit(1)
 
     # Create Isotope and retriever
@@ -890,6 +1017,8 @@ def query(
         for i, result in enumerate(response.results, 1):
             console.print(f"  [{i}] {result.chunk.source} (score: {result.score:.3f})")
             console.print(f"      {result.chunk.content[:100]}...")
+            if show_matched_questions:
+                console.print(f"      Matched: {result.question.text}")
     else:
         # Rich output
         if response.answer:
@@ -912,6 +1041,8 @@ def query(
             if len(result.chunk.content) > 100:
                 preview += "..."
             console.print(f"      [dim]{preview}[/dim]")
+            if show_matched_questions:
+                console.print(f"      [yellow]Matched:[/yellow] {result.question.text}")
 
 
 @app.command(name="list")
@@ -988,6 +1119,11 @@ def status(
         "-c",
         help="Path to config file",
     ),
+    detailed: bool = typer.Option(
+        False,
+        "--detailed",
+        help="Show question distribution per source",
+    ),
     plain: bool = typer.Option(
         False,
         "--plain",
@@ -1023,6 +1159,15 @@ def status(
         console.print(f"  Chunks: {total_chunks}")
         console.print(f"  Atoms: {total_atoms}")
         console.print(f"  Indexed questions: {total_questions}")
+
+        if detailed and sources:
+            console.print()
+            console.print("Question Distribution by Source:")
+            for source in sorted(sources):
+                chunk_ids = stores["chunk_store"].get_chunk_ids_by_source(source)
+                num_chunks = len(chunk_ids)
+                num_questions = stores["embedded_question_store"].count_by_chunk_ids(chunk_ids)
+                console.print(f"  {source}: {num_chunks} chunks, {num_questions} questions")
     else:
         table = Table(title="Database Status")
         table.add_column("Metric", style="cyan")
@@ -1035,6 +1180,21 @@ def status(
         table.add_row("Indexed questions", str(total_questions))
 
         console.print(table)
+
+        if detailed and sources:
+            console.print()
+            detail_table = Table(title="Question Distribution by Source")
+            detail_table.add_column("Source", style="cyan")
+            detail_table.add_column("Chunks", justify="right")
+            detail_table.add_column("Questions", justify="right", style="green")
+
+            for source in sorted(sources):
+                chunk_ids = stores["chunk_store"].get_chunk_ids_by_source(source)
+                num_chunks = len(chunk_ids)
+                num_questions = stores["embedded_question_store"].count_by_chunk_ids(chunk_ids)
+                detail_table.add_row(source, str(num_chunks), str(num_questions))
+
+            console.print(detail_table)
 
 
 @app.command()
@@ -1108,6 +1268,117 @@ def delete(
         console.print(f"[green]Deleted {len(chunk_ids)} chunks from {source}[/green]")
 
 
+def _is_local_model(model: str) -> bool:
+    """Check if model is a local model (Ollama, etc.)."""
+    from isotope.settings import LOCAL_MODEL_PREFIXES
+
+    return model.lower().startswith(LOCAL_MODEL_PREFIXES)
+
+
+def _get_settings_for_init(
+    is_local: bool, rate_limited: bool | None, priority: str
+) -> dict[str, any]:
+    """Get settings based on user's environment and priority.
+
+    Returns a dict of settings that differ from defaults.
+    """
+    # Settings matrix from plan:
+    # | Rate-limited? | Priority | sentence_atomizer | questions | llm_calls |
+    # | Yes           | Speed    | true              | 3         | 2         |
+    # | Yes           | Quality  | false             | 5         | 2         |
+    # | Yes           | Balanced | false             | 5         | 2         |
+    # | No            | Speed    | true              | 5         | 10        |
+    # | No            | Quality  | false             | 10        | 10        |
+    # | No            | Balanced | false             | 5         | 10        | (defaults)
+    # | Local (auto)  | any      | true              | 5         | 1         |
+
+    if is_local:
+        # Local models: low concurrency, sentence atomizer for speed
+        return {
+            "use_sentence_atomizer": True,
+            "questions_per_atom": 5,
+            "max_concurrent_llm_calls": 1,
+        }
+
+    if rate_limited:
+        # Rate-limited APIs
+        if priority == "speed":
+            return {
+                "use_sentence_atomizer": True,
+                "questions_per_atom": 3,
+                "max_concurrent_llm_calls": 2,
+            }
+        elif priority == "quality":
+            return {
+                "use_sentence_atomizer": False,
+                "questions_per_atom": 5,
+                "max_concurrent_llm_calls": 2,
+            }
+        else:  # balanced
+            return {
+                "use_sentence_atomizer": False,
+                "questions_per_atom": 5,
+                "max_concurrent_llm_calls": 2,
+            }
+    else:
+        # High-limit APIs
+        if priority == "speed":
+            return {
+                "use_sentence_atomizer": True,
+                "questions_per_atom": 5,
+                "max_concurrent_llm_calls": 10,
+            }
+        elif priority == "quality":
+            return {
+                "use_sentence_atomizer": False,
+                "questions_per_atom": 10,
+                "max_concurrent_llm_calls": 10,
+            }
+        else:  # balanced - these are the defaults, return empty
+            return {}
+
+
+def _generate_config_content(
+    llm_model: str,
+    embedding_model: str,
+    settings: dict[str, any],
+) -> str:
+    """Generate isotope.yaml content with settings."""
+    # Start with provider config
+    content = f"""# Isotope Configuration
+provider: litellm
+
+# LiteLLM model identifiers
+llm_model: {llm_model}
+embedding_model: {embedding_model}
+"""
+
+    # Add settings section if we have non-default settings
+    if settings:
+        content += "\n# Settings (configured based on your environment)\nsettings:\n"
+        for key, value in settings.items():
+            if isinstance(value, bool):
+                content += f"  {key}: {str(value).lower()}\n"
+            else:
+                content += f"  {key}: {value}\n"
+
+    # Add commented defaults section
+    content += """
+# Uncomment to customize (showing defaults):
+#   use_sentence_atomizer: false  # true = fast, false = LLM quality
+#   questions_per_atom: 5         # more = better recall, higher cost
+#   diversity_scope: global       # global | per_chunk | per_atom
+#   max_concurrent_llm_calls: 10  # parallel LLM requests
+#
+# Advanced settings:
+#   num_retries: 5
+#   diversity_threshold: 0.85
+#   default_k: 5
+"""
+
+    return content
+
+
 @app.command()
 def init(
     provider: str = typer.Option(
@@ -1136,20 +1407,85 @@ def init(
             raise typer.Exit(0)
 
     if provider == "litellm":
-        content = f"""# Isotope Configuration
-provider: litellm
+        # Prompt for models if not provided
+        effective_llm = llm_model
+        effective_embedding = embedding_model
 
-# LiteLLM model identifiers
-llm_model: {llm_model or "openai/gpt-5-mini-2025-08-07"}
-embedding_model: {embedding_model or "openai/text-embedding-3-small"}
+        if not effective_llm:
+            effective_llm = typer.prompt(
+                "Enter your LLM model",
+                default="openai/gpt-5-mini-2025-08-07",
+            )
 
-# Optional: Use sentence-based atomizer instead of LLM
-# use_sentence_atomizer: false
+        if not effective_embedding:
+            effective_embedding = typer.prompt(
+                "Enter your embedding model",
+                default="openai/text-embedding-3-small",
+            )
 
-# Optional: Data directory
-# data_dir: ./isotope_data
-"""
+        # Detect if local model
+        is_local = _is_local_model(effective_llm)
+
+        rate_limited: bool | None = None
+        priority = "balanced"
+
+        if is_local:
+            console.print(
+                f"\n[dim]Detected local model ({effective_llm}). "
+                "Configuring for single-GPU operation.[/dim]"
+            )
+        else:
+            # Ask about rate limits
+            console.print()
+            rate_limit_choice = typer.prompt(
+                "Are you on a rate-limited or free tier API?\n"
+                "  [1] Yes - configure for rate limits\n"
+                "  [2] No - I have high rate limits\n"
+                "  [3] Not sure - use safe defaults\n"
+                "Choose",
+                default="3",
+            )
+            rate_limited = rate_limit_choice == "1" or rate_limit_choice == "3"
+
+            # Ask about priority
+            console.print()
+            priority_choice = typer.prompt(
+                "What's your priority?\n"
+                "  [1] Retrieval quality (slower, more API calls)\n"
+                "  [2] Speed & cost savings (faster, fewer calls)\n"
+                "  [3] Balanced\n"
+                "Choose",
+                default="3",
+            )
+            if priority_choice == "1":
+                priority = "quality"
+            elif priority_choice == "2":
+                priority = "speed"
+            else:
+                priority = "balanced"
+
+        # Get settings based on choices
+        settings = _get_settings_for_init(is_local, rate_limited, priority)
+
+        # Generate config content
+        content = _generate_config_content(effective_llm, effective_embedding, settings)
+
+        config_path.write_text(content)
+        console.print(f"\n[green]Created {config_path}[/green]")
+
+        # Collect API keys from user
+        if not is_local:
+            llm_key, embed_key = _collect_api_keys()
+            if llm_key or embed_key:
+                _save_api_keys_and_update_gitignore(llm_key, embed_key)
+
+        console.print()
+        console.print("[bold]Ready![/bold] Try these commands:")
+        console.print("  isotope ingest ./docs")
+        console.print("  isotope query 'your question'")
+
     else:
+        # Custom provider
         content = """# Isotope Configuration
 provider: custom
 
@@ -1167,22 +1503,101 @@ atomizer: my_package.MyAtomizer
 # Optional: Data directory
 # data_dir: ./isotope_data
 """
-
-    config_path.write_text(content)
-    console.print(f"[green]Created {config_path}[/green]")
-
-    if provider == "litellm":
-        # Check for API key and prompt if needed
-        effective_model = llm_model or "openai/gpt-5-mini-2025-08-07"
-        _ensure_api_key(effective_model)
-
-        console.print()
-        console.print("[bold]Ready![/bold] Try these commands:")
-        console.print("  isotope ingest ./docs")
-        console.print("  isotope query 'your question'")
-    else:
+        config_path.write_text(content)
+        console.print(f"[green]Created {config_path}[/green]")
         console.print()
         console.print("Next steps:")
         console.print("  1. Implement your custom classes")
         console.print("  2. Update the class paths in isotope.yaml")
         console.print("  3. Ingest documents: isotope ingest ./docs")
+
+
+@questions_app.command(name="sample")
+def sample_questions(
+    source: str = typer.Option(
+        None,
+        "--source",
+        "-s",
+        help="Filter by source file",
+    ),
+    n: int = typer.Option(
+        5,
+        "-n",
+        help="Number of questions to sample",
+    ),
+    data_dir: str = typer.Option(
+        None,
+        "--data-dir",
+        "-d",
+        help="Data directory (default: from settings)",
+    ),
+    config_file: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
+    plain: bool = typer.Option(
+        False,
+        "--plain",
+        help="Plain output (no colors/formatting)",
+    ),
+) -> None:
+    """Show a random sample of generated questions."""
+    cli_config = load_config(Path(config_file) if config_file else None)
+    effective_data_dir = data_dir or cli_config.get("data_dir") or DEFAULT_DATA_DIR
+
+    if not os.path.exists(effective_data_dir):
+        if plain:
+            console.print("No database found. Run 'isotope ingest' first.")
+        else:
+            console.print("[dim]No database found. Run 'isotope ingest' first.[/dim]")
+        raise typer.Exit(0)
+
+    try:
+        stores = get_stores(effective_data_dir)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
+
+    # Get chunk_ids for source filtering if specified
+    chunk_ids: list[str] | None = None
+    if source:
+        chunk_ids = stores["chunk_store"].get_chunk_ids_by_source(source)
+        if not chunk_ids:
+            if plain:
+                console.print(f"No questions found for source: {source}")
+            else:
+                console.print(f"[yellow]No questions found for source: {source}[/yellow]")
+            raise typer.Exit(0)
+
+    questions = stores["embedded_question_store"].sample(n=n, chunk_ids=chunk_ids)
+
+    if not questions:
+        if plain:
+            console.print("No questions indexed. Run 'isotope ingest' first.")
+        else:
+            console.print("[dim]No questions indexed. Run 'isotope ingest' first.[/dim]")
+        raise typer.Exit(0)
+
+    total = stores["embedded_question_store"].count_questions()
+    if chunk_ids:
+        total = stores["embedded_question_store"].count_by_chunk_ids(chunk_ids)
+
+    if plain:
+        console.print(f"Sample Questions ({len(questions)} of {total}):")
+        for i, q in enumerate(questions, 1):
+            console.print(f"  {i}. {q.text}")
+    else:
+        title = f"Sample Questions ({len(questions)} of {total})"
+        if source:
+            title += f" from {source}"
+
+        table = Table(title=title)
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Question", style="cyan")
+
+        for i, q in enumerate(questions, 1):
+            table.add_row(str(i), q.text)
+
+        console.print(table)

@@ -166,12 +166,20 @@ See [Atomization Guide](../guides/atomization.md) for when to use each.
 | `QuestionGenerator` | Generate synthetic questions via LLM |
 | `DiversityFilter` | Remove near-duplicate questions |
 | `BatchGenerationError` | Exception for partial batch failures |
+| `BatchConfig` | Batch size + concurrency for question generation |
 
-The generator creates ~15 questions per atom by default. The diversity filter (threshold 0.85) removes questions with >85% cosine similarity, keeping diverse coverage.
+The generator creates 5 questions per atom by default. The diversity filter (threshold 0.85) removes questions with >85% cosine similarity, keeping diverse coverage.
 
-**Async Support**: For large ingests, use async methods for concurrent question generation:
-- `agenerate(atom, chunk_content)` - Single atom, async
-- `agenerate_batch(atoms, chunk_contents, max_concurrent)` - Concurrent batch with semaphore-based rate limiting
+**Batch-first API**: Question generation is batch-oriented, and single-atom helpers are convenience wrappers.
+
+- `generate_batch(atoms, chunk_contents, config)` - Primary sync API
+- `agenerate_batch(atoms, chunk_contents, config)` - Primary async API
+- `generate(atom, chunk_content)` - Single atom wrapper
+- `agenerate(atom, chunk_content)` - Single atom wrapper (async)
+
+Use the provided mixins in custom implementations:
+- `AsyncOnlyGeneratorMixin` - Implement only `agenerate_batch`
+- `SyncOnlyGeneratorMixin` - Implement only `generate_batch`
 
 ### Embeddings (`embedder/`)
 

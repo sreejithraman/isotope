@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from isotope.retriever import Retriever
     from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore, SourceRegistry
 
+from isotope.question_generator.base import BatchConfig
 from isotope.settings import Settings
 
 
@@ -134,6 +135,9 @@ class Isotope:
         self._atomizer = provider.build_atomizer(self._settings)
         self._question_generator = provider.build_question_generator(self._settings)
 
+        # Store provider's LLM model for auto-detection of generation presets
+        self._llm_model: str | None = getattr(provider, "llm", None)
+
         # Loader registry (lazily created if not provided)
         self._loader_registry = loader_registry
 
@@ -251,7 +255,7 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
-        max_concurrent_questions: int | None = None,
+        batch_config: BatchConfig | None = None,
     ) -> Ingestor:
         """Create an Ingestor using this instance's stores.
 
@@ -265,8 +269,9 @@ class Isotope:
                 - "per_chunk": Filter within each chunk (~100x faster)
                 - "per_atom": Filter within each atom (~1000x faster)
                 If None, uses settings default.
-            max_concurrent_questions: Maximum concurrent async question generation
-                requests. Only used by aingest_chunks(). If None, uses settings.
+            batch_config: Configuration for question generation batching.
+                Controls batch_size (atoms per prompt) and max_concurrent.
+                If None, auto-detects based on model (local vs cloud).
 
         Returns:
             Configured Ingestor instance using the atomizer and generator
@@ -286,6 +291,11 @@ class Isotope:
         # Use settings default for diversity_scope if not specified
         effective_diversity_scope: FilterScope = diversity_scope or self._settings.diversity_scope
 
+        # Build batch config from settings with auto-detection
+        effective_batch_config = batch_config or self._settings.build_batch_config(
+            model=self._llm_model
+        )
+
         return Ingestor(
             embedded_question_store=self.embedded_question_store,
             chunk_store=self.chunk_store,
@@ -295,11 +305,7 @@ class Isotope:
             question_generator=self._question_generator,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,
-            max_concurrent_questions=(
-                max_concurrent_questions
-                if max_concurrent_questions is not None
-                else self._settings.max_concurrent_questions
-            ),
+            batch_config=effective_batch_config,
         )
 
     def ingest_file(
@@ -384,7 +390,7 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
-        max_concurrent_questions: int | None = None,
+        batch_config: BatchConfig | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> dict:
         """Ingest a file with async question generation, skipping if content unchanged.
@@ -399,8 +405,8 @@ class Isotope:
             diversity_filter: Custom diversity filter for question deduplication
             use_diversity_filter: Whether to use diversity filter
             diversity_scope: Scope for diversity filtering
-            max_concurrent_questions: Maximum concurrent async requests.
-                                     If None, uses settings default.
+            batch_config: Configuration for question generation batching.
+                If None, auto-detects based on model (local vs cloud).
             on_progress: Optional callback for progress updates
 
         Returns:
@@ -443,7 +449,7 @@ class Isotope:
             diversity_filter=diversity_filter,
             use_diversity_filter=use_diversity_filter,
             diversity_scope=diversity_scope,
-            max_concurrent_questions=max_concurrent_questions,
+            batch_config=batch_config,
         )
         result = await ingestor.aingest_chunks(chunks, on_progress=on_progress)
 

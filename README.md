@@ -178,7 +178,7 @@ See [examples/README.md](examples/README.md) for more details and sample queries
 ```
 
 1. **Atomize** → Break content into atomic facts
-2. **Generate** → Create questions each fact answers (15 per atom by default)
+2. **Generate** → Create questions each fact answers (5 per atom by default)
 3. **Embed & Index** → Store question embeddings
 4. **Query** → User questions match against indexed questions
 5. **Retrieve** → Return the chunks that answer matched questions

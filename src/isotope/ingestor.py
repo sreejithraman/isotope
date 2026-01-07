@@ -6,6 +6,7 @@ from isotope.atomizer import Atomizer
 from isotope.embedder import Embedder
 from isotope.models import Chunk, EmbeddedQuestion
 from isotope.question_generator import DiversityFilter, FilterScope, QuestionGenerator
+from isotope.question_generator.base import BatchConfig
 from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore
 
 ProgressCallback = Callable[[str, int, int, str], None]
@@ -50,7 +51,7 @@ class Ingestor:
         question_generator: QuestionGenerator,
         diversity_filter: DiversityFilter | None = None,
         diversity_scope: FilterScope = "global",
-        max_concurrent_questions: int = 10,
+        batch_config: BatchConfig | None = None,
     ) -> None:
         """Initialize the ingestor with all required components.
 
@@ -66,8 +67,9 @@ class Ingestor:
                 - "global": Filter across all questions (default, paper-validated)
                 - "per_chunk": Filter within each chunk (~100x faster)
                 - "per_atom": Filter within each atom (~1000x faster)
-            max_concurrent_questions: Maximum concurrent async question generation
-                requests. Only used by aingest_chunks(). Default 10.
+            batch_config: Configuration for question generation batching.
+                Controls batch_size (atoms per prompt) and max_concurrent.
+                If None, uses default BatchConfig (batch_size=1, max_concurrent=10).
         """
         self.embedded_question_store = embedded_question_store
         self.chunk_store = chunk_store
@@ -77,7 +79,7 @@ class Ingestor:
         self.question_generator = question_generator
         self.diversity_filter = diversity_filter
         self.diversity_scope = diversity_scope
-        self.max_concurrent_questions = max_concurrent_questions
+        self.batch_config = batch_config or BatchConfig()
 
     def ingest_chunks(
         self,
@@ -124,23 +126,24 @@ class Ingestor:
             self.atom_store.put_many(atoms)
             progress("atomizing", i + 1, len(chunks), f"Atomized {i + 1}/{len(chunks)} chunks")
 
-        # Step 4: Generate questions
+        # Step 4: Generate questions (using batch generation)
         progress("generating", 0, len(all_atoms), "Generating questions...")
 
         # Build chunk lookup from input to avoid N database reads
         chunk_content_map = {chunk.id: chunk.content for chunk in chunks}
+        chunk_contents = [chunk_content_map.get(atom.chunk_id, "") for atom in all_atoms]
 
-        all_questions = []
-        for i, atom in enumerate(all_atoms):
-            chunk_content = chunk_content_map.get(atom.chunk_id, "")
-            questions = self.question_generator.generate(atom, chunk_content)
-            all_questions.extend(questions)
-            progress(
-                "generating",
-                i + 1,
-                len(all_atoms),
-                f"Generated questions for {i + 1}/{len(all_atoms)} atoms",
-            )
+        all_questions = self.question_generator.generate_batch(
+            atoms=all_atoms,
+            chunk_contents=chunk_contents,
+            config=self.batch_config,
+        )
+        progress(
+            "generating",
+            len(all_atoms),
+            len(all_atoms),
+            "Question generation complete",
+        )
 
         # Step 5: Embed questions
         if all_questions:
@@ -245,7 +248,7 @@ class Ingestor:
         all_questions = await self.question_generator.agenerate_batch(
             atoms=all_atoms,
             chunk_contents=chunk_contents,
-            max_concurrent=self.max_concurrent_questions,
+            config=self.batch_config,
         )
         progress("generating", len(all_atoms), len(all_atoms), "Question generation complete")
 

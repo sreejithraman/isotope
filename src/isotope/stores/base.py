@@ -34,6 +34,24 @@ class EmbeddedQuestionStore(ABC):
         """Count the total number of questions in the store."""
         ...
 
+    @abstractmethod
+    def sample(self, n: int = 5, chunk_ids: list[str] | None = None) -> list[Question]:
+        """Get a random sample of questions.
+
+        Args:
+            n: Number of questions to sample
+            chunk_ids: If provided, only sample from questions with these chunk IDs
+
+        Returns:
+            List of sampled questions (may be fewer than n if not enough available)
+        """
+        ...
+
+    @abstractmethod
+    def count_by_chunk_ids(self, chunk_ids: list[str]) -> int:
+        """Count questions associated with given chunk IDs."""
+        ...
+
 
 class ChunkStore(ABC):
     """Abstract base class for chunk storage."""

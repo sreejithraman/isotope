@@ -21,12 +21,16 @@ class LiteLLMClient(LLMClient):
 
         # With retry for rate-limited APIs
         client = LiteLLMClient(model=ChatModels.GEMINI_3_FLASH, num_retries=5)
+
+        # With explicit API key (bypasses env var lookup)
+        client = LiteLLMClient(model=ChatModels.GPT_5_MINI, api_key="sk-...")
     """
 
     def __init__(
         self,
         model: str = ChatModels.GEMINI_3_FLASH,
         num_retries: int = 3,
+        api_key: str | None = None,
     ) -> None:
         """Initialize the LiteLLM client.
 
@@ -35,9 +39,11 @@ class LiteLLMClient(LLMClient):
                    Examples: "openai/gpt-5-mini-2025-08-07", "anthropic/claude-sonnet-4-5-20250929"
             num_retries: Number of retries on rate limit errors. LiteLLM handles
                         exponential backoff automatically. Default: 3.
+            api_key: Optional API key. If provided, bypasses environment variable lookup.
         """
         self.model = model
         self.num_retries = num_retries
+        self.api_key = api_key
 
     def complete(
         self,
@@ -45,7 +51,7 @@ class LiteLLMClient(LLMClient):
         temperature: float | None = None,
     ) -> str:
         """Generate a completion using LiteLLM."""
-        completion_kwargs = {
+        completion_kwargs: dict = {
             "model": self.model,
             "messages": messages,
             "drop_params": True,
@@ -53,6 +59,8 @@ class LiteLLMClient(LLMClient):
         }
         if temperature is not None:
             completion_kwargs["temperature"] = temperature
+        if self.api_key is not None:
+            completion_kwargs["api_key"] = self.api_key
 
         response = litellm.completion(**completion_kwargs)
 
@@ -69,7 +77,7 @@ class LiteLLMClient(LLMClient):
         temperature: float | None = None,
     ) -> str:
         """Generate a completion using LiteLLM (async)."""
-        completion_kwargs = {
+        completion_kwargs: dict = {
             "model": self.model,
             "messages": messages,
             "drop_params": True,
@@ -77,6 +85,8 @@ class LiteLLMClient(LLMClient):
         }
         if temperature is not None:
             completion_kwargs["temperature"] = temperature
+        if self.api_key is not None:
+            completion_kwargs["api_key"] = self.api_key
 
         response = await litellm.acompletion(**completion_kwargs)
 
@@ -101,12 +111,16 @@ class LiteLLMEmbeddingClient(EmbeddingClient):
 
         # With retry for rate-limited APIs
         client = LiteLLMEmbeddingClient(model=EmbeddingModels.TEXT_3_SMALL, num_retries=5)
+
+        # With explicit API key (bypasses env var lookup)
+        client = LiteLLMEmbeddingClient(model=EmbeddingModels.TEXT_3_SMALL, api_key="sk-...")
     """
 
     def __init__(
         self,
         model: str = EmbeddingModels.GEMINI_EMBEDDING_001,
         num_retries: int = 3,
+        api_key: str | None = None,
     ) -> None:
         """Initialize the LiteLLM embedding client.
 
@@ -115,20 +129,26 @@ class LiteLLMEmbeddingClient(EmbeddingClient):
                    Examples: "openai/text-embedding-3-small", "gemini/gemini-embedding-001"
             num_retries: Number of retries on rate limit errors. LiteLLM handles
                         exponential backoff automatically. Default: 3.
+            api_key: Optional API key. If provided, bypasses environment variable lookup.
         """
         self.model = model
         self.num_retries = num_retries
+        self.api_key = api_key
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings using LiteLLM."""
         if not texts:
             return []
 
-        response = litellm.embedding(
-            model=self.model,
-            input=texts,
-            num_retries=self.num_retries,
-        )
+        embedding_kwargs: dict = {
+            "model": self.model,
+            "input": texts,
+            "num_retries": self.num_retries,
+        }
+        if self.api_key is not None:
+            embedding_kwargs["api_key"] = self.api_key
+
+        response = litellm.embedding(**embedding_kwargs)
         # Sort by index to maintain order
         sorted_data = sorted(response.data, key=lambda x: x["index"])
         return [item["embedding"] for item in sorted_data]

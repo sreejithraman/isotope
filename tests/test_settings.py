@@ -12,10 +12,13 @@ class TestSettings:
     def test_default_settings(self):
         """Test Settings has correct defaults."""
         settings = Settings()
-        assert settings.questions_per_atom == 15
+        assert settings.questions_per_atom == 5
         assert settings.question_diversity_threshold == 0.85
         assert settings.diversity_scope == "global"
         assert settings.default_k == 5
+        assert settings.max_concurrent_llm_calls == 10
+        assert settings.num_retries == 5
+        assert settings.use_sentence_atomizer is False
         assert settings.question_generator_prompt is None
         assert settings.atomizer_prompt is None
         assert settings.synthesis_prompt is None
@@ -50,27 +53,22 @@ class TestSettings:
             settings = Settings(diversity_scope=scope)  # type: ignore[arg-type]
             assert settings.diversity_scope == scope
 
-    def test_default_num_retries(self):
-        """Test Settings has correct default num_retries."""
-        settings = Settings()
-        assert settings.num_retries == 3
-
     def test_with_profile_conservative(self):
         """Test Settings.with_profile('conservative') applies correct values."""
         settings = Settings.with_profile("conservative")
-        assert settings.max_concurrent_questions == 2
+        assert settings.max_concurrent_llm_calls == 2
         assert settings.num_retries == 5
 
     def test_with_profile_aggressive(self):
         """Test Settings.with_profile('aggressive') applies correct values."""
         settings = Settings.with_profile("aggressive")
-        assert settings.max_concurrent_questions == 10
-        assert settings.num_retries == 3
+        assert settings.max_concurrent_llm_calls == 10
+        assert settings.num_retries == 5
 
     def test_with_profile_with_overrides(self):
         """Test Settings.with_profile() accepts overrides."""
         settings = Settings.with_profile("conservative", questions_per_atom=20)
-        assert settings.max_concurrent_questions == 2  # from profile
+        assert settings.max_concurrent_llm_calls == 2  # from profile
         assert settings.num_retries == 5  # from profile
         assert settings.questions_per_atom == 20  # from override
 

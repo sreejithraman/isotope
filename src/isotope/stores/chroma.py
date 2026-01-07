@@ -108,3 +108,47 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
     def count_questions(self) -> int:
         """Count the total number of questions in the store."""
         return self._collection.count()
+
+    def sample(self, n: int = 5, chunk_ids: list[str] | None = None) -> list[Question]:
+        """Get a random sample of questions."""
+        import random
+
+        if self._collection.count() == 0:
+            return []
+
+        if chunk_ids is not None:
+            if not chunk_ids:
+                return []
+            results = self._collection.get(
+                where={"chunk_id": {"$in": chunk_ids}},  # type: ignore[dict-item]
+                include=["metadatas"],
+            )
+        else:
+            results = self._collection.get(include=["metadatas"])
+
+        questions = []
+        for qid, meta in zip(results["ids"], results["metadatas"] or [], strict=True):
+            questions.append(
+                Question(
+                    id=qid,
+                    text=meta["text"],
+                    chunk_id=meta["chunk_id"],
+                    atom_id=meta["atom_id"],
+                )
+            )
+
+        if not questions:
+            return []
+
+        return random.sample(questions, min(n, len(questions)))
+
+    def count_by_chunk_ids(self, chunk_ids: list[str]) -> int:
+        """Count questions associated with given chunk IDs."""
+        if not chunk_ids:
+            return 0
+
+        results = self._collection.get(
+            where={"chunk_id": {"$in": chunk_ids}},  # type: ignore[dict-item]
+            include=[],  # Only need count, no data
+        )
+        return len(results["ids"])

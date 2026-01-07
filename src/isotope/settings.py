@@ -12,21 +12,55 @@ application layer and pass values explicitly to Isotope factory methods.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from isotope.question_generator.base import BatchConfig
 
 # Rate limit profile definitions
 RATE_LIMIT_PROFILES: dict[str, dict[str, int]] = {
     "aggressive": {
-        "max_concurrent_questions": 10,
-        "num_retries": 3,
+        "max_concurrent_llm_calls": 10,
+        "num_retries": 5,
     },
     "conservative": {
-        "max_concurrent_questions": 2,
+        "max_concurrent_llm_calls": 2,
         "num_retries": 5,
     },
 }
+
+# Generation preset definitions for different deployment scenarios
+# - "cloud": Many concurrent single-atom calls (optimized for cloud APIs)
+# - "local": Multi-atom batching with low concurrency (optimized for local models)
+GENERATION_PRESETS: dict[str, dict[str, int]] = {
+    "cloud": {
+        "batch_size": 1,
+        "max_concurrent_llm_calls": 50,
+    },
+    "local": {
+        "batch_size": 5,
+        "max_concurrent_llm_calls": 2,
+    },
+}
+
+# Model prefixes that indicate local models (used for auto-detection)
+LOCAL_MODEL_PREFIXES = ("ollama/", "llama.cpp/", "local/")
+
+
+def detect_generation_preset(model: str) -> Literal["cloud", "local"]:
+    """Auto-detect the appropriate generation preset based on model name.
+
+    Args:
+        model: The model identifier (e.g., "ollama/llama3.2", "openai/gpt-4o")
+
+    Returns:
+        "local" for local models, "cloud" for cloud APIs
+    """
+    if model.lower().startswith(LOCAL_MODEL_PREFIXES):
+        return "local"
+    return "cloud"
 
 
 class Settings(BaseModel):
@@ -45,11 +79,19 @@ class Settings(BaseModel):
         settings = Settings.with_profile("conservative")
     """
 
+    # Atomization
+    use_sentence_atomizer: bool = False  # True = fast sentence-based, False = LLM quality
+
     # Question generation
-    questions_per_atom: int = 15
+    questions_per_atom: int = 5
     question_generator_prompt: str | None = None
 
-    # Atomization
+    # Generation batching (for multi-atom prompts)
+    # Use generation_preset for convenience, or set batch_size directly
+    generation_preset: Literal["cloud", "local"] | None = None
+    batch_size: int | None = None  # Atoms per LLM prompt (None = use preset default)
+
+    # Custom atomization prompt (only used when use_sentence_atomizer=False)
     atomizer_prompt: str | None = None
 
     # Question diversity deduplication
@@ -61,11 +103,11 @@ class Settings(BaseModel):
     synthesis_prompt: str | None = None
     synthesis_temperature: float | None = 0.3
 
-    # Async ingestion
-    max_concurrent_questions: int = 10
+    # Concurrency for async ingestion (question generation + LLM atomization)
+    max_concurrent_llm_calls: int = 10
 
     # Retry configuration (LiteLLM handles exponential backoff for RateLimitError)
-    num_retries: int = 3
+    num_retries: int = 5
 
     @classmethod
     def with_profile(
@@ -102,3 +144,55 @@ class Settings(BaseModel):
         profile_settings = RATE_LIMIT_PROFILES[profile].copy()
         profile_settings.update(overrides)
         return cls(**profile_settings)
+
+    def get_batch_config(self, model: str | None = None) -> tuple[int, int]:
+        """Resolve batch configuration based on settings and model.
+
+        Precedence:
+        1. Explicit batch_size setting (if set)
+        2. generation_preset (if set)
+        3. Auto-detect from model name (if provided)
+        4. Default to cloud preset
+
+        Args:
+            model: Optional model name for auto-detection (e.g., "ollama/llama3.2")
+
+        Returns:
+            Tuple of (batch_size, max_concurrent)
+        """
+
+        # Determine preset
+        preset: Literal["cloud", "local"]
+        if self.generation_preset is not None:
+            preset = self.generation_preset
+        elif model is not None:
+            preset = detect_generation_preset(model)
+        else:
+            preset = "cloud"
+
+        # Get preset defaults
+        preset_config = GENERATION_PRESETS[preset]
+        batch_size = preset_config["batch_size"]
+        max_concurrent = preset_config["max_concurrent_llm_calls"]
+
+        # Override with explicit settings
+        if self.batch_size is not None:
+            batch_size = self.batch_size
+        if self.max_concurrent_llm_calls != 10:  # Check if explicitly set (not default)
+            max_concurrent = self.max_concurrent_llm_calls
+
+        return batch_size, max_concurrent
+
+    def build_batch_config(self, model: str | None = None) -> BatchConfig:
+        """Build a BatchConfig from settings.
+
+        Args:
+            model: Optional model name for auto-detection
+
+        Returns:
+            BatchConfig instance
+        """
+        from isotope.question_generator.base import BatchConfig
+
+        batch_size, max_concurrent = self.get_batch_config(model)
+        return BatchConfig(batch_size=batch_size, max_concurrent=max_concurrent)

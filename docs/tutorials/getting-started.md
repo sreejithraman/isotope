@@ -18,8 +18,8 @@ pip install isotope-rag[all]
 Isotope uses LiteLLM under the hood, so it works with any major LLM provider. Set the API key for your provider:
 
 ```bash
-# For Gemini (default)
-export GOOGLE_API_KEY="your-api-key"
+# For Gemini
+export GEMINI_API_KEY="your-api-key"
 
 # For OpenAI
 export OPENAI_API_KEY="your-api-key"
@@ -49,16 +49,18 @@ including procedural, object-oriented, and functional programming.
 ### Step 2: Ingest It
 
 ```python
-from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
+from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage, Settings
 
 # Create an Isotope instance (LiteLLM + local stores)
 iso = Isotope(
     provider=LiteLLMProvider(
         llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
-        atomizer_type="sentence",  # Faster, no LLM for atomization
     ),
     storage=LocalStorage("./my_isotope_data"),
+    settings=Settings(
+        use_sentence_atomizer=True,  # Faster, no LLM for atomization
+    ),
 )
 
 # Load your content
@@ -78,7 +80,7 @@ print(f"Generated {result['questions']} questions")
 
 That's it! Isotope automatically:
 - Broke your content into atomic facts (sentences)
-- Generated ~15 questions for each fact
+- Generated 5 questions for each fact (configurable via `questions_per_atom`)
 - Embedded and indexed those questions
 - Stored everything for retrieval
 
@@ -156,16 +158,18 @@ See [CLI Reference](../guides/cli.md) for all commands.
 Here's everything in one script:
 
 ```python
-from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
+from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage, Settings
 
 # 1. Setup
 iso = Isotope(
     provider=LiteLLMProvider(
         llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
-        atomizer_type="sentence",
     ),
     storage=LocalStorage("./my_data"),
+    settings=Settings(
+        use_sentence_atomizer=True,  # Fast sentence-based atomization
+    ),
 )
 
 # 2. Load and ingest content
@@ -189,7 +193,7 @@ print(f"\nAnswer: {response.answer}")
 Under the hood, Isotope:
 
 1. **Atomized** your content into individual facts (sentences)
-2. **Generated questions** for each fact (~15 per atom by default)
+2. **Generated questions** for each fact (5 per atom by default)
 3. **Embedded** those questions using your configured embedding model
 4. **Filtered** near-duplicate questions (85% similarity threshold)
 5. **Indexed** everything in a vector store (ChromaDB by default)
@@ -304,6 +308,7 @@ For large documents with many atoms, use async methods to parallelize question g
 
 ```python
 import asyncio
+from isotope.question_generator.base import BatchConfig
 
 # Using the high-level API
 async def ingest_large_file():
@@ -313,7 +318,9 @@ async def ingest_large_file():
 result = asyncio.run(ingest_large_file())
 
 # Or with the Ingestor directly
-ingestor = iso.ingestor(max_concurrent_questions=20)
+ingestor = iso.ingestor(
+    batch_config=BatchConfig(batch_size=1, max_concurrent=20)
+)
 result = asyncio.run(ingestor.aingest_chunks(chunks))
 ```
 

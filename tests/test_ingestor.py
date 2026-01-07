@@ -40,10 +40,10 @@ class TestIngestorInit:
 class TestIngestChunks:
     @pytest.mark.mock_integration
     @patch("isotope.providers.litellm.client.litellm.embedding")
-    @patch("isotope.providers.litellm.client.litellm.completion")
-    def test_ingest_single_chunk(self, mock_completion, mock_embedding, stores):
-        # Setup mocks
-        mock_completion.return_value = MagicMock(
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
+    def test_ingest_single_chunk(self, mock_acompletion, mock_embedding, stores):
+        # Setup mocks - acompletion is async so return value works the same
+        mock_acompletion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?", "Q2?"]'))]
         )
         # embed_texts accesses response.data as a list of dicts with "embedding" and "index" keys
@@ -81,8 +81,8 @@ class TestIngestChunks:
 
     @pytest.mark.mock_integration
     @patch("isotope.providers.litellm.client.litellm.embedding")
-    @patch("isotope.providers.litellm.client.litellm.completion")
-    def test_ingest_empty_list(self, mock_completion, mock_embedding, stores):
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
+    def test_ingest_empty_list(self, mock_acompletion, mock_embedding, stores):
         ingestor = Ingestor(
             embedded_question_store=stores["embedded_question_store"],
             chunk_store=stores["chunk_store"],
@@ -101,9 +101,9 @@ class TestIngestChunks:
 class TestIngestorProgress:
     @pytest.mark.mock_integration
     @patch("isotope.providers.litellm.client.litellm.embedding")
-    @patch("isotope.providers.litellm.client.litellm.completion")
-    def test_progress_callback_called(self, mock_completion, mock_embedding, stores):
-        mock_completion.return_value = MagicMock(
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
+    def test_progress_callback_called(self, mock_acompletion, mock_embedding, stores):
+        mock_acompletion.return_value = MagicMock(
             choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
         )
 
