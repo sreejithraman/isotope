@@ -200,7 +200,7 @@ to detect changes and automatically cascades deletion of old data before adding 
 
 | Loader | File Types |
 |--------|------------|
-| `TextLoader` | `.txt`, `.md`, `.markdown` |
+| `TextLoader` | `.txt`, `.text`, `.md`, `.markdown` |
 | `PyPDFLoader` | `.pdf` (via pypdf) |
 | `PDFPlumberLoader` | `.pdf` (via pdfplumber) |
 | `HTMLLoader` | `.html`, `.htm` |

@@ -35,7 +35,7 @@ class LocalStorage:
         iso = Isotope(
             provider=LiteLLMProvider(
                 llm="openai/gpt-5-mini-2025-08-07",
-                embedding="text-embedding-3-small",
+                embedding="openai/text-embedding-3-small",
             ),
             storage=LocalStorage("./my_data"),
         )

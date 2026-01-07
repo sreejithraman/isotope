@@ -35,7 +35,7 @@ class Isotope:
         iso = Isotope(
             provider=LiteLLMProvider(
                 llm="openai/gpt-5-mini-2025-08-07",
-                embedding="text-embedding-3-small",
+                embedding="openai/text-embedding-3-small",
             ),
             storage=LocalStorage("./data"),
         )
@@ -50,8 +50,8 @@ class Isotope:
 
         iso = Isotope.from_stores(
             provider=LiteLLMProvider(
-                llm="gpt-5-mini-2025-08-07",
-                embedding="text-embedding-3-small",
+                llm="openai/gpt-5-mini-2025-08-07",
+                embedding="openai/text-embedding-3-small",
             ),
             embedded_question_store=ChromaEmbeddedQuestionStore("./data/chroma"),
             chunk_store=SQLiteChunkStore("./data/chunks.db"),
@@ -81,8 +81,8 @@ class Isotope:
         Args:
             provider: Provider configuration (builds embedder, atomizer, question_generator).
                       Example: LiteLLMProvider(
-                          llm="gpt-5-mini-2025-08-07",
-                          embedding="text-embedding-3-small",
+                          llm="openai/gpt-5-mini-2025-08-07",
+                          embedding="openai/text-embedding-3-small",
                       )
             storage: Storage bundle (convenience). Mutually exclusive with explicit stores.
                      Example: LocalStorage("./data")

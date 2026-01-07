@@ -90,7 +90,7 @@ def _load_env_file() -> None:
     if not env_path.exists():
         return
 
-    with open(env_path) as f:
+    with open(env_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
@@ -156,7 +156,7 @@ def _save_api_key_to_env(env_var: str, api_key: str) -> bool:
     # Read existing content
     existing_lines: list[str] = []
     if env_path.exists():
-        with open(env_path) as f:
+        with open(env_path, encoding="utf-8") as f:
             existing_lines = f.readlines()
 
     # Check if key already exists
@@ -176,7 +176,7 @@ def _save_api_key_to_env(env_var: str, api_key: str) -> bool:
         new_lines.append(f"{env_var}={api_key}\n")
 
     # Write file
-    with open(env_path, "w") as f:
+    with open(env_path, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
     return True
@@ -202,9 +202,9 @@ def _save_api_keys_and_update_gitignore(llm_key: str | None, embed_key: str | No
         # Ensure .env is in .gitignore
         gitignore_path = Path(".gitignore")
         if gitignore_path.exists():
-            content = gitignore_path.read_text()
+            content = gitignore_path.read_text(encoding="utf-8")
             if ".env" not in content:
-                with open(gitignore_path, "a") as f:
+                with open(gitignore_path, "a", encoding="utf-8") as f:
                     f.write("\n# Environment variables\n.env\n")
                 console.print("[dim]Added .env to .gitignore[/dim]")
 
@@ -475,7 +475,7 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
         console.print("[dim]Install with: pip install pyyaml[/dim]")
         return {}
 
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
 
     # Validate config and warn about unknown keys
@@ -1531,7 +1531,7 @@ def init(
         # Generate config content
         content = _generate_config_content(effective_llm, effective_embedding, settings)
 
-        config_path.write_text(content)
+        config_path.write_text(content, encoding="utf-8")
         console.print(f"\n[green]Created {config_path}[/green]")
 
         # Collect API keys from user
@@ -1564,7 +1564,7 @@ atomizer: my_package.MyAtomizer
 # Optional: Data directory
 # data_dir: ./isotope_data
 """
-        config_path.write_text(content)
+        config_path.write_text(content, encoding="utf-8")
         console.print(f"[green]Created {config_path}[/green]")
         console.print()
         console.print("Next steps:")

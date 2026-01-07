@@ -61,7 +61,7 @@ isotope ingest docs/ --config ./isotope.yaml
 ```
 
 **What happens:**
-1. Loads supported files (`.txt`, `.md`, `.markdown`, plus PDFs/HTML if loader extras are installed)
+1. Loads supported files (`.txt`, `.text`, `.md`, `.markdown`, plus PDFs/HTML if loader extras are installed)
 2. Breaks content into chunks
 3. Atomizes chunks into facts
 4. Generates questions for each atom
@@ -498,6 +498,9 @@ The CLI reads configuration from YAML files and environment variables. See [Conf
 - `ISOTOPE_RATE_LIMIT_PROFILE` - `aggressive` or `conservative` preset
 - `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` - Diversity filter threshold
 - `ISOTOPE_DEFAULT_K` - Default top-k
+- `ISOTOPE_QUESTION_GENERATOR_PROMPT` - Custom prompt template for question generation
+- `ISOTOPE_ATOMIZER_PROMPT` - Custom prompt template for LLM atomization
+- `ISOTOPE_SYNTHESIS_PROMPT` - Custom prompt template for answer synthesis
 
 Note: Provider-specific env vars (like `OPENAI_API_KEY`) still work if `ISOTOPE_LLM_API_KEY` is not set.
 
