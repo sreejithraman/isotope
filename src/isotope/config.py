@@ -136,7 +136,6 @@ VALID_SETTINGS_KEYS = {
     "question_generator_prompt",
     "atomizer_prompt",
     "question_diversity_threshold",
-    "diversity_threshold",  # alias
     "diversity_scope",
     "default_k",
     "synthesis_prompt",
@@ -277,7 +276,7 @@ def get_settings_from_env() -> dict[str, Any]:
 def get_settings_from_yaml(config: dict[str, Any]) -> dict[str, Any]:
     """Extract settings from YAML config file.
 
-    Settings can be in a 'settings:' section or at the root level for backwards compat.
+    Settings must be in a 'settings:' section.
 
     Args:
         config: The loaded YAML configuration
@@ -285,35 +284,27 @@ def get_settings_from_yaml(config: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Dictionary of setting name -> value
     """
-    result: dict[str, Any] = {}
-
-    # Get settings from the 'settings:' section if present
     yaml_settings = config.get("settings", {}) or {}
 
-    # Map YAML keys to Settings field names
-    key_mappings = {
-        "use_sentence_atomizer": "use_sentence_atomizer",
-        "questions_per_atom": "questions_per_atom",
-        "question_generator_prompt": "question_generator_prompt",
-        "atomizer_prompt": "atomizer_prompt",
-        "question_diversity_threshold": "question_diversity_threshold",
-        "diversity_threshold": "question_diversity_threshold",  # alias
-        "diversity_scope": "diversity_scope",
-        "default_k": "default_k",
-        "synthesis_prompt": "synthesis_prompt",
-        "synthesis_temperature": "synthesis_temperature",
-        "max_concurrent_llm_calls": "max_concurrent_llm_calls",
-        "num_retries": "num_retries",
-        "rate_limit_profile": "rate_limit_profile",
-        "batch_size": "batch_size",
-        "generation_preset": "generation_preset",
+    # Keys that map directly to Settings field names
+    valid_keys = {
+        "use_sentence_atomizer",
+        "questions_per_atom",
+        "question_generator_prompt",
+        "atomizer_prompt",
+        "question_diversity_threshold",
+        "diversity_scope",
+        "default_k",
+        "synthesis_prompt",
+        "synthesis_temperature",
+        "max_concurrent_llm_calls",
+        "num_retries",
+        "rate_limit_profile",
+        "batch_size",
+        "generation_preset",
     }
 
-    for yaml_key, settings_key in key_mappings.items():
-        if yaml_key in yaml_settings:
-            result[settings_key] = yaml_settings[yaml_key]
-
-    return result
+    return {k: v for k, v in yaml_settings.items() if k in valid_keys}
 
 
 def build_settings(

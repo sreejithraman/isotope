@@ -39,6 +39,60 @@ STAGE_MAP = {
 }
 
 
+def _do_ingest(
+    iso: Isotope,
+    path: Path,
+    on_progress: ProgressCallback | None = None,
+    on_file_start: Callable | None = None,
+    on_file_complete: Callable | None = None,
+) -> IngestResult:
+    """Core ingest logic shared between ingest() and ingest_with_isotope()."""
+    from isotope.loaders import LoaderRegistry
+
+    registry = LoaderRegistry.default()
+
+    if path.is_file():
+        files = [str(path)]
+    else:
+        files = []
+        for root, _, filenames in os.walk(path):
+            for filename in filenames:
+                filepath = os.path.join(root, filename)
+                if registry.find_loader(filepath):
+                    files.append(filepath)
+
+    if not files:
+        return IngestResult(success=True, error="No supported files found")
+
+    result = IngestResult(success=True)
+
+    for i, filepath in enumerate(files):
+        if on_file_start:
+            on_file_start(filepath, i, len(files))
+
+        file_result = _ingest_file(iso=iso, filepath=filepath, on_progress=on_progress)
+        result.file_results.append(file_result)
+
+        if file_result.skipped:
+            result.files_skipped += 1
+        else:
+            result.files_processed += 1
+            result.total_chunks += file_result.chunks
+            result.total_atoms += file_result.atoms
+            result.total_questions += file_result.questions
+            result.total_questions_filtered += file_result.questions_filtered
+
+        if on_file_complete:
+            on_file_complete(file_result)
+
+    if result.errors:
+        result.files_failed = len(result.errors)
+        if result.files_processed == 0:
+            result.success = False
+
+    return result
+
+
 def ingest(
     path: str | Path,
     data_dir: str | None = None,
@@ -63,88 +117,21 @@ def ingest(
     Returns:
         IngestResult with aggregated statistics and per-file results
     """
-    from isotope.loaders import LoaderRegistry
-
     path = Path(path)
 
-    # Check path exists
     if not path.exists():
-        return IngestResult(
-            success=False,
-            error=f"Path not found: {path}",
-        )
+        return IngestResult(success=False, error=f"Path not found: {path}")
 
-    # Get configuration
     config = get_isotope_config(data_dir, config_path)
     if isinstance(config, ConfigError):
-        return IngestResult(
-            success=False,
-            error=config.message,
-        )
+        return IngestResult(success=False, error=config.message)
 
-    # Create Isotope instance
     try:
         iso = create_isotope(config)
     except Exception as e:
-        return IngestResult(
-            success=False,
-            error=f"Failed to create Isotope: {e}",
-        )
+        return IngestResult(success=False, error=f"Failed to create Isotope: {e}")
 
-    # Find files to ingest
-    registry = LoaderRegistry.default()
-
-    if path.is_file():
-        files = [str(path)]
-    else:
-        # Directory - find all supported files
-        files = []
-        for root, _, filenames in os.walk(path):
-            for filename in filenames:
-                filepath = os.path.join(root, filename)
-                if registry.find_loader(filepath):
-                    files.append(filepath)
-
-    if not files:
-        return IngestResult(
-            success=True,
-            error="No supported files found",
-        )
-
-    # Ingest each file
-    result = IngestResult(success=True)
-
-    for i, filepath in enumerate(files):
-        if on_file_start:
-            on_file_start(filepath, i, len(files))
-
-        file_result = _ingest_file(
-            iso=iso,
-            filepath=filepath,
-            on_progress=on_progress,
-        )
-
-        result.file_results.append(file_result)
-
-        if file_result.skipped:
-            result.files_skipped += 1
-        else:
-            result.files_processed += 1
-            result.total_chunks += file_result.chunks
-            result.total_atoms += file_result.atoms
-            result.total_questions += file_result.questions
-            result.total_questions_filtered += file_result.questions_filtered
-
-        if on_file_complete:
-            on_file_complete(file_result)
-
-    # Check for failures
-    if result.errors:
-        result.files_failed = len(result.errors)
-        if result.files_processed == 0:
-            result.success = False
-
-    return result
+    return _do_ingest(iso, path, on_progress, on_file_start, on_file_complete)
 
 
 def _ingest_file(
@@ -228,64 +215,9 @@ def ingest_with_isotope(
     Returns:
         IngestResult with aggregated statistics
     """
-    from isotope.loaders import LoaderRegistry
-
     path = Path(path)
 
     if not path.exists():
-        return IngestResult(
-            success=False,
-            error=f"Path not found: {path}",
-        )
+        return IngestResult(success=False, error=f"Path not found: {path}")
 
-    # Find files to ingest
-    registry = LoaderRegistry.default()
-
-    if path.is_file():
-        files = [str(path)]
-    else:
-        files = []
-        for root, _, filenames in os.walk(path):
-            for filename in filenames:
-                filepath = os.path.join(root, filename)
-                if registry.find_loader(filepath):
-                    files.append(filepath)
-
-    if not files:
-        return IngestResult(
-            success=True,
-            error="No supported files found",
-        )
-
-    result = IngestResult(success=True)
-
-    for i, filepath in enumerate(files):
-        if on_file_start:
-            on_file_start(filepath, i, len(files))
-
-        file_result = _ingest_file(
-            iso=iso,
-            filepath=filepath,
-            on_progress=on_progress,
-        )
-
-        result.file_results.append(file_result)
-
-        if file_result.skipped:
-            result.files_skipped += 1
-        else:
-            result.files_processed += 1
-            result.total_chunks += file_result.chunks
-            result.total_atoms += file_result.atoms
-            result.total_questions += file_result.questions
-            result.total_questions_filtered += file_result.questions_filtered
-
-        if on_file_complete:
-            on_file_complete(file_result)
-
-    if result.errors:
-        result.files_failed = len(result.errors)
-        if result.files_processed == 0:
-            result.success = False
-
-    return result
+    return _do_ingest(iso, path, on_progress, on_file_start, on_file_complete)

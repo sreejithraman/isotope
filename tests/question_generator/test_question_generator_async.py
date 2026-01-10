@@ -16,8 +16,8 @@ from isotope.question_generator import (
     BatchGenerationError,
     ClientQuestionGenerator,
     QuestionGenerator,
-    SyncOnlyGeneratorMixin,
 )
+from isotope.question_generator.base import SyncOnlyGeneratorMixin
 
 
 def mock_acompletion_response(questions: list[str]):

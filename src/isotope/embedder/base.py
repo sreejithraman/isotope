@@ -10,7 +10,6 @@ class Embedder(ABC):
     """Abstract base class for embedding generation.
 
     Subclasses must implement embed_text and embed_texts.
-    Default implementations are provided for embed_question and embed_questions.
     """
 
     @abstractmethod
