@@ -40,3 +40,7 @@ isotope.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+# Make install markers
+.install-cli
+.install-tui

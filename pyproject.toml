@@ -37,6 +37,8 @@ chroma = ["chromadb>=0.4"]           # ChromaDB vector store
 litellm = ["litellm>=1.0"]           # LiteLLMProvider
 # CLI
 cli = ["typer>=0.9", "rich>=13.0", "pyyaml>=6.0"]
+# TUI (interactive terminal interface)
+tui = ["textual>=0.47", "rich>=13.0", "pyyaml>=6.0"]
 # Document loaders
 pdf = ["pdfplumber>=0.11"]           # Full PDF support (text + tables)
 pdf-text = ["pypdf>=4.0"]            # Text extraction only (lightweight)
@@ -46,6 +48,7 @@ loaders = ["pdfplumber>=0.11", "beautifulsoup4>=4.12", "markdownify>=0.13"]
 all = [
     "chromadb>=0.4", "litellm>=1.0", "typer>=0.9", "rich>=13.0", "pyyaml>=6.0",
     "pdfplumber>=0.11", "beautifulsoup4>=4.12", "markdownify>=0.13",
+    "textual>=0.47",
 ]
 dev = [
     "pytest>=8.0",
@@ -59,6 +62,7 @@ dev = [
 
 [project.scripts]
 isotope = "isotope.cli:app"
+isotope-tui = "isotope.tui:main"
 
 [project.urls]
 Repository = "https://github.com/sreejithraman/isotope"
@@ -91,6 +95,7 @@ module = [
     "pypdf",
     "bs4",
     "markdownify",
+    "textual.*",
 ]
 ignore_missing_imports = true
 

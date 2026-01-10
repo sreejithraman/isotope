@@ -14,6 +14,7 @@ Understanding the theory behind Isotope:
 
 - [Reverse RAG Explained](./concepts/reverse-rag.md) - The paper (arXiv:2405.12363) and core insight
 - [Architecture](./concepts/architecture.md) - System design, `Isotope` class, and pipelines
+- [Developer Architecture](./concepts/developer-architecture.md) - Internal code structure (commands layer, CLI/TUI)
 
 ## Guides
 
@@ -28,6 +29,13 @@ How-to guides for specific tasks:
 Step-by-step learning:
 
 - [Getting Started](./tutorials/getting-started.md) - Ingest and query your first document
+
+## Contributing
+
+Resources for contributors:
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Development setup and workflow
+- [Developer Architecture](./concepts/developer-architecture.md) - Internal code structure
 
 ## Additional Resources
 

@@ -75,12 +75,53 @@ pip install isotope-rag[litellm,chroma]  # Add LiteLLM + ChromaDB
 - `[litellm]` - LiteLLM integration for 100+ LLM providers
 - `[chroma]` - ChromaDB vector store
 - `[cli]` - Command-line interface
+- `[tui]` - Interactive terminal interface (Claude Code-style)
 - `[loaders]` - PDF/HTML document loaders
 - `[dev]` - Development tools (pytest, ruff, mypy)
 
 ## Quick Start
 
-### Option 1: Command Line (fastest)
+### Option 1: Interactive TUI (recommended)
+
+Launch the interactive terminal interface:
+
+```bash
+# Install TUI with a provider and store
+pip install isotope-rag[tui,litellm,chroma]
+isotope-tui
+```
+
+> **Note:** The TUI requires a provider (`litellm`) and store (`chroma`) to ingest and query.
+> You can also use `pip install isotope-rag[all]` to get everything.
+
+Then just type naturally:
+```
+> ingest ./docs
+Ingesting 3 files...
+  ✓ docs/guide.md → 45 questions
+  ✓ docs/api.md → 82 questions
+Done! 127 questions indexed.
+
+> how does authentication work?
+Searching 127 questions...
+
+Authentication uses JWT tokens stored in httpOnly cookies...
+
+─────────────────────────────────────────────────
+Sources: docs/auth.md (0.94), docs/api.md (0.87)
+
+> status
+Sources: 3  |  Chunks: 42  |  Questions: 127
+```
+
+**Features:**
+- Natural language queries (just type a question)
+- Command history (↑/↓ arrows)
+- Tab completion for file paths
+- Real-time progress during ingestion
+- Markdown rendering for answers
+
+### Option 2: Command Line
 
 ```bash
 # 0. Configure models (writes isotope.yaml)
@@ -103,7 +144,7 @@ isotope status
 📄 Source: docs/authentication.md
 ```
 
-### Option 2: Python API (for integration)
+### Option 3: Python API (for integration)
 
 ```python
 from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
