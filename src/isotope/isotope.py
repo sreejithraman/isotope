@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from isotope.configuration import ProviderConfig, StorageConfig
     from isotope.ingestor import Ingestor, ProgressCallback
     from isotope.loaders import LoaderRegistry
+    from isotope.models import Chunk
     from isotope.providers import LLMClient
     from isotope.question_generator import DiversityFilter, FilterScope
     from isotope.retriever import Retriever
@@ -114,15 +115,10 @@ class Isotope:
 
         # Path 2: Explicit stores (enterprise)
         elif all([embedded_question_store, chunk_store, atom_store, source_registry]):
-            # Type narrowing - we checked all are not None above
-            assert embedded_question_store is not None
-            assert chunk_store is not None
-            assert atom_store is not None
-            assert source_registry is not None
-            self.embedded_question_store = embedded_question_store
-            self.chunk_store = chunk_store
-            self.atom_store = atom_store
-            self._source_registry = source_registry
+            self.embedded_question_store = cast("EmbeddedQuestionStore", embedded_question_store)
+            self.chunk_store = cast("ChunkStore", chunk_store)
+            self.atom_store = cast("AtomStore", atom_store)
+            self._source_registry = cast("SourceRegistry", source_registry)
 
         else:
             raise ValueError(
@@ -308,6 +304,43 @@ class Isotope:
             batch_config=effective_batch_config,
         )
 
+    def _prepare_ingest_file(
+        self,
+        filepath: str,
+        source_id: str | None = None,
+    ) -> tuple[list[Chunk], str, str] | dict:
+        """Prepare file for ingestion, handling hash checks and cleanup.
+
+        Returns:
+            Either a skip dict {"skipped": True, "reason": "..."}
+            or tuple of (chunks, source, content_hash) for ingestion.
+        """
+        file_path = Path(filepath)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        content = file_path.read_bytes()
+        content_hash = hashlib.sha256(content).hexdigest()
+        source = source_id or str(file_path.resolve())
+
+        existing_hash = self._source_registry.get_hash(source)
+        if existing_hash == content_hash:
+            return {"skipped": True, "reason": "content unchanged"}
+
+        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
+        if chunk_ids:
+            self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
+            self.atom_store.delete_by_chunk_ids(chunk_ids)
+            self.chunk_store.delete_by_source(source)
+            self._source_registry.delete(source)
+
+        loader_registry = self._get_loader_registry()
+        chunks = loader_registry.load(filepath, source_id)
+        if not chunks:
+            return {"skipped": True, "reason": "no content"}
+
+        return (chunks, source, content_hash)
+
     def ingest_file(
         self,
         filepath: str,
@@ -339,47 +372,18 @@ class Isotope:
             - If skipped: {"skipped": True, "reason": "..."}
             - If ingested: {"chunks": N, "atoms": N, "questions": N, ...}
         """
-        file_path = Path(filepath)
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
+        prepared = self._prepare_ingest_file(filepath, source_id)
+        if isinstance(prepared, dict):
+            return prepared
+        chunks, source, content_hash = prepared
 
-        # Compute content hash
-        content = file_path.read_bytes()
-        content_hash = hashlib.sha256(content).hexdigest()
-
-        # Determine source identifier
-        source = source_id or str(file_path.resolve())
-
-        # Check if content unchanged
-        existing_hash = self._source_registry.get_hash(source)
-        if existing_hash == content_hash:
-            return {"skipped": True, "reason": "content unchanged"}
-
-        # Delete old data for this source (cascading via chunk_ids)
-        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
-        if chunk_ids:
-            self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
-            self.atom_store.delete_by_chunk_ids(chunk_ids)
-            self.chunk_store.delete_by_source(source)
-            self._source_registry.delete(source)
-
-        # Load file into chunks
-        loader_registry = self._get_loader_registry()
-        chunks = loader_registry.load(filepath, source_id)
-        if not chunks:
-            return {"skipped": True, "reason": "no content"}
-
-        # Ingest chunks
         ingestor = self.ingestor(
             diversity_filter=diversity_filter,
             use_diversity_filter=use_diversity_filter,
             diversity_scope=diversity_scope,
         )
         result = ingestor.ingest_chunks(chunks, on_progress=on_progress)
-
-        # Track the new hash after successful ingestion
         self._source_registry.set_hash(source, content_hash)
-
         return result
 
     async def aingest_file(
@@ -414,37 +418,11 @@ class Isotope:
             - If skipped: {"skipped": True, "reason": "..."}
             - If ingested: {"chunks": N, "atoms": N, "questions": N, ...}
         """
-        file_path = Path(filepath)
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
+        prepared = self._prepare_ingest_file(filepath, source_id)
+        if isinstance(prepared, dict):
+            return prepared
+        chunks, source, content_hash = prepared
 
-        # Compute content hash
-        content = file_path.read_bytes()
-        content_hash = hashlib.sha256(content).hexdigest()
-
-        # Determine source identifier
-        source = source_id or str(file_path.resolve())
-
-        # Check if content unchanged
-        existing_hash = self._source_registry.get_hash(source)
-        if existing_hash == content_hash:
-            return {"skipped": True, "reason": "content unchanged"}
-
-        # Delete old data for this source (cascading via chunk_ids)
-        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
-        if chunk_ids:
-            self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
-            self.atom_store.delete_by_chunk_ids(chunk_ids)
-            self.chunk_store.delete_by_source(source)
-            self._source_registry.delete(source)
-
-        # Load file into chunks
-        loader_registry = self._get_loader_registry()
-        chunks = loader_registry.load(filepath, source_id)
-        if not chunks:
-            return {"skipped": True, "reason": "no content"}
-
-        # Ingest chunks using async
         ingestor = self.ingestor(
             diversity_filter=diversity_filter,
             use_diversity_filter=use_diversity_filter,
@@ -452,10 +430,7 @@ class Isotope:
             batch_config=batch_config,
         )
         result = await ingestor.aingest_chunks(chunks, on_progress=on_progress)
-
-        # Track the new hash after successful ingestion
         self._source_registry.set_hash(source, content_hash)
-
         return result
 
     def delete_source(self, source: str) -> dict:

@@ -304,7 +304,6 @@ def _get_settings_from_yaml(config: dict) -> dict:
         "question_generator_prompt": "question_generator_prompt",
         "atomizer_prompt": "atomizer_prompt",
         "question_diversity_threshold": "question_diversity_threshold",
-        "diversity_threshold": "question_diversity_threshold",  # alias
         "diversity_scope": "diversity_scope",
         "default_k": "default_k",
         "synthesis_prompt": "synthesis_prompt",
@@ -319,12 +318,6 @@ def _get_settings_from_yaml(config: dict) -> dict:
     for yaml_key, settings_key in key_mappings.items():
         if yaml_key in yaml_settings:
             result[settings_key] = yaml_settings[yaml_key]
-
-    # Also check root level for backwards compat (use_sentence_atomizer, rate_limit_profile)
-    if "use_sentence_atomizer" in config and "use_sentence_atomizer" not in result:
-        result["use_sentence_atomizer"] = config["use_sentence_atomizer"]
-    if "rate_limit_profile" in config and "rate_limit_profile" not in result:
-        result["rate_limit_profile"] = config["rate_limit_profile"]
 
     return result
 
