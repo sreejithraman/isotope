@@ -1,4 +1,4 @@
-.PHONY: help install dev-setup lint format fix test typecheck clean build release
+.PHONY: help install dev-setup lint format fix test typecheck ci clean build release
 
 ORANGE := \033[38;5;208m
 BOLD := \033[1m
@@ -20,6 +20,7 @@ help:
 	@printf "$(DIM)│$(RESET)  $(BOLD)format$(RESET)       Format code with ruff        $(DIM)│$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)test$(RESET)         Run tests                    $(DIM)│$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)typecheck$(RESET)    Run mypy                     $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)ci$(RESET)           Run all checks (like CI)     $(DIM)│$(RESET)\n"
 	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 	@printf "\n"
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Release $(RESET)$(DIM)──────────────────────────────────╮$(RESET)\n"
@@ -35,8 +36,8 @@ install:
 	pip install -e ".[dev]"
 
 dev-setup: install
-	pre-commit install
-	@echo "Done! Pre-commit hooks will now run on every commit."
+	pre-commit install --hook-type pre-commit --hook-type pre-push
+	@echo "Done! Pre-commit hooks installed (lint on commit, mypy+pytest on push)."
 
 lint:
 	ruff check src tests
@@ -54,6 +55,8 @@ test:
 
 typecheck:
 	mypy src
+
+ci: lint typecheck test
 
 build:
 	python -m build

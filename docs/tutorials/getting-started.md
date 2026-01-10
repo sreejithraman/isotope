@@ -18,8 +18,8 @@ pip install isotope-rag[all]
 Isotope uses LiteLLM under the hood, so it works with any major LLM provider. Set the API key for your provider:
 
 ```bash
-# For Gemini (default)
-export GOOGLE_API_KEY="your-api-key"
+# For Gemini
+export GEMINI_API_KEY="your-api-key"
 
 # For OpenAI
 export OPENAI_API_KEY="your-api-key"
@@ -49,16 +49,18 @@ including procedural, object-oriented, and functional programming.
 ### Step 2: Ingest It
 
 ```python
-from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
+from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage, Settings
 
 # Create an Isotope instance (LiteLLM + local stores)
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
-        atomizer_type="sentence",  # Faster, no LLM for atomization
     ),
     storage=LocalStorage("./my_isotope_data"),
+    settings=Settings(
+        use_sentence_atomizer=True,  # Faster, no LLM for atomization
+    ),
 )
 
 # Load your content
@@ -78,7 +80,7 @@ print(f"Generated {result['questions']} questions")
 
 That's it! Isotope automatically:
 - Broke your content into atomic facts (sentences)
-- Generated ~15 questions for each fact
+- Generated 5 questions for each fact (configurable via `questions_per_atom`)
 - Embedded and indexed those questions
 - Stored everything for retrieval
 
@@ -86,7 +88,7 @@ That's it! Isotope automatically:
 
 ```python
 # Create a retriever (pass llm_model to enable synthesis)
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 
 # Ask a question
 response = retriever.get_answer("Who invented Python?")
@@ -125,7 +127,7 @@ Isotope also has a command-line interface for quick workflows:
 
 ```bash
 # One-time: create CLI config (or set ISOTOPE_LITELLM_* env vars)
-isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+isotope init --provider litellm --llm-model openai/gpt-5-mini-2025-08-07 --embedding-model openai/text-embedding-3-small
 
 # Ingest a file or directory
 isotope ingest python-intro.txt
@@ -156,16 +158,18 @@ See [CLI Reference](../guides/cli.md) for all commands.
 Here's everything in one script:
 
 ```python
-from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
+from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage, Settings
 
 # 1. Setup
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
-        atomizer_type="sentence",
     ),
     storage=LocalStorage("./my_data"),
+    settings=Settings(
+        use_sentence_atomizer=True,  # Fast sentence-based atomization
+    ),
 )
 
 # 2. Load and ingest content
@@ -179,7 +183,7 @@ result = ingestor.ingest_chunks([chunk])
 print(f"Indexed {result['questions']} questions from {result['atoms']} atoms")
 
 # 3. Query
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 response = retriever.get_answer("Who created Python?")
 print(f"\nAnswer: {response.answer}")
 ```
@@ -189,7 +193,7 @@ print(f"\nAnswer: {response.answer}")
 Under the hood, Isotope:
 
 1. **Atomized** your content into individual facts (sentences)
-2. **Generated questions** for each fact (~15 per atom by default)
+2. **Generated questions** for each fact (5 per atom by default)
 3. **Embedded** those questions using your configured embedding model
 4. **Filtered** near-duplicate questions (85% similarity threshold)
 5. **Indexed** everything in a vector store (ChromaDB by default)
@@ -212,7 +216,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",                        # LLM for generation/synthesis
+        llm="openai/gpt-5-mini-2025-08-07",                        # LLM for generation/synthesis
         embedding="openai/text-embedding-3-small",  # Embedding model
     ),
     storage=LocalStorage("./my_data"),
@@ -261,7 +265,7 @@ atom_store = SQLiteAtomStore("./data/atoms.db")
 
 # Create components
 atomizer = SentenceAtomizer()
-embedding_client = LiteLLMEmbeddingClient(model="gemini/text-embedding-004")
+embedding_client = LiteLLMEmbeddingClient(model="gemini/gemini-embedding-001")
 llm_client = LiteLLMClient(model="gemini/gemini-3-flash-preview")
 embedder = ClientEmbedder(embedding_client=embedding_client)
 question_generator = ClientQuestionGenerator(llm_client=llm_client, num_questions=10)
@@ -304,6 +308,7 @@ For large documents with many atoms, use async methods to parallelize question g
 
 ```python
 import asyncio
+from isotope.question_generator.base import BatchConfig
 
 # Using the high-level API
 async def ingest_large_file():
@@ -313,7 +318,9 @@ async def ingest_large_file():
 result = asyncio.run(ingest_large_file())
 
 # Or with the Ingestor directly
-ingestor = iso.ingestor(max_concurrent_questions=20)
+ingestor = iso.ingestor(
+    batch_config=BatchConfig(batch_size=1, max_concurrent=20)
+)
 result = asyncio.run(ingestor.aingest_chunks(chunks))
 ```
 

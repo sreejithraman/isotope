@@ -43,13 +43,17 @@ class ProviderConfig(Protocol):
             llm: str
             embedding: str
 
-            def build_embedder(self) -> Embedder: ...
+            def build_embedder(self, settings: Settings) -> Embedder: ...
             def build_atomizer(self, settings: Settings) -> Atomizer: ...
             def build_question_generator(self, settings: Settings) -> QuestionGenerator: ...
     """
 
-    def build_embedder(self) -> Embedder:
-        """Build an embedder for creating vector embeddings."""
+    def build_embedder(self, settings: Settings) -> Embedder:
+        """Build an embedder for creating vector embeddings.
+
+        Args:
+            settings: Settings containing num_retries for rate limit handling.
+        """
         ...
 
     def build_atomizer(self, settings: Settings) -> Atomizer:
@@ -69,11 +73,15 @@ class ProviderConfig(Protocol):
         """
         ...
 
-    def build_llm_client(self) -> LLMClient:
+    def build_llm_client(self, settings: Settings | None = None) -> LLMClient:
         """Build an LLM client for general-purpose completions.
 
         This can be used for answer synthesis or any other LLM task
         not covered by the specialized component builders.
+
+        Args:
+            settings: Optional settings containing num_retries. If None,
+                     uses default retry value.
         """
         ...
 

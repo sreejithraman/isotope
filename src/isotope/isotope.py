@@ -5,17 +5,19 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from isotope.configuration import ProviderConfig, StorageConfig
-    from isotope.ingestor import Ingestor
+    from isotope.ingestor import Ingestor, ProgressCallback
     from isotope.loaders import LoaderRegistry
+    from isotope.models import Chunk
     from isotope.providers import LLMClient
     from isotope.question_generator import DiversityFilter, FilterScope
     from isotope.retriever import Retriever
     from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore, SourceRegistry
 
+from isotope.question_generator.base import BatchConfig
 from isotope.settings import Settings
 
 
@@ -32,7 +34,10 @@ class Isotope:
         from isotope import Isotope, LiteLLMProvider, LocalStorage
 
         iso = Isotope(
-            provider=LiteLLMProvider(llm="openai/gpt-4o", embedding="text-embedding-3-small"),
+            provider=LiteLLMProvider(
+                llm="openai/gpt-5-mini-2025-08-07",
+                embedding="openai/text-embedding-3-small",
+            ),
             storage=LocalStorage("./data"),
         )
         ingestor = iso.ingestor()
@@ -45,7 +50,10 @@ class Isotope:
         )
 
         iso = Isotope.from_stores(
-            provider=LiteLLMProvider(llm="gpt-4o", embedding="text-embedding-3-small"),
+            provider=LiteLLMProvider(
+                llm="openai/gpt-5-mini-2025-08-07",
+                embedding="openai/text-embedding-3-small",
+            ),
             embedded_question_store=ChromaEmbeddedQuestionStore("./data/chroma"),
             chunk_store=SQLiteChunkStore("./data/chunks.db"),
             atom_store=SQLiteAtomStore("./data/atoms.db"),
@@ -73,7 +81,10 @@ class Isotope:
 
         Args:
             provider: Provider configuration (builds embedder, atomizer, question_generator).
-                      Example: LiteLLMProvider(llm="gpt-4o", embedding="text-embedding-3-small")
+                      Example: LiteLLMProvider(
+                          llm="openai/gpt-5-mini-2025-08-07",
+                          embedding="openai/text-embedding-3-small",
+                      )
             storage: Storage bundle (convenience). Mutually exclusive with explicit stores.
                      Example: LocalStorage("./data")
             embedded_question_store: Explicit embedded question store.
@@ -104,15 +115,10 @@ class Isotope:
 
         # Path 2: Explicit stores (enterprise)
         elif all([embedded_question_store, chunk_store, atom_store, source_registry]):
-            # Type narrowing - we checked all are not None above
-            assert embedded_question_store is not None
-            assert chunk_store is not None
-            assert atom_store is not None
-            assert source_registry is not None
-            self.embedded_question_store = embedded_question_store
-            self.chunk_store = chunk_store
-            self.atom_store = atom_store
-            self._source_registry = source_registry
+            self.embedded_question_store = cast("EmbeddedQuestionStore", embedded_question_store)
+            self.chunk_store = cast("ChunkStore", chunk_store)
+            self.atom_store = cast("AtomStore", atom_store)
+            self._source_registry = cast("SourceRegistry", source_registry)
 
         else:
             raise ValueError(
@@ -121,9 +127,12 @@ class Isotope:
             )
 
         # Build provider components
-        self.embedder = provider.build_embedder()
+        self.embedder = provider.build_embedder(self._settings)
         self._atomizer = provider.build_atomizer(self._settings)
         self._question_generator = provider.build_question_generator(self._settings)
+
+        # Store provider's LLM model for auto-detection of generation presets
+        self._llm_model: str | None = getattr(provider, "llm", None)
 
         # Loader registry (lazily created if not provided)
         self._loader_registry = loader_registry
@@ -219,7 +228,7 @@ class Isotope:
         if llm_client is None and llm_model is not None:
             from isotope.providers import LiteLLMClient
 
-            llm_client = LiteLLMClient(model=llm_model)
+            llm_client = LiteLLMClient(model=llm_model, num_retries=self._settings.num_retries)
 
         return Retriever(
             embedded_question_store=self.embedded_question_store,
@@ -242,7 +251,7 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
-        max_concurrent_questions: int | None = None,
+        batch_config: BatchConfig | None = None,
     ) -> Ingestor:
         """Create an Ingestor using this instance's stores.
 
@@ -256,8 +265,9 @@ class Isotope:
                 - "per_chunk": Filter within each chunk (~100x faster)
                 - "per_atom": Filter within each atom (~1000x faster)
                 If None, uses settings default.
-            max_concurrent_questions: Maximum concurrent async question generation
-                requests. Only used by aingest_chunks(). If None, uses settings.
+            batch_config: Configuration for question generation batching.
+                Controls batch_size (atoms per prompt) and max_concurrent.
+                If None, auto-detects based on model (local vs cloud).
 
         Returns:
             Configured Ingestor instance using the atomizer and generator
@@ -277,6 +287,11 @@ class Isotope:
         # Use settings default for diversity_scope if not specified
         effective_diversity_scope: FilterScope = diversity_scope or self._settings.diversity_scope
 
+        # Build batch config from settings with auto-detection
+        effective_batch_config = batch_config or self._settings.build_batch_config(
+            model=self._llm_model
+        )
+
         return Ingestor(
             embedded_question_store=self.embedded_question_store,
             chunk_store=self.chunk_store,
@@ -286,12 +301,45 @@ class Isotope:
             question_generator=self._question_generator,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,
-            max_concurrent_questions=(
-                max_concurrent_questions
-                if max_concurrent_questions is not None
-                else self._settings.max_concurrent_questions
-            ),
+            batch_config=effective_batch_config,
         )
+
+    def _prepare_ingest_file(
+        self,
+        filepath: str,
+        source_id: str | None = None,
+    ) -> tuple[list[Chunk], str, str] | dict:
+        """Prepare file for ingestion, handling hash checks and cleanup.
+
+        Returns:
+            Either a skip dict {"skipped": True, "reason": "..."}
+            or tuple of (chunks, source, content_hash) for ingestion.
+        """
+        file_path = Path(filepath)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        content = file_path.read_bytes()
+        content_hash = hashlib.sha256(content).hexdigest()
+        source = source_id or str(file_path.resolve())
+
+        existing_hash = self._source_registry.get_hash(source)
+        if existing_hash == content_hash:
+            return {"skipped": True, "reason": "content unchanged"}
+
+        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
+        if chunk_ids:
+            self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
+            self.atom_store.delete_by_chunk_ids(chunk_ids)
+            self.chunk_store.delete_by_source(source)
+            self._source_registry.delete(source)
+
+        loader_registry = self._get_loader_registry()
+        chunks = loader_registry.load(filepath, source_id)
+        if not chunks:
+            return {"skipped": True, "reason": "no content"}
+
+        return (chunks, source, content_hash)
 
     def ingest_file(
         self,
@@ -301,6 +349,7 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> dict:
         """Ingest a file, skipping if content unchanged.
 
@@ -316,53 +365,25 @@ class Isotope:
             diversity_filter: Custom diversity filter for question deduplication
             use_diversity_filter: Whether to use diversity filter
             diversity_scope: Scope for diversity filtering
+            on_progress: Optional callback for progress updates
 
         Returns:
             Dict with ingestion statistics or skip info:
             - If skipped: {"skipped": True, "reason": "..."}
             - If ingested: {"chunks": N, "atoms": N, "questions": N, ...}
         """
-        file_path = Path(filepath)
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
+        prepared = self._prepare_ingest_file(filepath, source_id)
+        if isinstance(prepared, dict):
+            return prepared
+        chunks, source, content_hash = prepared
 
-        # Compute content hash
-        content = file_path.read_bytes()
-        content_hash = hashlib.sha256(content).hexdigest()
-
-        # Determine source identifier
-        source = source_id or str(file_path.resolve())
-
-        # Check if content unchanged
-        existing_hash = self._source_registry.get_hash(source)
-        if existing_hash == content_hash:
-            return {"skipped": True, "reason": "content unchanged"}
-
-        # Delete old data for this source (cascading via chunk_ids)
-        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
-        if chunk_ids:
-            self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
-            self.atom_store.delete_by_chunk_ids(chunk_ids)
-            self.chunk_store.delete_by_source(source)
-            self._source_registry.delete(source)
-
-        # Load file into chunks
-        loader_registry = self._get_loader_registry()
-        chunks = loader_registry.load(filepath, source_id)
-        if not chunks:
-            return {"skipped": True, "reason": "no content"}
-
-        # Ingest chunks
         ingestor = self.ingestor(
             diversity_filter=diversity_filter,
             use_diversity_filter=use_diversity_filter,
             diversity_scope=diversity_scope,
         )
-        result = ingestor.ingest_chunks(chunks)
-
-        # Track the new hash after successful ingestion
+        result = ingestor.ingest_chunks(chunks, on_progress=on_progress)
         self._source_registry.set_hash(source, content_hash)
-
         return result
 
     async def aingest_file(
@@ -373,7 +394,8 @@ class Isotope:
         diversity_filter: DiversityFilter | None = None,
         use_diversity_filter: bool = True,
         diversity_scope: FilterScope | None = None,
-        max_concurrent_questions: int | None = None,
+        batch_config: BatchConfig | None = None,
+        on_progress: ProgressCallback | None = None,
     ) -> dict:
         """Ingest a file with async question generation, skipping if content unchanged.
 
@@ -387,56 +409,28 @@ class Isotope:
             diversity_filter: Custom diversity filter for question deduplication
             use_diversity_filter: Whether to use diversity filter
             diversity_scope: Scope for diversity filtering
-            max_concurrent_questions: Maximum concurrent async requests.
-                                     If None, uses settings default.
+            batch_config: Configuration for question generation batching.
+                If None, auto-detects based on model (local vs cloud).
+            on_progress: Optional callback for progress updates
 
         Returns:
             Dict with ingestion statistics or skip info:
             - If skipped: {"skipped": True, "reason": "..."}
             - If ingested: {"chunks": N, "atoms": N, "questions": N, ...}
         """
-        file_path = Path(filepath)
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
+        prepared = self._prepare_ingest_file(filepath, source_id)
+        if isinstance(prepared, dict):
+            return prepared
+        chunks, source, content_hash = prepared
 
-        # Compute content hash
-        content = file_path.read_bytes()
-        content_hash = hashlib.sha256(content).hexdigest()
-
-        # Determine source identifier
-        source = source_id or str(file_path.resolve())
-
-        # Check if content unchanged
-        existing_hash = self._source_registry.get_hash(source)
-        if existing_hash == content_hash:
-            return {"skipped": True, "reason": "content unchanged"}
-
-        # Delete old data for this source (cascading via chunk_ids)
-        chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
-        if chunk_ids:
-            self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
-            self.atom_store.delete_by_chunk_ids(chunk_ids)
-            self.chunk_store.delete_by_source(source)
-            self._source_registry.delete(source)
-
-        # Load file into chunks
-        loader_registry = self._get_loader_registry()
-        chunks = loader_registry.load(filepath, source_id)
-        if not chunks:
-            return {"skipped": True, "reason": "no content"}
-
-        # Ingest chunks using async
         ingestor = self.ingestor(
             diversity_filter=diversity_filter,
             use_diversity_filter=use_diversity_filter,
             diversity_scope=diversity_scope,
-            max_concurrent_questions=max_concurrent_questions,
+            batch_config=batch_config,
         )
-        result = await ingestor.aingest_chunks(chunks)
-
-        # Track the new hash after successful ingestion
+        result = await ingestor.aingest_chunks(chunks, on_progress=on_progress)
         self._source_registry.set_hash(source, content_hash)
-
         return result
 
     def delete_source(self, source: str) -> dict:

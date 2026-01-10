@@ -33,6 +33,7 @@ One fact. Many questions. All paths lead to the right answer.
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Examples](#examples)
 - [How It Works](#how-it-works)
 - [Performance](#performance)
 - [When to Use](#when-to-use-isotope)
@@ -83,7 +84,7 @@ pip install isotope-rag[litellm,chroma]  # Add LiteLLM + ChromaDB
 
 ```bash
 # 0. Configure models (writes isotope.yaml)
-isotope init --provider litellm --llm-model openai/gpt-4o --embedding-model openai/text-embedding-3-small
+isotope init --provider litellm --llm-model openai/gpt-5-mini-2025-08-07 --embedding-model openai/text-embedding-3-small
 
 # 1. Ingest your docs
 isotope ingest docs/
@@ -110,7 +111,7 @@ from isotope import Isotope, Chunk, LiteLLMProvider, LocalStorage
 # Initialize
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     storage=LocalStorage("./my_data"),
@@ -125,7 +126,7 @@ chunks = [Chunk(
 ingestor.ingest_chunks(chunks)
 
 # Query
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 response = retriever.get_answer("Who invented Python?")
 
 print(response.answer)   # "Python was created by Guido van Rossum."
@@ -138,6 +139,31 @@ print(response.results)  # [SearchResult(chunk=..., score=0.94)]
 3. Questions are embedded and indexed in ChromaDB
 4. Your query matches question-to-question
 5. The LLM synthesizes an answer from matching chunks
+
+## Examples
+
+Want to see Isotope in action immediately? Clone the repo and try the pre-loaded examples:
+
+```bash
+git clone https://github.com/sreejithraman/isotope.git
+cd isotope
+pip install -e ".[all]"
+
+# Set up your API key (you'll be prompted if not set)
+isotope init
+
+# Try different domains:
+isotope ingest examples/data/hacker-laws.pdf
+isotope query "What happens when you add people to a late project?"
+
+isotope ingest "examples/data/Berkshire Hathaway - 10k - 2024 Annual Report.html"
+isotope query "What are Berkshire's main business segments?"
+
+isotope ingest docs/
+isotope query "How does reverse RAG work?"
+```
+
+See [examples/README.md](examples/README.md) for more details and sample queries.
 
 ## How It Works
 
@@ -152,7 +178,7 @@ print(response.results)  # [SearchResult(chunk=..., score=0.94)]
 ```
 
 1. **Atomize** → Break content into atomic facts
-2. **Generate** → Create questions each fact answers (15 per atom by default)
+2. **Generate** → Create questions each fact answers (5 per atom by default)
 3. **Embed & Index** → Store question embeddings
 4. **Query** → User questions match against indexed questions
 5. **Retrieve** → Return the chunks that answer matched questions

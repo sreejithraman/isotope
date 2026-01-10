@@ -12,9 +12,11 @@ pytest.importorskip("litellm", reason="Tests require litellm package")
 from isotope.models import Atom, Question
 from isotope.providers.litellm import LiteLLMClient
 from isotope.question_generator import (
+    BatchConfig,
     BatchGenerationError,
     ClientQuestionGenerator,
     QuestionGenerator,
+    SyncOnlyGeneratorMixin,
 )
 
 
@@ -110,13 +112,15 @@ class TestAsyncBatchGeneration:
     @pytest.mark.asyncio
     @patch("isotope.providers.litellm.client.litellm.acompletion")
     async def test_agenerate_batch_concurrent(self, mock_acompletion, generator):
-        """Test concurrent batch generation."""
+        """Test concurrent batch generation with batch_size=1 (one call per atom)."""
         mock_acompletion.return_value = mock_acompletion_response(["Q1?", "Q2?"])
 
         atoms = [Atom(content=f"Fact {i}", chunk_id=f"chunk-{i}", index=0) for i in range(5)]
         chunk_contents = [f"Content {i}" for i in range(5)]
 
-        questions = await generator.agenerate_batch(atoms, chunk_contents, max_concurrent=3)
+        # batch_size=1 means one LLM call per atom
+        config = BatchConfig(batch_size=1, max_concurrent=3)
+        questions = await generator.agenerate_batch(atoms, chunk_contents, config=config)
 
         # Should have 2 questions per atom = 10 total
         assert len(questions) == 10
@@ -142,7 +146,8 @@ class TestAsyncBatchGeneration:
 
         atoms = [Atom(content=f"Fact {i}", chunk_id="chunk-1", index=i) for i in range(10)]
 
-        await generator.agenerate_batch(atoms, max_concurrent=3)
+        config = BatchConfig(batch_size=1, max_concurrent=3)
+        await generator.agenerate_batch(atoms, config=config)
 
         assert max_active <= 3
 
@@ -163,7 +168,9 @@ class TestAsyncBatchGeneration:
 
         atoms = [Atom(content=f"Fact {i}", chunk_id="chunk-1", index=i) for i in range(5)]
 
-        questions = await generator.agenerate_batch(atoms)
+        # batch_size=1 means 5 batches, 1 fails
+        config = BatchConfig(batch_size=1, max_concurrent=10)
+        questions = await generator.agenerate_batch(atoms, config=config)
 
         # Should have 4 questions (1 failure out of 5)
         assert len(questions) == 4
@@ -185,10 +192,12 @@ class TestAsyncBatchGeneration:
 
         atoms = [Atom(content=f"Fact {i}", chunk_id="chunk-1", index=i) for i in range(5)]
 
+        # batch_size=1 means 5 batches, 3 fail
+        config = BatchConfig(batch_size=1, max_concurrent=10)
         with pytest.raises(BatchGenerationError) as exc_info:
-            await generator.agenerate_batch(atoms)
+            await generator.agenerate_batch(atoms, config=config)
 
-        assert "3/5 atoms failed" in str(exc_info.value)
+        assert "3/5 batches failed" in str(exc_info.value)
         assert len(exc_info.value.partial_results) == 2  # 2 succeeded
         assert len(exc_info.value.errors) == 3  # 3 failed
 
@@ -212,17 +221,18 @@ class TestQuestionGeneratorBaseAsyncDefaults:
     """Tests for default async implementations in QuestionGenerator base class."""
 
     @pytest.mark.asyncio
-    async def test_agenerate_default_calls_sync(self):
-        """Test that default agenerate() calls sync generate()."""
+    async def test_agenerate_delegates_to_agenerate_batch(self):
+        """Test that agenerate() delegates to agenerate_batch()."""
 
-        class TestGenerator(QuestionGenerator):
-            def generate(self, atom, chunk_content=""):
+        class TestGenerator(SyncOnlyGeneratorMixin, QuestionGenerator):
+            def generate_batch(self, atoms, chunk_contents=None, config=None):
                 return [
                     Question(
                         text=f"Q about {atom.content}?",
                         chunk_id=atom.chunk_id,
                         atom_id=atom.id,
                     )
+                    for atom in atoms
                 ]
 
         gen = TestGenerator()

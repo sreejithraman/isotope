@@ -83,23 +83,28 @@ def mock_embedder():
 def mock_generator():
     """Create a mock question generator for testing."""
     from isotope.models import Atom, Question
-    from isotope.question_generator import QuestionGenerator
+    from isotope.question_generator import QuestionGenerator, SyncOnlyGeneratorMixin
+    from isotope.question_generator.base import BatchConfig
 
-    class MockGenerator(QuestionGenerator):
+    class MockGenerator(SyncOnlyGeneratorMixin, QuestionGenerator):
         """Mock generator that returns fixed questions."""
 
-        def generate(self, atom: Atom, chunk_content: str = "") -> list[Question]:
-            return [
-                Question(
-                    text=f"Question about {atom.content}?",
-                    chunk_id=atom.chunk_id,
-                    atom_id=atom.id,
+        def generate_batch(
+            self,
+            atoms: list[Atom],
+            chunk_contents: list[str] | None = None,
+            config: BatchConfig | None = None,
+        ) -> list[Question]:
+            questions = []
+            for atom in atoms:
+                questions.append(
+                    Question(
+                        text=f"Question about {atom.content}?",
+                        chunk_id=atom.chunk_id,
+                        atom_id=atom.id,
+                    )
                 )
-            ]
-
-        async def agenerate(self, atom: Atom, chunk_content: str = "") -> list[Question]:
-            """Async version - just calls sync for mocking."""
-            return self.generate(atom, chunk_content)
+            return questions
 
     return MockGenerator()
 
@@ -136,7 +141,7 @@ def mock_provider(mock_embedder, mock_atomizer, mock_generator):
         _atomizer: Any
         _question_generator: Any
 
-        def build_embedder(self) -> Any:
+        def build_embedder(self, settings: Any) -> Any:
             return self._embedder
 
         def build_atomizer(self, settings: Any) -> Any:

@@ -23,44 +23,66 @@ class LiteLLMProvider:
 
     Args:
         llm: LiteLLM model identifier for LLM calls (atomization, question generation).
-             Examples: "openai/gpt-4o", "anthropic/claude-sonnet-4-5-20250929"
+             Examples: "openai/gpt-5-mini-2025-08-07", "anthropic/claude-sonnet-4-5-20250929"
         embedding: LiteLLM model identifier for embeddings.
                    Examples: "openai/text-embedding-3-small", "openai/text-embedding-3-large"
         atomizer_type: Type of atomizer to use. "llm" uses the LLM for intelligent
                        atomization, "sentence" uses simple sentence splitting.
                        Default: "llm"
+        llm_api_key: Optional API key for LLM calls. If provided, bypasses env var lookup.
+        embedding_api_key: Optional API key for embedding calls. If provided, bypasses
+                          env var lookup. If None, uses llm_api_key.
 
     Example:
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
         )
 
         # With sentence atomizer (faster, no LLM calls for atomization)
         provider = LiteLLMProvider(
-            llm="openai/gpt-4o",
+            llm="openai/gpt-5-mini-2025-08-07",
             embedding="openai/text-embedding-3-small",
             atomizer_type="sentence",
+        )
+
+        # With explicit API keys (bypasses env var lookup)
+        provider = LiteLLMProvider(
+            llm="openai/gpt-5-mini-2025-08-07",
+            embedding="openai/text-embedding-3-small",
+            llm_api_key="sk-...",
         )
     """
 
     llm: str
     embedding: str
     atomizer_type: Literal["llm", "sentence"] = "llm"
+    llm_api_key: str | None = None
+    embedding_api_key: str | None = None
 
-    def build_embedder(self) -> Embedder:
-        """Build a ClientEmbedder using LiteLLM embedding client."""
+    def build_embedder(self, settings: Settings) -> Embedder:
+        """Build a ClientEmbedder using LiteLLM embedding client.
+
+        Args:
+            settings: Settings containing num_retries for rate limit handling.
+        """
         from isotope.embedder import ClientEmbedder
         from isotope.providers.litellm import LiteLLMEmbeddingClient
 
-        embedding_client = LiteLLMEmbeddingClient(model=self.embedding)
+        # Use embedding_api_key if set, otherwise fall back to llm_api_key
+        api_key = self.embedding_api_key or self.llm_api_key
+        embedding_client = LiteLLMEmbeddingClient(
+            model=self.embedding,
+            num_retries=settings.num_retries,
+            api_key=api_key,
+        )
         return ClientEmbedder(embedding_client=embedding_client)
 
     def build_atomizer(self, settings: Settings) -> Atomizer:
         """Build an atomizer based on atomizer_type.
 
         Args:
-            settings: Settings containing atomizer_prompt if customized.
+            settings: Settings containing atomizer_prompt and num_retries.
 
         Returns:
             LLMAtomizer if atomizer_type="llm", SentenceAtomizer otherwise.
@@ -71,7 +93,11 @@ class LiteLLMProvider:
         if self.atomizer_type == "sentence":
             return SentenceAtomizer()
 
-        llm_client = LiteLLMClient(model=self.llm)
+        llm_client = LiteLLMClient(
+            model=self.llm,
+            num_retries=settings.num_retries,
+            api_key=self.llm_api_key,
+        )
         return LLMAtomizer(
             llm_client=llm_client,
             prompt_template=settings.atomizer_prompt,
@@ -81,21 +107,35 @@ class LiteLLMProvider:
         """Build a ClientQuestionGenerator using LiteLLM client.
 
         Args:
-            settings: Settings containing questions_per_atom and
-                      question_generator_prompt if customized.
+            settings: Settings containing questions_per_atom,
+                      question_generator_prompt, and num_retries.
         """
         from isotope.providers.litellm import LiteLLMClient
         from isotope.question_generator import ClientQuestionGenerator
 
-        llm_client = LiteLLMClient(model=self.llm)
+        llm_client = LiteLLMClient(
+            model=self.llm,
+            num_retries=settings.num_retries,
+            api_key=self.llm_api_key,
+        )
         return ClientQuestionGenerator(
             llm_client=llm_client,
             num_questions=settings.questions_per_atom,
             prompt_template=settings.question_generator_prompt,
         )
 
-    def build_llm_client(self) -> LLMClient:
-        """Build a LiteLLMClient for general-purpose LLM calls."""
+    def build_llm_client(self, settings: Settings | None = None) -> LLMClient:
+        """Build a LiteLLMClient for general-purpose LLM calls.
+
+        Args:
+            settings: Optional settings containing num_retries. If None,
+                     uses default retry value.
+        """
         from isotope.providers.litellm import LiteLLMClient
 
-        return LiteLLMClient(model=self.llm)
+        num_retries = settings.num_retries if settings else 3
+        return LiteLLMClient(
+            model=self.llm,
+            num_retries=num_retries,
+            api_key=self.llm_api_key,
+        )

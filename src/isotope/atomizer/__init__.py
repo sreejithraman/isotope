@@ -10,7 +10,7 @@ Example:
     from isotope.providers.litellm import LiteLLMClient
     from isotope.atomizer import LLMAtomizer
 
-    client = LiteLLMClient(model="openai/gpt-4o")
+    client = LiteLLMClient(model="openai/gpt-5-mini-2025-08-07")
     atomizer = LLMAtomizer(llm_client=client)
 """
 

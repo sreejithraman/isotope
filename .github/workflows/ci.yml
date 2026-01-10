@@ -50,6 +50,7 @@ jobs:
             --ignore-vuln CVE-2025-50181 \
             --ignore-vuln CVE-2025-66418 \
             --ignore-vuln CVE-2025-66471 \
+            --ignore-vuln CVE-2026-21441 \
             --ignore-vuln GHSA-f83h-ghpp-7wcc
 
   type-check:

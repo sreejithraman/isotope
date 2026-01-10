@@ -41,7 +41,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 # Simple setup with LiteLLM + local stores
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     storage=LocalStorage("./my_data"),
@@ -49,7 +49,7 @@ iso = Isotope(
 
 # Create pipelines
 ingestor = iso.ingestor()
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 ```
 
 `Isotope` handles:
@@ -96,7 +96,7 @@ Query → Embed → Search Questions → Fetch Chunks → (Optional) Synthesize 
 ```
 
 ```python
-retriever = iso.retriever(llm_model="openai/gpt-4o")
+retriever = iso.retriever(llm_model="openai/gpt-5-mini-2025-08-07")
 
 # With LLM synthesis
 response = retriever.get_answer("How do I authenticate?")
@@ -166,12 +166,20 @@ See [Atomization Guide](../guides/atomization.md) for when to use each.
 | `QuestionGenerator` | Generate synthetic questions via LLM |
 | `DiversityFilter` | Remove near-duplicate questions |
 | `BatchGenerationError` | Exception for partial batch failures |
+| `BatchConfig` | Batch size + concurrency for question generation |
 
-The generator creates ~15 questions per atom by default. The diversity filter (threshold 0.85) removes questions with >85% cosine similarity, keeping diverse coverage.
+The generator creates 5 questions per atom by default. The diversity filter (threshold 0.85) removes questions with >85% cosine similarity, keeping diverse coverage.
 
-**Async Support**: For large ingests, use async methods for concurrent question generation:
-- `agenerate(atom, chunk_content)` - Single atom, async
-- `agenerate_batch(atoms, chunk_contents, max_concurrent)` - Concurrent batch with semaphore-based rate limiting
+**Batch-first API**: Question generation is batch-oriented, and single-atom helpers are convenience wrappers.
+
+- `generate_batch(atoms, chunk_contents, config)` - Primary sync API
+- `agenerate_batch(atoms, chunk_contents, config)` - Primary async API
+- `generate(atom, chunk_content)` - Single atom wrapper
+- `agenerate(atom, chunk_content)` - Single atom wrapper (async)
+
+Use the provided mixins in custom implementations:
+- `AsyncOnlyGeneratorMixin` - Implement only `agenerate_batch`
+- `SyncOnlyGeneratorMixin` - Implement only `generate_batch`
 
 ### Embeddings (`embedder/`)
 
@@ -192,7 +200,7 @@ to detect changes and automatically cascades deletion of old data before adding 
 
 | Loader | File Types |
 |--------|------------|
-| `TextLoader` | `.txt`, `.md`, `.markdown` |
+| `TextLoader` | `.txt`, `.text`, `.md`, `.markdown` |
 | `PyPDFLoader` | `.pdf` (via pypdf) |
 | `PDFPlumberLoader` | `.pdf` (via pdfplumber) |
 | `HTMLLoader` | `.html`, `.htm` |
@@ -256,7 +264,7 @@ from isotope import Isotope, LiteLLMProvider, LocalStorage
 
 iso = Isotope(
     provider=LiteLLMProvider(
-        llm="openai/gpt-4o",
+        llm="openai/gpt-5-mini-2025-08-07",
         embedding="openai/text-embedding-3-small",
     ),
     storage=LocalStorage("./isotope_data"),

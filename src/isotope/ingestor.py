@@ -6,6 +6,7 @@ from isotope.atomizer import Atomizer
 from isotope.embedder import Embedder
 from isotope.models import Chunk, EmbeddedQuestion
 from isotope.question_generator import DiversityFilter, FilterScope, QuestionGenerator
+from isotope.question_generator.base import BatchConfig
 from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore
 
 ProgressCallback = Callable[[str, int, int, str], None]
@@ -50,7 +51,7 @@ class Ingestor:
         question_generator: QuestionGenerator,
         diversity_filter: DiversityFilter | None = None,
         diversity_scope: FilterScope = "global",
-        max_concurrent_questions: int = 10,
+        batch_config: BatchConfig | None = None,
     ) -> None:
         """Initialize the ingestor with all required components.
 
@@ -66,8 +67,9 @@ class Ingestor:
                 - "global": Filter across all questions (default, paper-validated)
                 - "per_chunk": Filter within each chunk (~100x faster)
                 - "per_atom": Filter within each atom (~1000x faster)
-            max_concurrent_questions: Maximum concurrent async question generation
-                requests. Only used by aingest_chunks(). Default 10.
+            batch_config: Configuration for question generation batching.
+                Controls batch_size (atoms per prompt) and max_concurrent.
+                If None, uses default BatchConfig (batch_size=1, max_concurrent=10).
         """
         self.embedded_question_store = embedded_question_store
         self.chunk_store = chunk_store
@@ -77,7 +79,78 @@ class Ingestor:
         self.question_generator = question_generator
         self.diversity_filter = diversity_filter
         self.diversity_scope = diversity_scope
-        self.max_concurrent_questions = max_concurrent_questions
+        self.batch_config = batch_config or BatchConfig()
+
+    def _store_and_atomize(
+        self,
+        chunks: list[Chunk],
+        progress: Callable[[str, int, int, str], None],
+    ) -> tuple[list, dict[str, str]]:
+        """Steps 1-2: Store chunks and atomize them.
+
+        Returns:
+            Tuple of (all_atoms, chunk_content_map)
+        """
+        progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
+        self.chunk_store.put_many(chunks)
+        progress("storing", 1, 1, "Storing chunks complete")
+
+        progress("atomizing", 0, len(chunks), "Atomizing chunks...")
+        all_atoms = []
+        chunk_content_map = {chunk.id: chunk.content for chunk in chunks}
+
+        for i, chunk in enumerate(chunks):
+            atoms = self.atomizer.atomize(chunk)
+            all_atoms.extend(atoms)
+            self.atom_store.put_many(atoms)
+            progress("atomizing", i + 1, len(chunks), f"Atomized {i + 1}/{len(chunks)} chunks")
+
+        return all_atoms, chunk_content_map
+
+    def _embed_filter_store(
+        self,
+        all_questions: list,
+        progress: Callable[[str, int, int, str], None],
+    ) -> tuple[list[EmbeddedQuestion], int]:
+        """Steps 5-7: Embed questions, apply diversity filter, store.
+
+        Returns:
+            Tuple of (embedded_questions, questions_filtered)
+        """
+        if not all_questions:
+            return [], 0
+
+        progress("embedding", 0, 1, f"Embedding {len(all_questions)} questions...")
+        question_texts = [q.text for q in all_questions]
+        embeddings = self.embedder.embed_texts(question_texts)
+        progress("embedding", 1, 1, "Embedding complete")
+
+        if len(all_questions) != len(embeddings):
+            raise RuntimeError(
+                f"Embedding count mismatch: {len(all_questions)} questions, "
+                f"{len(embeddings)} embeddings"
+            )
+        embedded_questions = [
+            EmbeddedQuestion(question=q, embedding=e)
+            for q, e in zip(all_questions, embeddings, strict=True)
+        ]
+
+        questions_filtered = 0
+        if self.diversity_filter:
+            scope = self.diversity_scope
+            progress("filtering", 0, 1, f"Applying diversity filter ({scope})...")
+            original_count = len(embedded_questions)
+            embedded_questions = self.diversity_filter.filter_by_scope(
+                embedded_questions, self.diversity_scope
+            )
+            questions_filtered = original_count - len(embedded_questions)
+            progress("filtering", 1, 1, f"Filtered {questions_filtered} similar questions")
+
+        progress("indexing", 0, 1, f"Indexing {len(embedded_questions)} questions...")
+        self.embedded_question_store.add(embedded_questions)
+        progress("indexing", 1, 1, "Indexing complete")
+
+        return embedded_questions, questions_filtered
 
     def ingest_chunks(
         self,
@@ -110,74 +183,21 @@ class Ingestor:
                 "questions_filtered": 0,
             }
 
-        # Step 1: Store chunks
-        progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
-        self.chunk_store.put_many(chunks)
-        progress("storing", 1, 1, "Storing chunks complete")
+        # Steps 1-2: Store chunks and atomize
+        all_atoms, chunk_content_map = self._store_and_atomize(chunks, progress)
 
-        # Step 2-3: Atomize chunks and store atoms
-        progress("atomizing", 0, len(chunks), "Atomizing chunks...")
-        all_atoms = []
-        for i, chunk in enumerate(chunks):
-            atoms = self.atomizer.atomize(chunk)
-            all_atoms.extend(atoms)
-            self.atom_store.put_many(atoms)
-            progress("atomizing", i + 1, len(chunks), f"Atomized {i + 1}/{len(chunks)} chunks")
-
-        # Step 4: Generate questions
+        # Step 3: Generate questions (sync batch generation)
         progress("generating", 0, len(all_atoms), "Generating questions...")
+        chunk_contents = [chunk_content_map.get(atom.chunk_id, "") for atom in all_atoms]
+        all_questions = self.question_generator.generate_batch(
+            atoms=all_atoms,
+            chunk_contents=chunk_contents,
+            config=self.batch_config,
+        )
+        progress("generating", len(all_atoms), len(all_atoms), "Question generation complete")
 
-        # Build chunk lookup from input to avoid N database reads
-        chunk_content_map = {chunk.id: chunk.content for chunk in chunks}
-
-        all_questions = []
-        for i, atom in enumerate(all_atoms):
-            chunk_content = chunk_content_map.get(atom.chunk_id, "")
-            questions = self.question_generator.generate(atom, chunk_content)
-            all_questions.extend(questions)
-            progress(
-                "generating",
-                i + 1,
-                len(all_atoms),
-                f"Generated questions for {i + 1}/{len(all_atoms)} atoms",
-            )
-
-        # Step 5: Embed questions
-        if all_questions:
-            progress("embedding", 0, 1, f"Embedding {len(all_questions)} questions...")
-            question_texts = [q.text for q in all_questions]
-            embeddings = self.embedder.embed_texts(question_texts)
-            progress("embedding", 1, 1, "Embedding complete")
-
-            if len(all_questions) != len(embeddings):
-                raise RuntimeError(
-                    f"Embedding count mismatch: {len(all_questions)} questions, "
-                    f"{len(embeddings)} embeddings"
-                )
-            embedded_questions = [
-                EmbeddedQuestion(question=q, embedding=e)
-                for q, e in zip(all_questions, embeddings, strict=True)
-            ]
-
-            # Step 6: Diversity filter
-            questions_filtered = 0
-            if self.diversity_filter:
-                scope = self.diversity_scope
-                progress("filtering", 0, 1, f"Applying diversity filter ({scope})...")
-                original_count = len(embedded_questions)
-                embedded_questions = self.diversity_filter.filter_by_scope(
-                    embedded_questions, self.diversity_scope
-                )
-                questions_filtered = original_count - len(embedded_questions)
-                progress("filtering", 1, 1, f"Filtered {questions_filtered} similar questions")
-
-            # Step 7: Store
-            progress("indexing", 0, 1, f"Indexing {len(embedded_questions)} questions...")
-            self.embedded_question_store.add(embedded_questions)
-            progress("indexing", 1, 1, "Indexing complete")
-        else:
-            embedded_questions = []
-            questions_filtered = 0
+        # Steps 4-6: Embed, filter, store
+        embedded_questions, questions_filtered = self._embed_filter_store(all_questions, progress)
 
         return {
             "chunks": len(chunks),
@@ -220,71 +240,21 @@ class Ingestor:
                 "questions_filtered": 0,
             }
 
-        # Step 1: Store chunks (sync - database operation)
-        progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
-        self.chunk_store.put_many(chunks)
-        progress("storing", 1, 1, "Storing chunks complete")
-
-        # Step 2: Atomize (sync - may involve LLM calls, but per-chunk)
-        progress("atomizing", 0, len(chunks), "Atomizing chunks...")
-        all_atoms = []
-        chunk_content_map = {chunk.id: chunk.content for chunk in chunks}
-
-        for i, chunk in enumerate(chunks):
-            atoms = self.atomizer.atomize(chunk)
-            all_atoms.extend(atoms)
-            self.atom_store.put_many(atoms)
-            progress("atomizing", i + 1, len(chunks), f"Atomized {i + 1}/{len(chunks)} chunks")
+        # Steps 1-2: Store chunks and atomize
+        all_atoms, chunk_content_map = self._store_and_atomize(chunks, progress)
 
         # Step 3: Generate questions (ASYNC - the main optimization)
         progress("generating", 0, len(all_atoms), "Generating questions (async)...")
-
-        # Build chunk_contents list aligned with atoms
         chunk_contents = [chunk_content_map.get(atom.chunk_id, "") for atom in all_atoms]
-
         all_questions = await self.question_generator.agenerate_batch(
             atoms=all_atoms,
             chunk_contents=chunk_contents,
-            max_concurrent=self.max_concurrent_questions,
+            config=self.batch_config,
         )
         progress("generating", len(all_atoms), len(all_atoms), "Question generation complete")
 
-        # Step 4: Embed questions (sync - embedding APIs handle batching efficiently)
-        if all_questions:
-            progress("embedding", 0, 1, f"Embedding {len(all_questions)} questions...")
-            question_texts = [q.text for q in all_questions]
-            embeddings = self.embedder.embed_texts(question_texts)
-            progress("embedding", 1, 1, "Embedding complete")
-
-            if len(all_questions) != len(embeddings):
-                raise RuntimeError(
-                    f"Embedding count mismatch: {len(all_questions)} questions, "
-                    f"{len(embeddings)} embeddings"
-                )
-            embedded_questions = [
-                EmbeddedQuestion(question=q, embedding=e)
-                for q, e in zip(all_questions, embeddings, strict=True)
-            ]
-
-            # Step 5: Diversity filter (sync - CPU-bound)
-            questions_filtered = 0
-            if self.diversity_filter:
-                scope = self.diversity_scope
-                progress("filtering", 0, 1, f"Applying diversity filter ({scope})...")
-                original_count = len(embedded_questions)
-                embedded_questions = self.diversity_filter.filter_by_scope(
-                    embedded_questions, self.diversity_scope
-                )
-                questions_filtered = original_count - len(embedded_questions)
-                progress("filtering", 1, 1, f"Filtered {questions_filtered} similar questions")
-
-            # Step 6: Store (sync - database operation)
-            progress("indexing", 0, 1, f"Indexing {len(embedded_questions)} questions...")
-            self.embedded_question_store.add(embedded_questions)
-            progress("indexing", 1, 1, "Indexing complete")
-        else:
-            embedded_questions = []
-            questions_filtered = 0
+        # Steps 4-6: Embed, filter, store
+        embedded_questions, questions_filtered = self._embed_filter_store(all_questions, progress)
 
         return {
             "chunks": len(chunks),

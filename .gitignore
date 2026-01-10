@@ -30,6 +30,9 @@ htmlcov/
 # Isotope data
 isotope_data/
 
+# Local configuration
+isotope.yaml
+
 # Environment
 .env
 .env.local
