@@ -1,0 +1,167 @@
+/* Isotope TUI Stylesheet
+ * Orange/amber theme inspired by chemistry/atomic design
+ */
+
+/* === Theme Variables === */
+$isotope-orange: #ff8700;
+$isotope-amber: #ffaf5f;
+$isotope-rust: #d75f00;
+$isotope-teal: #5fafaf;
+$isotope-cyan: #87d7d7;
+
+$bg-dark: #1c1c1c;
+$bg-surface: #262626;
+$bg-boost: #303030;
+
+$success: #87d787;
+$warning: #ffaf5f;
+$error: #ff8787;
+$info: #87afd7;
+
+/* === Global Screen === */
+Screen {
+    background: $bg-dark;
+}
+
+/* === ASCII Logo === */
+ASCIILogo {
+    width: 100%;
+    height: auto;
+    padding: 1 0;
+    content-align: center middle;
+}
+
+/* === Tips Panel === */
+TipsPanel {
+    width: auto;
+    max-width: 70;
+    height: auto;
+    margin: 1 0;
+    padding: 0;
+}
+
+/* === Status Bar === */
+StatusBar {
+    dock: bottom;
+    height: 1;
+    background: $bg-surface;
+    color: #808080;
+    padding: 0 2;
+    border-top: solid $bg-boost;
+}
+
+/* === Sticky Header === */
+StickyHeader {
+    dock: top;
+    height: 1;
+    background: $isotope-orange 15%;
+    color: $isotope-amber;
+    padding: 0 2;
+    display: none;
+}
+
+StickyHeader.-visible {
+    display: block;
+}
+
+/* === Output Display === */
+OutputDisplay {
+    height: 1fr;
+    padding: 1 2;
+    scrollbar-gutter: stable;
+    scrollbar-background: $bg-surface;
+    scrollbar-color: $isotope-orange 30%;
+    scrollbar-color-hover: $isotope-orange 50%;
+    scrollbar-color-active: $isotope-orange;
+}
+
+/* === Input Area Container === */
+InputArea {
+    dock: bottom;
+    height: auto;
+    max-height: 5;
+    padding: 0 2 1 2;
+    background: $bg-dark;
+}
+
+/* === Command Input Field === */
+CommandInput {
+    border: round $isotope-orange 40%;
+    background: $bg-surface;
+    padding: 0 1;
+}
+
+CommandInput:focus {
+    border: round $isotope-orange;
+    background: $bg-boost;
+}
+
+CommandInput > .input--placeholder {
+    color: #606060;
+}
+
+/* === Welcome Screen Layout === */
+WelcomeScreen {
+    layout: vertical;
+    align: center middle;
+}
+
+WelcomeScreen #welcome-content {
+    width: 100%;
+    height: auto;
+    align: center middle;
+}
+
+WelcomeScreen #welcome-spacer {
+    height: 1fr;
+}
+
+/* === Main Screen Layout === */
+MainScreen {
+    layout: vertical;
+}
+
+/* === Footer (keyboard hints) === */
+Footer {
+    background: $bg-surface;
+}
+
+Footer > .footer--key {
+    background: $bg-boost;
+    color: $isotope-orange;
+}
+
+Footer > .footer--description {
+    color: #808080;
+}
+
+/* === Generic Message Styles (for Rich output) === */
+.message-success {
+    color: $success;
+}
+
+.message-warning {
+    color: $warning;
+}
+
+.message-error {
+    color: $error;
+}
+
+.message-info {
+    color: #808080;
+}
+
+/* === Source Citations === */
+.source-name {
+    color: $isotope-teal;
+}
+
+.source-score {
+    color: $isotope-amber;
+}
+
+/* === User Input Echo === */
+.user-input {
+    color: $isotope-orange;
+}
