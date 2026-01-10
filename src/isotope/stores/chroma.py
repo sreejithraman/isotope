@@ -2,6 +2,7 @@
 """ChromaDB embedded question store implementation."""
 
 from pathlib import Path
+from typing import cast
 
 import chromadb
 
@@ -145,9 +146,9 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
             questions.append(
                 Question(
                     id=qid,
-                    text=meta["text"],
-                    chunk_id=meta["chunk_id"],
-                    atom_id=meta["atom_id"],
+                    text=cast(str, meta["text"]),
+                    chunk_id=cast(str, meta["chunk_id"]),
+                    atom_id=cast(str, meta["atom_id"]),
                 )
             )
 

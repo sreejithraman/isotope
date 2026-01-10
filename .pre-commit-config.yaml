@@ -1,7 +1,7 @@
 # See https://pre-commit.com for more information
-# Install: pip install pre-commit && pre-commit install
+# Install: pip install pre-commit && pre-commit install --hook-type pre-commit --hook-type pre-push
 # Run manually: pre-commit run --all-files
-# Note: mypy and pytest run in GitHub Actions CI
+# Run pre-push hooks: pre-commit run --hook-stage pre-push --all-files
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -12,3 +12,22 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         files: ^(src|tests)/
+
+  # Pre-push hooks: slower checks that mirror CI
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy type checking
+        entry: mypy src
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: pytest
+        name: pytest
+        entry: pytest --tb=short -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]

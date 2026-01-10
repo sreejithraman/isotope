@@ -12,7 +12,7 @@ application layer and pass values explicitly to Isotope factory methods.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel
 
@@ -113,7 +113,7 @@ class Settings(BaseModel):
     def with_profile(
         cls,
         profile: Literal["aggressive", "conservative"],
-        **overrides,
+        **overrides: Any,
     ) -> Settings:
         """Create Settings with a rate limit profile.
 
@@ -141,7 +141,7 @@ class Settings(BaseModel):
                 f"Available profiles: {list(RATE_LIMIT_PROFILES.keys())}"
             )
 
-        profile_settings = RATE_LIMIT_PROFILES[profile].copy()
+        profile_settings: dict[str, Any] = RATE_LIMIT_PROFILES[profile].copy()
         profile_settings.update(overrides)
         return cls(**profile_settings)
 

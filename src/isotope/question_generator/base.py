@@ -4,6 +4,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import cast
 
 from isotope.models import Atom, Question
 
@@ -124,7 +125,7 @@ class SyncOnlyGeneratorMixin:
         config: BatchConfig | None = None,
     ) -> list[Question]:
         """Run sync generate_batch() for async callers."""
-        return self.generate_batch(atoms, chunk_contents, config)  # type: ignore[attr-defined]
+        return cast(list[Question], self.generate_batch(atoms, chunk_contents, config))  # type: ignore[attr-defined]
 
 
 class AsyncOnlyGeneratorMixin:
