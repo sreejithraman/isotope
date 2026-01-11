@@ -16,10 +16,15 @@ It handles:
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict, cast
+
+from isotope.question_generator import FilterScope
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from isotope.isotope import Isotope
@@ -37,8 +42,6 @@ try:
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
-
-from isotope.question_generator import FilterScope
 
 # Default paths
 DEFAULT_DATA_DIR = "./isotope_data"
@@ -185,17 +188,22 @@ def load_config(config_path: Path | str | None = None) -> dict[str, Any]:
     Returns:
         Configuration dictionary (empty if no config found)
     """
-    config_path = Path(config_path) if config_path is not None else find_config_file()
+    resolved_path = Path(config_path) if config_path is not None else find_config_file()
 
-    if config_path is None:
+    if resolved_path is None:
         return {}
 
     if not YAML_AVAILABLE:
         # Can't load YAML without pyyaml
         return {}
 
-    with open(config_path, encoding="utf-8") as f:
+    with open(resolved_path, encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
+
+    # Validate config and log warnings about unknown keys
+    warnings = validate_config(config, resolved_path)
+    for warning in warnings:
+        logger.warning(warning)
 
     return config
 

@@ -253,6 +253,7 @@ Based on [arXiv:2405.12363](https://arxiv.org/abs/2405.12363):
 - [Configuration](docs/guides/configuration.md) - Settings and environment variables
 - [Atomization Strategies](docs/guides/atomization.md) - Sentence vs LLM atomization
 - [CLI Reference](docs/guides/cli.md) - Command-line usage
+- [TUI Reference](docs/guides/tui.md) - Interactive terminal interface
 
 **🎓 Tutorials**
 - [Getting Started](docs/tutorials/getting-started.md) - Your first 10 minutes

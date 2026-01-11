@@ -101,6 +101,23 @@ PromptCallback = Callable[[PromptRequest], str]
 
 
 @dataclass
+class ConfirmRequest:
+    """Request for yes/no confirmation during commands.
+
+    Attributes:
+        message: The question to display to the user
+        details: Additional context to show (e.g., "This will delete 42 chunks")
+    """
+
+    message: str
+    details: str | None = None
+
+
+# Callback type for confirmations - returns True to proceed, False to cancel
+ConfirmCallback = Callable[[ConfirmRequest], bool]
+
+
+@dataclass
 class CommandResult:
     """Base result type for commands."""
 

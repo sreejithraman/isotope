@@ -7,6 +7,7 @@ from typing import Any
 
 from textual.app import App
 from textual.binding import Binding
+from textual.css.query import NoMatches
 
 from isotope.tui.screens.main import MainScreen
 from isotope.tui.screens.welcome import WelcomeScreen
@@ -58,7 +59,7 @@ class IsotopeTUI(App[None]):
         try:
             output = self.screen.query_one("#output-area", OutputDisplay)
             output.clear()
-        except Exception:
+        except NoMatches:
             pass  # Screen might not have output area
 
 

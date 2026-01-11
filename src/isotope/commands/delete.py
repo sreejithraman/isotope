@@ -2,6 +2,8 @@
 """Delete command - remove sources from the database.
 
 This module provides the delete logic that both CLI and TUI use.
+It uses callbacks for interactive confirmation, allowing each UI to
+implement their own confirmation method.
 """
 
 from __future__ import annotations
@@ -9,7 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from isotope.commands.base import DeleteResult
+from isotope.commands.base import ConfirmCallback, ConfirmRequest, DeleteResult
 from isotope.config import DEFAULT_DATA_DIR, get_stores, load_config
 
 
@@ -17,16 +19,24 @@ def delete(
     source: str,
     data_dir: str | None = None,
     config_path: str | Path | None = None,
+    on_confirm: ConfirmCallback | None = None,
 ) -> DeleteResult:
     """Delete a source from the database.
+
+    This function uses a callback for confirmation, allowing different UIs
+    (CLI, TUI) to implement their own confirmation methods.
 
     Args:
         source: Source path/name to delete
         data_dir: Override data directory
         config_path: Override config file path
+        on_confirm: Optional callback for confirmation. If provided, it will be
+            called with details about what will be deleted. Return True to
+            proceed, False to cancel. If None, deletion proceeds without
+            confirmation (equivalent to --force).
 
     Returns:
-        DeleteResult with deletion statistics
+        DeleteResult with deletion statistics, or cancelled result
     """
     config = load_config(config_path)
     effective_data_dir = data_dir or config.get("data_dir") or DEFAULT_DATA_DIR
@@ -64,10 +74,23 @@ def delete(
     # Get chunk IDs for this source
     chunk_ids = chunk_store.get_chunk_ids_by_source(source)
 
-    # Count items to delete
-    chunks_deleted = len(chunk_ids)
-    atoms_deleted = sum(len(atom_store.get_by_chunk(cid)) for cid in chunk_ids)
-    questions_deleted = question_store.count_by_chunk_ids(chunk_ids)
+    # Count items that will be deleted
+    chunks_to_delete = len(chunk_ids)
+    atoms_to_delete = sum(len(atom_store.get_by_chunk(cid)) for cid in chunk_ids)
+    questions_to_delete = question_store.count_by_chunk_ids(chunk_ids)
+
+    # Confirm deletion if callback provided
+    if on_confirm is not None:
+        confirm_request = ConfirmRequest(
+            message=f"Delete {source}?",
+            details=f"This will remove {chunks_to_delete} chunks from the database.",
+        )
+        if not on_confirm(confirm_request):
+            return DeleteResult(
+                success=False,
+                source=source,
+                error="Cancelled.",
+            )
 
     # Delete in order: questions -> atoms -> chunks -> source registry
     question_store.delete_by_chunk_ids(chunk_ids)
@@ -80,7 +103,7 @@ def delete(
     return DeleteResult(
         success=True,
         source=source,
-        chunks_deleted=chunks_deleted,
-        atoms_deleted=atoms_deleted,
-        questions_deleted=questions_deleted,
+        chunks_deleted=chunks_to_delete,
+        atoms_deleted=atoms_to_delete,
+        questions_deleted=questions_to_delete,
     )

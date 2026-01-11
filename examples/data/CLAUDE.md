@@ -1,1 +1,1 @@
-See **[AGENTS.md](./examples/data/AGENTS.md)**
+See **[AGENTS.md](./AGENTS.md)**

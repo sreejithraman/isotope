@@ -9,6 +9,7 @@ from typing import Any
 
 from rich.table import Table
 from textual.app import ComposeResult
+from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widgets import Footer
 
@@ -21,6 +22,7 @@ from isotope.commands import (
     query,
     status,
 )
+from isotope.commands.base import ConfirmRequest
 from isotope.config import (
     DEFAULT_DATA_DIR,
     find_config_file,
@@ -66,7 +68,7 @@ class MainScreen(Screen[None]):
         """Focus the command input."""
         try:
             self.query_one(CommandInput).focus()
-        except Exception:
+        except NoMatches:
             # Retry with timer if not ready
             self.set_timer(0.1, self._focus_input)
 
@@ -184,7 +186,7 @@ class MainScreen(Screen[None]):
         output.write_info("Tips:")
         output.write_info("  Just type a question directly to query")
         output.write_info("  Use Tab for command/path completion")
-        output.write_info("  Use / for command history")
+        output.write_info("  Use Up/Down for command history")
 
     async def _cmd_status(self, output: OutputDisplay, flags: dict[str, Any]) -> None:
         """Show database status."""
@@ -359,29 +361,28 @@ class MainScreen(Screen[None]):
 
     async def _cmd_delete(self, output: OutputDisplay, source: str, flags: dict[str, Any]) -> None:
         """Delete a source from the database."""
-        # Require --force flag for safety - check upfront
-        if not flags.get("force") and not flags.get("f"):
-            # First check if source exists by trying to get stores
-            if not self._data_dir or not os.path.exists(self._data_dir):
-                output.write_error("No database found.")
-                return
+        force = flags.get("force") or flags.get("f")
 
-            try:
-                stores = get_stores(self._data_dir)
-                chunk_ids = stores["chunk_store"].get_chunk_ids_by_source(source)
-                if not chunk_ids:
-                    output.write_warning(f"Source not found: {source}")
-                    return
-                output.write_warning(f"About to delete {len(chunk_ids)} chunks from {source}")
-                output.write_info("Use 'delete --force <source>' to confirm.")
-            except Exception as e:
-                output.write_error(f"Error: {e}")
-            return
+        def tui_confirm(request: ConfirmRequest) -> bool:
+            """TUI confirmation callback - shows warning and requires --force."""
+            if request.details:
+                output.write_warning(request.details)
+            output.write_info("Use 'delete --force <source>' to confirm.")
+            return False  # TUI requires explicit --force flag
 
-        # Actually delete
-        result = delete.delete(source=source, data_dir=self._data_dir)
+        # Use callback only if not --force
+        on_confirm = None if force else tui_confirm
+
+        result = delete.delete(
+            source=source,
+            data_dir=self._data_dir,
+            on_confirm=on_confirm,
+        )
 
         if not result.success:
+            # Handle cancellation gracefully (not an error)
+            if result.error == "Cancelled.":
+                return
             output.write_error(result.error or "Unknown error")
             return
 

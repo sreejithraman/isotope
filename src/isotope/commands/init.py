@@ -19,23 +19,25 @@ from isotope.commands.base import (
     PromptRequest,
 )
 from isotope.config import is_local_model
+from isotope.providers.litellm.models import ChatModels, EmbeddingModels
 
-# Default model suggestions
-DEFAULT_LLM_MODEL = "openai/gpt-4o-mini"
-DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small"
+# Default model suggestions (from models.py - single source of truth)
+DEFAULT_LLM_MODEL = ChatModels.GPT_5_MINI
+DEFAULT_EMBEDDING_MODEL = EmbeddingModels.TEXT_3_SMALL
 
-# Model choices for selection
+# Model choices for selection (cloud models from models.py, Ollama as string)
 LLM_MODEL_CHOICES = [
-    "openai/gpt-4o-mini",
-    "openai/gpt-4o",
-    "anthropic/claude-3-5-sonnet-latest",
-    "ollama/llama3.2",
+    ChatModels.GPT_5_MINI,
+    ChatModels.CLAUDE_SONNET_45,
+    ChatModels.GEMINI_3_FLASH,
+    "ollama/llama3.2",  # Local model - not in models.py
 ]
 
 EMBEDDING_MODEL_CHOICES = [
-    "openai/text-embedding-3-small",
-    "openai/text-embedding-3-large",
-    "ollama/nomic-embed-text",
+    EmbeddingModels.TEXT_3_SMALL,
+    EmbeddingModels.TEXT_3_LARGE,
+    EmbeddingModels.GEMINI_EMBEDDING_001,
+    "ollama/nomic-embed-text",  # Local model - not in models.py
 ]
 
 
@@ -143,7 +145,7 @@ embedding_model: {embedding_model}
 #
 # Advanced settings:
 #   num_retries: 5
-#   diversity_threshold: 0.85
+#   question_diversity_threshold: 0.85
 #   default_k: 5
 """
 

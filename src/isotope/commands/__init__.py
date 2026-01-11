@@ -24,6 +24,8 @@ from isotope.commands.base import (
     CommandResult,
     CommandStage,
     ConfigResult,
+    ConfirmCallback,
+    ConfirmRequest,
     DeleteResult,
     FileIngestResult,
     IngestResult,
@@ -49,6 +51,8 @@ __all__ = [
     "InitPrompt",
     "PromptRequest",
     "PromptCallback",
+    "ConfirmRequest",
+    "ConfirmCallback",
     "CommandResult",
     # Result types
     "IngestResult",

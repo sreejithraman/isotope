@@ -31,9 +31,7 @@ class TipsPanel(Static):
         content.append("  Press ", style="dim")
         content.append("Tab", style="bold #ff8700")
         content.append(" for completion, ", style="dim")
-        content.append("", style="bold #ff8700")
-        content.append("/", style="bold #ff8700")
-        content.append("", style="bold #ff8700")
+        content.append("Up/Down", style="bold #ff8700")
         content.append(" for history\n", style="dim")
 
         return Panel(

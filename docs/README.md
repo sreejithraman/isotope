@@ -6,7 +6,10 @@ Welcome to the Isotope documentation.
 
 - [Getting Started Tutorial](./tutorials/getting-started.md) - Your first 10 minutes
 - [CLI Reference](./guides/cli.md) - Command-line interface
+- [TUI Reference](./guides/tui.md) - Interactive terminal interface
 - [Configuration Guide](./guides/configuration.md) - All settings and environment variables
+- [FAQ](./faq.md) - Frequently asked questions
+- [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
 
 ## Concepts
 
@@ -21,8 +24,11 @@ Understanding the theory behind Isotope:
 How-to guides for specific tasks:
 
 - [CLI Reference](./guides/cli.md) - Command-line usage (`isotope ingest`, `query`, etc.)
+- [TUI Reference](./guides/tui.md) - Interactive terminal interface
 - [Configuration](./guides/configuration.md) - Environment variables, providers, settings
 - [Atomization](./guides/atomization.md) - Choosing between sentence and LLM strategies
+- [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
+- [Deployment](./guides/deployment.md) - Production deployment guidelines
 
 ## Tutorials
 

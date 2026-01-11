@@ -37,7 +37,7 @@ from isotope.commands import (
     query,
     status,
 )
-from isotope.commands.base import FileIngestResult, IngestResult, PromptRequest
+from isotope.commands.base import ConfirmRequest, FileIngestResult, IngestResult, PromptRequest
 from isotope.commands.init import InitCancelled
 from isotope.config import load_env_file
 
@@ -536,49 +536,35 @@ def delete_cmd(
     ),
 ) -> None:
     """Delete a source and all its chunks from the database."""
-    # First check if source exists to show confirmation
-    from isotope.config import DEFAULT_DATA_DIR, get_stores, load_config
 
-    config = load_config(config_file)
-    effective_data_dir = data_dir or config.get("data_dir") or DEFAULT_DATA_DIR
-
-    if not os.path.exists(effective_data_dir):
-        console.print("No database found.")
-        raise typer.Exit(1)
-
-    try:
-        stores = get_stores(effective_data_dir)
-        chunks = stores["chunk_store"].get_by_source(source)
-        if not chunks:
+    def cli_confirm(request: ConfirmRequest) -> bool:
+        """CLI confirmation callback using typer.confirm."""
+        if request.details:
             if plain:
-                console.print(f"Source not found: {source}")
+                console.print(request.details)
             else:
-                console.print(f"[yellow]Source not found: {source}[/yellow]")
-            raise typer.Exit(1)
+                console.print(f"[yellow]{request.details}[/yellow]")
+        return typer.confirm("Continue?")
 
-        # Confirm deletion
-        if not force:
-            console.print(f"[yellow]About to delete {len(chunks)} chunks from {source}[/yellow]")
-            confirm = typer.confirm("Continue?")
-            if not confirm:
-                console.print("Cancelled.")
-                raise typer.Exit(0)
+    # Use callback only if not --force
+    on_confirm = None if force else cli_confirm
 
-    except typer.Exit:
-        raise
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1) from None
-
-    # Now delete
     result = delete.delete(
         source=source,
         data_dir=data_dir,
         config_path=config_file,
+        on_confirm=on_confirm,
     )
 
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        # Handle cancellation gracefully (exit 0, not error)
+        if result.error == "Cancelled.":
+            console.print("Cancelled.")
+            raise typer.Exit(0)
+        if plain:
+            console.print(f"Error: {result.error}")
+        else:
+            console.print(f"[red]Error: {result.error}[/red]")
         raise typer.Exit(1)
 
     if plain:
