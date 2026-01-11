@@ -74,7 +74,7 @@ def status(
             chunk_count = len(chunk_ids)
 
             # Get atom and question counts for this source
-            atom_count = sum(len(atom_store.get_by_chunk(cid)) for cid in chunk_ids)
+            atom_count = atom_store.count_by_chunk_ids(chunk_ids)
             question_count = question_store.count_by_chunk_ids(chunk_ids)
 
             result.sources.append(

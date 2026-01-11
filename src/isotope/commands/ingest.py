@@ -73,7 +73,10 @@ def _do_ingest(
         file_result = _ingest_file(iso=iso, filepath=filepath, on_progress=on_progress)
         result.file_results.append(file_result)
 
-        if file_result.skipped:
+        if file_result.failed:
+            result.files_failed += 1
+            result.errors.append((filepath, file_result.reason or "Unknown error"))
+        elif file_result.skipped:
             result.files_skipped += 1
         else:
             result.files_processed += 1
@@ -85,10 +88,8 @@ def _do_ingest(
         if on_file_complete:
             on_file_complete(file_result)
 
-    if result.errors:
-        result.files_failed = len(result.errors)
-        if result.files_processed == 0:
-            result.success = False
+    if result.files_failed > 0 and result.files_processed == 0:
+        result.success = False
 
     return result
 
@@ -189,6 +190,7 @@ def _ingest_file(
         return FileIngestResult(
             filepath=filepath,
             skipped=False,
+            failed=True,
             reason=f"Error: {type(e).__name__}: {e}",
         )
 

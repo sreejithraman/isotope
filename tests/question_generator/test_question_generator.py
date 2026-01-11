@@ -6,8 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytest.importorskip("litellm", reason="Tests require litellm package")
-
 from isotope.models import Atom, Question
 from isotope.providers.litellm import LiteLLMClient
 from isotope.question_generator import (

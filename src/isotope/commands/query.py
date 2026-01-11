@@ -82,7 +82,7 @@ def query(
     if not raw and iso_config.llm_model:
         from isotope.providers.litellm import LiteLLMClient
 
-        llm_client = LiteLLMClient(model=iso_config.llm_model)
+        llm_client = LiteLLMClient(model=iso_config.llm_model, api_key=iso_config.llm_api_key)
 
     # Create retriever and query
     retriever = iso.retriever(

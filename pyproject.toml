@@ -56,7 +56,6 @@ dev = [
     "ruff>=0.14",
     "mypy>=1.10",
     "pre-commit>=3.7",
-    "litellm>=1.0",
     "build>=1.0",
 ]
 

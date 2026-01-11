@@ -38,8 +38,7 @@ def temp_dir():
 
 @pytest.fixture
 def stores(temp_dir):
-    """Create store instances for testing (requires chromadb)."""
-    pytest.importorskip("chromadb", reason="This fixture requires chromadb")
+    """Create store instances for testing."""
     from isotope.stores import ChromaEmbeddedQuestionStore, SQLiteAtomStore, SQLiteChunkStore
 
     chroma_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))

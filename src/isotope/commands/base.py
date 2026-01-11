@@ -131,7 +131,8 @@ class FileIngestResult:
 
     filepath: str
     skipped: bool
-    reason: str | None = None  # Reason if skipped
+    failed: bool = False  # True if an error occurred during ingestion
+    reason: str | None = None  # Reason if skipped or failed
     chunks: int = 0
     atoms: int = 0
     questions: int = 0

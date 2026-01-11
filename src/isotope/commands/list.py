@@ -55,11 +55,10 @@ def list_sources(
     result = ListResult(success=True)
 
     for source in sorted(sources):
-        chunks = chunk_store.get_by_source(source)
         result.sources.append(
             SourceInfo(
                 source=source,
-                chunk_count=len(chunks),
+                chunk_count=chunk_store.count_by_source(source),
             )
         )
 

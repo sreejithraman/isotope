@@ -76,7 +76,7 @@ def delete(
 
     # Count items that will be deleted
     chunks_to_delete = len(chunk_ids)
-    atoms_to_delete = sum(len(atom_store.get_by_chunk(cid)) for cid in chunk_ids)
+    atoms_to_delete = atom_store.count_by_chunk_ids(chunk_ids)
     questions_to_delete = question_store.count_by_chunk_ids(chunk_ids)
 
     # Confirm deletion if callback provided

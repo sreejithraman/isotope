@@ -332,7 +332,8 @@ class MainScreen(Screen[None]):
                     f"{file_result.chunks} chunks, {file_result.questions} questions"
                 )
 
-        result = ingest.ingest(
+        result = await asyncio.to_thread(
+            ingest.ingest,
             path=path,
             data_dir=self._data_dir,
             on_progress=on_progress,
@@ -422,7 +423,8 @@ class MainScreen(Screen[None]):
         k = int(flags.get("k", 5)) if flags.get("k") else None
         show_questions = bool(flags.get("show-matched-questions") or flags.get("q"))
 
-        result = query.query(
+        result = await asyncio.to_thread(
+            query.query,
             question=question,
             data_dir=self._data_dir,
             k=k,

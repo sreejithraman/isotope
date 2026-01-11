@@ -86,7 +86,7 @@ STAGE_NAMES = {
 }
 
 
-@app.command()
+@app.command(name="ingest")
 def ingest_cmd(
     path: str = typer.Argument(..., help="File or directory to ingest"),
     data_dir: str = typer.Option(
@@ -257,12 +257,7 @@ def _render_ingest_result(result: IngestResult, plain: bool) -> None:
         raise typer.Exit(1)
 
 
-# Rename function to avoid conflict with module
-ingest_cmd.__name__ = "ingest"
-app.registered_commands[0].name = "ingest"
-
-
-@app.command()
+@app.command(name="query")
 def query_cmd(
     question: str = typer.Argument(..., help="Question to ask"),
     data_dir: str = typer.Option(
@@ -355,9 +350,6 @@ def query_cmd(
                 console.print(f"      [yellow]Matched:[/yellow] {r.matched_question}")
 
 
-query_cmd.__name__ = "query"
-
-
 @app.command(name="list")
 def list_sources_cmd(
     data_dir: str = typer.Option(
@@ -410,7 +402,7 @@ def list_sources_cmd(
         console.print(table)
 
 
-@app.command()
+@app.command(name="status")
 def status_cmd(
     data_dir: str = typer.Option(
         None,
@@ -505,10 +497,7 @@ def status_cmd(
             console.print(detail_table)
 
 
-status_cmd.__name__ = "status"
-
-
-@app.command()
+@app.command(name="delete")
 def delete_cmd(
     source: str = typer.Argument(..., help="Source path to delete"),
     data_dir: str = typer.Option(
@@ -573,10 +562,7 @@ def delete_cmd(
         console.print(f"[green]Deleted {result.chunks_deleted} chunks from {source}[/green]")
 
 
-delete_cmd.__name__ = "delete"
-
-
-@app.command()
+@app.command(name="config")
 def config_cmd_handler(
     config_file: str = typer.Option(
         None,
@@ -633,10 +619,7 @@ def config_cmd_handler(
     console.print("\n[dim]Precedence: env var > yaml settings > default[/dim]")
 
 
-config_cmd_handler.__name__ = "config"
-
-
-@app.command()
+@app.command(name="init")
 def init_cmd(
     provider: str = typer.Option(
         "litellm",
@@ -724,9 +707,6 @@ def init_cmd(
         console.print("  1. Implement your custom classes")
         console.print("  2. Update the class paths in isotope.yaml")
         console.print("  3. Ingest documents: isotope ingest ./docs")
-
-
-init_cmd.__name__ = "init"
 
 
 @questions_app.command(name="sample")

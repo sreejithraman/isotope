@@ -91,8 +91,8 @@ class OutputDisplay(RichLog):
             text = Text()
             text.append(f"  {stage:>12} ", style="#ff8700")
             text.append("[", style="dim")
-            text.append("" * filled, style="#ff8700")
-            text.append("" * (bar_width - filled), style="dim")
+            text.append("\u2588" * filled, style="#ff8700")
+            text.append("\u2591" * (bar_width - filled), style="dim")
             text.append("]", style="dim")
             text.append(f" {current}/{total}", style="dim")
             if detail:
@@ -109,7 +109,7 @@ class OutputDisplay(RichLog):
         """Display source references with scores."""
         text = Text()
         text.append("\n", style="")
-        text.append("" * 50, style="dim")
+        text.append("\u2500" * 50, style="dim")
         text.append("\n", style="")
         text.append(" Sources: ", style="dim")
 

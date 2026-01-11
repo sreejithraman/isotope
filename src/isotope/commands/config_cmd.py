@@ -52,12 +52,15 @@ def config(
     # Build the effective settings
     settings = build_settings(cli_config, env_settings)
 
-    # Find config file for display
-    found_config_path = find_config_file()
-
     # Build result
     result = ConfigResult(success=True)
-    result.config_path = str(found_config_path) if found_config_path else None
+
+    # Use provided path if given, otherwise auto-discover
+    if config_path:
+        result.config_path = str(config_path)
+    else:
+        found_config_path = find_config_file()
+        result.config_path = str(found_config_path) if found_config_path else None
 
     # Provider config
     result.provider = cli_config.get("provider", "litellm")
