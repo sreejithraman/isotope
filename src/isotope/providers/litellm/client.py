@@ -2,6 +2,7 @@
 """LiteLLM client implementations for LLM and embedding APIs."""
 
 import litellm
+from litellm.types.utils import Choices
 
 from isotope.providers.base import EmbeddingClient, LLMClient
 from isotope.providers.litellm.models import ChatModels, EmbeddingModels
@@ -45,31 +46,48 @@ class LiteLLMClient(LLMClient):
         self.num_retries = num_retries
         self.api_key = api_key
 
-    def complete(
-        self,
-        messages: list[dict],
-        temperature: float | None = None,
-    ) -> str:
-        """Generate a completion using LiteLLM."""
-        completion_kwargs: dict = {
+    def _build_completion_kwargs(self, messages: list[dict], temperature: float | None) -> dict:
+        """Build kwargs for litellm completion calls."""
+        kwargs: dict = {
             "model": self.model,
             "messages": messages,
             "drop_params": True,
             "num_retries": self.num_retries,
         }
         if temperature is not None:
-            completion_kwargs["temperature"] = temperature
+            kwargs["temperature"] = temperature
         if self.api_key is not None:
-            completion_kwargs["api_key"] = self.api_key
+            kwargs["api_key"] = self.api_key
+        return kwargs
 
-        response = litellm.completion(**completion_kwargs)
-
+    def _extract_content(self, response: litellm.ModelResponse) -> str:
+        """Extract content from litellm response."""
         if not response.choices:
             raise ValueError(f"LLM returned no choices for model {self.model}")
-        content = response.choices[0].message.content
+
+        choice = response.choices[0]
+
+        # We use non-streaming completion, so expect Choices (not StreamingChoices)
+        if not isinstance(choice, Choices):
+            raise ValueError(
+                f"Expected non-streaming response (Choices), got {type(choice).__name__}. "
+                f"This client does not support streaming."
+            )
+
+        content = choice.message.content
         if content is None:
             raise ValueError(f"LLM returned None content for model {self.model}")
         return str(content)
+
+    def complete(
+        self,
+        messages: list[dict],
+        temperature: float | None = None,
+    ) -> str:
+        """Generate a completion using LiteLLM."""
+        kwargs = self._build_completion_kwargs(messages, temperature)
+        response = litellm.completion(**kwargs)
+        return self._extract_content(response)
 
     async def acomplete(
         self,
@@ -77,25 +95,9 @@ class LiteLLMClient(LLMClient):
         temperature: float | None = None,
     ) -> str:
         """Generate a completion using LiteLLM (async)."""
-        completion_kwargs: dict = {
-            "model": self.model,
-            "messages": messages,
-            "drop_params": True,
-            "num_retries": self.num_retries,
-        }
-        if temperature is not None:
-            completion_kwargs["temperature"] = temperature
-        if self.api_key is not None:
-            completion_kwargs["api_key"] = self.api_key
-
-        response = await litellm.acompletion(**completion_kwargs)
-
-        if not response.choices:
-            raise ValueError(f"LLM returned no choices for model {self.model}")
-        content = response.choices[0].message.content
-        if content is None:
-            raise ValueError(f"LLM returned None content for model {self.model}")
-        return str(content)
+        kwargs = self._build_completion_kwargs(messages, temperature)
+        response = await litellm.acompletion(**kwargs)
+        return self._extract_content(response)
 
 
 class LiteLLMEmbeddingClient(EmbeddingClient):

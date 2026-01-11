@@ -111,6 +111,11 @@ class ChunkStore(ABC):
         """Delete all chunks from a specific source."""
         ...
 
+    @abstractmethod
+    def count_by_source(self, source: str) -> int:
+        """Count chunks for a specific source."""
+        ...
+
 
 class AtomStore(ABC):
     """Abstract base class for atom storage."""
@@ -148,6 +153,11 @@ class AtomStore(ABC):
     @abstractmethod
     def count_atoms(self) -> int:
         """Count the total number of atoms in the store."""
+        ...
+
+    @abstractmethod
+    def count_by_chunk_ids(self, chunk_ids: list[str]) -> int:
+        """Count atoms for given chunk IDs."""
         ...
 
 

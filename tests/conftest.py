@@ -38,8 +38,7 @@ def temp_dir():
 
 @pytest.fixture
 def stores(temp_dir):
-    """Create store instances for testing (requires chromadb)."""
-    pytest.importorskip("chromadb", reason="This fixture requires chromadb")
+    """Create store instances for testing."""
     from isotope.stores import ChromaEmbeddedQuestionStore, SQLiteAtomStore, SQLiteChunkStore
 
     chroma_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))
@@ -83,8 +82,8 @@ def mock_embedder():
 def mock_generator():
     """Create a mock question generator for testing."""
     from isotope.models import Atom, Question
-    from isotope.question_generator import QuestionGenerator, SyncOnlyGeneratorMixin
-    from isotope.question_generator.base import BatchConfig
+    from isotope.question_generator import QuestionGenerator
+    from isotope.question_generator.base import BatchConfig, SyncOnlyGeneratorMixin
 
     class MockGenerator(SyncOnlyGeneratorMixin, QuestionGenerator):
         """Mock generator that returns fixed questions."""

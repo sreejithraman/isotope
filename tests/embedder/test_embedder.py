@@ -5,8 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytest.importorskip("litellm", reason="Tests require litellm package")
-
 from isotope.embedder import ClientEmbedder, Embedder
 from isotope.models import EmbeddedQuestion, Question
 from isotope.providers.litellm import LiteLLMEmbeddingClient

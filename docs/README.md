@@ -6,7 +6,10 @@ Welcome to the Isotope documentation.
 
 - [Getting Started Tutorial](./tutorials/getting-started.md) - Your first 10 minutes
 - [CLI Reference](./guides/cli.md) - Command-line interface
+- [TUI Reference](./guides/tui.md) - Interactive terminal interface
 - [Configuration Guide](./guides/configuration.md) - All settings and environment variables
+- [FAQ](./faq.md) - Frequently asked questions
+- [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
 
 ## Concepts
 
@@ -14,20 +17,31 @@ Understanding the theory behind Isotope:
 
 - [Reverse RAG Explained](./concepts/reverse-rag.md) - The paper (arXiv:2405.12363) and core insight
 - [Architecture](./concepts/architecture.md) - System design, `Isotope` class, and pipelines
+- [Developer Architecture](./concepts/developer-architecture.md) - Internal code structure (commands layer, CLI/TUI)
 
 ## Guides
 
 How-to guides for specific tasks:
 
 - [CLI Reference](./guides/cli.md) - Command-line usage (`isotope ingest`, `query`, etc.)
+- [TUI Reference](./guides/tui.md) - Interactive terminal interface
 - [Configuration](./guides/configuration.md) - Environment variables, providers, settings
 - [Atomization](./guides/atomization.md) - Choosing between sentence and LLM strategies
+- [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
+- [Deployment](./guides/deployment.md) - Production deployment guidelines
 
 ## Tutorials
 
 Step-by-step learning:
 
 - [Getting Started](./tutorials/getting-started.md) - Ingest and query your first document
+
+## Contributing
+
+Resources for contributors:
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Development setup and workflow
+- [Developer Architecture](./concepts/developer-architecture.md) - Internal code structure
 
 ## Additional Resources
 

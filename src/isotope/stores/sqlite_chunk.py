@@ -144,3 +144,13 @@ class SQLiteChunkStore(ChunkStore):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM chunks WHERE source = ?", (source,))
             conn.commit()
+
+    def count_by_source(self, source: str) -> int:
+        """Count chunks for a specific source."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT COUNT(id) FROM chunks WHERE source = ?",
+                (source,),
+            )
+            count = cursor.fetchone()
+            return count[0] if count else 0

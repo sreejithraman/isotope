@@ -88,7 +88,6 @@ class TestIsotopeInit:
 class TestIsotopeWithLiteLLM:
     def test_litellm_provider_creates_stores(self, temp_dir):
         """Test that LiteLLMProvider with LocalStorage creates stores."""
-        pytest.importorskip("litellm", reason="This test requires litellm package")
         from isotope.configuration import LiteLLMProvider
 
         iso = Isotope(
@@ -105,7 +104,6 @@ class TestIsotopeWithLiteLLM:
 
     def test_litellm_provider_creates_embedder(self, temp_dir):
         """Test that LiteLLMProvider creates ClientEmbedder."""
-        pytest.importorskip("litellm", reason="This test requires litellm package")
         from isotope.configuration import LiteLLMProvider
         from isotope.embedder import ClientEmbedder
 
@@ -121,7 +119,6 @@ class TestIsotopeWithLiteLLM:
 
     def test_litellm_provider_creates_llm_atomizer_by_default(self, temp_dir):
         """Test that LiteLLMProvider creates LLM atomizer by default."""
-        pytest.importorskip("litellm", reason="This test requires litellm package")
         from isotope.atomizer import LLMAtomizer
         from isotope.configuration import LiteLLMProvider
 
@@ -137,7 +134,6 @@ class TestIsotopeWithLiteLLM:
 
     def test_litellm_provider_can_use_sentence_atomizer(self, temp_dir):
         """Test that LiteLLMProvider can use sentence atomizer."""
-        pytest.importorskip("litellm", reason="This test requires litellm package")
         from isotope.atomizer import SentenceAtomizer
         from isotope.configuration import LiteLLMProvider
 

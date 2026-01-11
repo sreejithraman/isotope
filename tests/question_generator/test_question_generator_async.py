@@ -6,8 +6,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-pytest.importorskip("litellm", reason="Tests require litellm package")
+from litellm.types.utils import Choices, Message
 
 from isotope.models import Atom, Question
 from isotope.providers.litellm import LiteLLMClient
@@ -16,15 +15,20 @@ from isotope.question_generator import (
     BatchGenerationError,
     ClientQuestionGenerator,
     QuestionGenerator,
-    SyncOnlyGeneratorMixin,
 )
+from isotope.question_generator.base import SyncOnlyGeneratorMixin
 
 
 def mock_acompletion_response(questions: list[str]):
     """Create a mock LiteLLM async completion response."""
     mock_response = MagicMock()
-    mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps(questions)
+    mock_response.choices = [
+        Choices(
+            finish_reason="stop",
+            index=0,
+            message=Message(role="assistant", content=json.dumps(questions)),
+        )
+    ]
     return mock_response
 
 

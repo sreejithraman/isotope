@@ -39,7 +39,7 @@ jobs:
           python-version: "3.11"
           cache: 'pip'
       - name: Install dependencies
-        run: pip install -e ".[dev,chroma]" pip-audit
+        run: pip install -e ".[dev,all]" pip-audit
       - name: Run pip-audit
         # Ignored vulnerabilities with no available fix:
         # - urllib3 CVEs: chromadb -> kubernetes pins urllib3<2.4.0
@@ -64,7 +64,7 @@ jobs:
           python-version: "3.11"
           cache: 'pip'
       - name: Install dependencies
-        run: pip install -e ".[dev,chroma]"
+        run: pip install -e ".[dev,all]"
       - name: Run mypy
         run: mypy src
 
@@ -87,24 +87,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Install dependencies
-        run: pip install -e ".[dev,chroma]"
+        run: pip install -e ".[dev,all]"
       - name: Run tests
         run: pytest
-
-  test-loaders:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [format, lint]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: 'pip'
-      - name: Install dependencies with loaders
-        run: pip install -e ".[dev,all]"
-      - name: Run loader tests
-        run: pytest tests/loaders/
 
   # Gate job: Aggregates all CI results into a single required check.
   # When adding new jobs, add them to the `needs` list below.
@@ -113,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [format, lint, security, type-check, test, test-loaders]
+    needs: [format, lint, security, type-check, test]
     steps:
       - name: Verify all checks passed
         run: |

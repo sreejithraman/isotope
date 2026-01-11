@@ -42,6 +42,8 @@ pip install -e ".[all]"
 
 You should see a bunch of text scroll by, ending with "Successfully installed..."
 
+> **Quick alternative:** If you just want to try the TUI immediately, run `make tui` - it auto-installs dependencies for you. For CLI: `make cli ARGS="--help"`
+
 ### Step 4: Choose your provider and initialize
 
 Pick ONE of these options:

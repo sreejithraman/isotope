@@ -137,3 +137,25 @@ pytest                      # All tests must pass
 
 - **Add new setting**: Edit `settings.py`, add field to `Settings` class
 - **Update exports**: Edit `src/isotope/__init__.py` and module `__init__.py` files
+
+## Model Names (LiteLLM)
+
+When referencing LLM/embedding models for the LiteLLM provider, use constants from `src/isotope/providers/litellm/models.py`. This file is the **single source of truth** for model names.
+
+**Do NOT hardcode model strings elsewhere in the codebase.** Import from `models.py`:
+
+```python
+from isotope.providers.litellm.models import ChatModels, EmbeddingModels
+
+# Use constants
+model = ChatModels.GPT_5_MINI
+embedding = EmbeddingModels.TEXT_3_SMALL
+```
+
+Current models (check `models.py` for the latest):
+- **Chat**: `ChatModels.GPT_5_MINI`, `ChatModels.CLAUDE_SONNET_45`, `ChatModels.GEMINI_3_FLASH`
+- **Embedding**: `EmbeddingModels.TEXT_3_SMALL`, `EmbeddingModels.GEMINI_EMBEDDING_001`
+
+**For custom providers**: Users specify their own model identifiers via class paths. The `models.py` constants only apply to LiteLLM.
+
+**In documentation**: When showing example model names, use the string values from `models.py` (e.g., `openai/gpt-5-mini-2025-08-07`) to stay consistent.
