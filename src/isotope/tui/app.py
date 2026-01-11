@@ -9,6 +9,7 @@ from textual.app import App
 from textual.binding import Binding
 from textual.css.query import NoMatches
 
+from isotope.config import load_env_file
 from isotope.tui.screens.main import MainScreen
 from isotope.tui.screens.welcome import WelcomeScreen
 
@@ -31,9 +32,10 @@ class IsotopeTUI(App[None]):
     def on_mount(self) -> None:
         """Set up the initial screen."""
         if self._show_welcome and self._should_show_welcome():
-            self.push_screen(WelcomeScreen())
+            # Push MainScreen first (bottom), then WelcomeScreen on top
+            # When WelcomeScreen dismisses, MainScreen is revealed
             self.push_screen(MainScreen())
-            self.pop_screen()  # Pop main, leaving welcome on top
+            self.push_screen(WelcomeScreen())
         else:
             self.push_screen(MainScreen())
 
@@ -65,6 +67,8 @@ class IsotopeTUI(App[None]):
 
 def main() -> None:
     """Entry point for the TUI."""
+    # Load .env file for API keys (same as CLI)
+    load_env_file()
     app = IsotopeTUI()
     app.run()
 

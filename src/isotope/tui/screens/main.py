@@ -314,22 +314,30 @@ class MainScreen(Screen[None]):
             current_file_index = index
             total_files = total
             filename = os.path.basename(filepath)
-            header.show(f"Ingesting {index + 1}/{total}: {filename}")
-            output.write_info(f"[{index + 1}/{total}] {filename}")
+            # Marshal UI updates to main thread (called from worker thread)
+            self.app.call_from_thread(header.show, f"Ingesting {index + 1}/{total}: {filename}")
+            self.app.call_from_thread(output.write_info, f"[{index + 1}/{total}] {filename}")
 
         def on_progress(update: ProgressUpdate) -> None:
             stage_name = update.stage.value
+            # Marshal UI updates to main thread (called from worker thread)
             if update.total > 1:
-                output.write_progress(stage_name, update.current, update.total)
+                self.app.call_from_thread(
+                    output.write_progress, stage_name, update.current, update.total
+                )
             else:
-                output.write_info(f"   {stage_name}... {update.message or ''}")
+                msg = f"   {stage_name}... {update.message or ''}"
+                self.app.call_from_thread(output.write_info, msg)
 
         def on_file_complete(file_result: ingest.FileIngestResult) -> None:
+            # Marshal UI updates to main thread (called from worker thread)
             if file_result.skipped:
-                output.write_info(f"   Skipped: {file_result.reason or 'unchanged'}")
+                msg = f"   Skipped: {file_result.reason or 'unchanged'}"
+                self.app.call_from_thread(output.write_info, msg)
             else:
-                output.write_success(
-                    f"{file_result.chunks} chunks, {file_result.questions} questions"
+                self.app.call_from_thread(
+                    output.write_success,
+                    f"{file_result.chunks} chunks, {file_result.questions} questions",
                 )
 
         result = await asyncio.to_thread(

@@ -2,6 +2,7 @@
 """LiteLLM client implementations for LLM and embedding APIs."""
 
 import litellm
+from litellm.types.utils import Choices
 
 from isotope.providers.base import EmbeddingClient, LLMClient
 from isotope.providers.litellm.models import ChatModels, EmbeddingModels
@@ -63,8 +64,17 @@ class LiteLLMClient(LLMClient):
         """Extract content from litellm response."""
         if not response.choices:
             raise ValueError(f"LLM returned no choices for model {self.model}")
+
         choice = response.choices[0]
-        content = choice.message.content  # type: ignore[union-attr]
+
+        # We use non-streaming completion, so expect Choices (not StreamingChoices)
+        if not isinstance(choice, Choices):
+            raise ValueError(
+                f"Expected non-streaming response (Choices), got {type(choice).__name__}. "
+                f"This client does not support streaming."
+            )
+
+        content = choice.message.content
         if content is None:
             raise ValueError(f"LLM returned None content for model {self.model}")
         return str(content)

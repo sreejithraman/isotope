@@ -150,13 +150,19 @@ class CommandParser:
                     i += 1
                 else:
                     flags[key] = True
-            elif arg.startswith("-") and len(arg) == 2:
-                key = arg[1]
-                if i + 1 < len(args) and not args[i + 1].startswith("-"):
-                    flags[key] = args[i + 1]
-                    i += 1
+            elif arg.startswith("-") and not arg.startswith("--"):
+                if len(arg) == 2:
+                    # Single short flag: -f or -f value
+                    key = arg[1]
+                    if i + 1 < len(args) and not args[i + 1].startswith("-"):
+                        flags[key] = args[i + 1]
+                        i += 1
+                    else:
+                        flags[key] = True
                 else:
-                    flags[key] = True
+                    # Combined short flags: -rf -> -r -f (all boolean)
+                    for char in arg[1:]:
+                        flags[char] = True
             else:
                 positional_args.append(arg)
             i += 1

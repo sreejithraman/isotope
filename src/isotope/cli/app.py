@@ -231,6 +231,13 @@ def _render_ingest_result(result: IngestResult, plain: bool) -> None:
         console.print(f"[red]Error: {result.error}[/red]")
         raise typer.Exit(1)
 
+    # Show warning if error is set but success=True (e.g., "No supported files found")
+    if result.error:
+        if plain:
+            console.print(f"Warning: {result.error}")
+        else:
+            console.print(f"[yellow]Warning: {result.error}[/yellow]")
+
     if plain:
         console.print(f"Ingested {result.files_processed} files ({result.total_chunks} chunks)")
         console.print(f"Created {result.total_atoms} atoms")
@@ -643,8 +650,9 @@ def init_cmd(
     def cli_prompt(request: PromptRequest) -> str:
         """Handle prompts in CLI context."""
         if request.choices:
-            # Show numbered choices
+            # Show question and numbered choices
             console.print()
+            console.print(f"[bold]{request.message}[/bold]")
             for i, choice in enumerate(request.choices, 1):
                 console.print(f"  [{i}] {choice}")
 

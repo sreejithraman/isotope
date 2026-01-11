@@ -5,6 +5,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from litellm.types.utils import Choices, Message
 
 from isotope.atomizer import Atomizer, LLMAtomizer
 from isotope.models import Chunk
@@ -14,8 +15,13 @@ from isotope.providers.litellm import LiteLLMClient
 def mock_completion_response(facts: list[str]):
     """Create a mock LiteLLM completion response."""
     mock_response = MagicMock()
-    mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps(facts)
+    mock_response.choices = [
+        Choices(
+            finish_reason="stop",
+            index=0,
+            message=Message(role="assistant", content=json.dumps(facts)),
+        )
+    ]
     return mock_response
 
 
@@ -96,8 +102,13 @@ class TestLLMAtomizer:
     def test_handles_code_block_response(self, mock_completion, atomizer):
         # Some LLMs wrap JSON in code blocks
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '```json\n["Fact 1", "Fact 2"]\n```'
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(role="assistant", content='```json\n["Fact 1", "Fact 2"]\n```'),
+            )
+        ]
         mock_completion.return_value = mock_response
 
         chunk = Chunk(content="Content", source="test.md")
@@ -110,8 +121,13 @@ class TestLLMAtomizer:
     def test_fallback_on_invalid_json(self, mock_completion, atomizer):
         # If LLM returns non-JSON, fall back to line splitting
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Fact 1\nFact 2\nFact 3"
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(role="assistant", content="Fact 1\nFact 2\nFact 3"),
+            )
+        ]
         mock_completion.return_value = mock_response
 
         chunk = Chunk(content="Content", source="test.md")

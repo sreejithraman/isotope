@@ -215,7 +215,9 @@ def update_gitignore_for_env(gitignore_path: Path) -> bool:
     """
     if gitignore_path.exists():
         content = gitignore_path.read_text(encoding="utf-8")
-        if ".env" not in content:
+        # Check line-by-line for exact .env entry (not substring like .env.example)
+        lines = content.splitlines()
+        if not any(line.strip() == ".env" for line in lines):
             with open(gitignore_path, "a", encoding="utf-8") as f:
                 f.write("\n# Environment variables\n.env\n")
             return True

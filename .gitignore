@@ -44,3 +44,4 @@ Thumbs.db
 # Make install markers
 .install-cli
 .install-tui
+.install-example

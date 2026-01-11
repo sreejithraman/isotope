@@ -5,6 +5,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from litellm.types.utils import Choices, Message
 
 from isotope.models import Atom, Question
 from isotope.providers.litellm import LiteLLMClient
@@ -18,8 +19,13 @@ from isotope.question_generator import (
 def mock_completion_response(questions: list[str]):
     """Create a mock LiteLLM completion response."""
     mock_response = MagicMock()
-    mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps(questions)
+    mock_response.choices = [
+        Choices(
+            finish_reason="stop",
+            index=0,
+            message=Message(role="assistant", content=json.dumps(questions)),
+        )
+    ]
     return mock_response
 
 
@@ -110,8 +116,13 @@ class TestClientQuestionGenerator:
     @patch("isotope.providers.litellm.client.litellm.acompletion")
     def test_handles_code_block_response(self, mock_acompletion, generator, sample_atom):
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '```json\n["Q1?", "Q2?"]\n```'
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(role="assistant", content='```json\n["Q1?", "Q2?"]\n```'),
+            )
+        ]
         mock_acompletion.return_value = mock_response
 
         questions = generator.generate(sample_atom)
@@ -121,8 +132,15 @@ class TestClientQuestionGenerator:
     @patch("isotope.providers.litellm.client.litellm.acompletion")
     def test_fallback_on_invalid_json(self, mock_acompletion, generator, sample_atom):
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "1. Who created Python?\n2. What is Python?"
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(
+                    role="assistant", content="1. Who created Python?\n2. What is Python?"
+                ),
+            )
+        ]
         mock_acompletion.return_value = mock_response
 
         questions = generator.generate(sample_atom)
@@ -228,8 +246,13 @@ class TestMultiAtomBatching:
     ):
         """With batch_size>1, should use multi-atom prompt format."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = multi_atom_response
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(role="assistant", content=multi_atom_response),
+            )
+        ]
         mock_acompletion.return_value = mock_response
 
         atoms = [
@@ -257,8 +280,13 @@ class TestMultiAtomBatching:
     ):
         """Should parse JSON object response {"0": [...], "1": [...]}."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = multi_atom_response
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(role="assistant", content=multi_atom_response),
+            )
+        ]
         mock_acompletion.return_value = mock_response
 
         atoms = [
@@ -279,14 +307,20 @@ class TestMultiAtomBatching:
     @patch("isotope.providers.litellm.client.litellm.acompletion")
     def test_multi_atom_parses_json_array_response(self, mock_acompletion, generator):
         """Should fall back to JSON array [[...], [...]] format."""
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(
+        content = json.dumps(
             [
                 ["Q1a?", "Q1b?"],
                 ["Q2a?", "Q2b?"],
             ]
         )
+        mock_response = MagicMock()
+        mock_response.choices = [
+            Choices(
+                finish_reason="stop",
+                index=0,
+                message=Message(role="assistant", content=content),
+            )
+        ]
         mock_acompletion.return_value = mock_response
 
         atoms = [
