@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -31,10 +32,13 @@ from isotope.config import (
 )
 from isotope.tui.commands.parser import CommandParser, CommandType
 from isotope.tui.screens.init import InitScreen
+from isotope.tui.widgets.ingest_progress import IngestProgress
 from isotope.tui.widgets.input_area import CommandInput, InputArea
 from isotope.tui.widgets.output import OutputDisplay
 from isotope.tui.widgets.status_bar import StatusBar
 from isotope.tui.widgets.sticky_header import StickyHeader
+
+logger = logging.getLogger(__name__)
 
 
 class MainScreen(Screen[None]):
@@ -46,10 +50,12 @@ class MainScreen(Screen[None]):
         self._data_dir: str | None = None
         self._config: dict[str, Any] = {}
         self._current_task: asyncio.Task[None] | None = None
+        self._verbose: bool = False
 
     def compose(self) -> ComposeResult:
         """Compose the main screen layout."""
         yield StickyHeader(id="sticky-header")
+        yield IngestProgress(id="ingest-progress")
         yield OutputDisplay(id="output-area")
         yield StatusBar(id="status-bar")
         yield InputArea()
@@ -98,7 +104,8 @@ class MainScreen(Screen[None]):
                 model = model.split("/")[-1]
 
             status_bar.update_stats(questions=questions, sources=sources, model=model)
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to update status bar: %s", e)
             status_bar.update_stats(questions=0, sources=0)
 
     async def on_command_input_submitted(self, event: CommandInput.Submitted) -> None:
@@ -152,10 +159,13 @@ class MainScreen(Screen[None]):
                     )
                 else:
                     output.write_error("Please enter a question.")
+            elif command.type == CommandType.VERBOSE:
+                self._cmd_verbose(output)
             else:
                 output.write_warning(f"Unknown command: {command.raw}")
                 output.write_info("Type /help for available commands.")
         except Exception as e:
+            logger.exception("An unexpected error occurred in a TUI command.")
             output.write_error(f"Error: {e}")
             header.hide()
 
@@ -173,6 +183,7 @@ class MainScreen(Screen[None]):
             ("list", "List indexed sources"),
             ("config", "Show configuration"),
             ("delete <source>", "Remove a source from index"),
+            ("verbose", "Toggle verbose error messages"),
             ("clear", "Clear the screen"),
             ("quit", "Exit isotope"),
         ]
@@ -188,13 +199,31 @@ class MainScreen(Screen[None]):
         output.write_info("  Use Tab for command/path completion")
         output.write_info("  Use Up/Down for command history")
 
+    def _cmd_verbose(self, output: OutputDisplay) -> None:
+        """Toggle verbose mode for detailed error messages."""
+        self._verbose = not self._verbose
+        if self._verbose:
+            output.write_success("Verbose mode: ON - errors will show full details")
+        else:
+            output.write_success("Verbose mode: OFF - errors will show clean messages")
+
+    def _write_error(self, output: OutputDisplay, error: str | None, details: str | None) -> None:
+        """Write an error message, showing details if verbose mode is enabled."""
+        error_msg = error or "Unknown error"
+        if self._verbose and details:
+            output.write_error(error_msg)
+            output.write_info("Details:")
+            output.write_info(details)
+        else:
+            output.write_error(error_msg)
+
     async def _cmd_status(self, output: OutputDisplay, flags: dict[str, Any]) -> None:
         """Show database status."""
         detailed = bool(flags.get("detailed") or flags.get("d"))
         result = status.status(data_dir=self._data_dir, detailed=detailed)
 
         if not result.success:
-            output.write_error(result.error or "Unknown error")
+            self._write_error(output, result.error, result.error_details)
             return
 
         if result.total_sources == 0:
@@ -233,7 +262,7 @@ class MainScreen(Screen[None]):
         result = list_cmd.list_sources(data_dir=self._data_dir)
 
         if not result.success:
-            output.write_error(result.error or "Unknown error")
+            self._write_error(output, result.error, result.error_details)
             return
 
         if not result.sources:
@@ -258,7 +287,7 @@ class MainScreen(Screen[None]):
         result = config_cmd.config()
 
         if not result.success:
-            output.write_error(result.error or "Unknown error")
+            self._write_error(output, result.error, result.error_details)
             return
 
         table = Table(title="Configuration", box=None, title_style="#ff8700")
@@ -305,43 +334,36 @@ class MainScreen(Screen[None]):
             output.write_error(f"Path not found: {path}")
             return
 
-        # Track file progress
-        current_file_index = 0
-        total_files = 0
+        progress = self.query_one("#ingest-progress", IngestProgress)
 
         def on_file_start(filepath: str, index: int, total: int) -> None:
-            nonlocal current_file_index, total_files
-            current_file_index = index
-            total_files = total
             filename = os.path.basename(filepath)
-            # Marshal UI updates to main thread (called from worker thread)
-            self.app.call_from_thread(header.show, f"Ingesting {index + 1}/{total}: {filename}")
-            self.app.call_from_thread(output.write_info, f"[{index + 1}/{total}] {filename}")
+            progress.show()
+            progress.update_file_progress(index + 1, total, filename)
 
         def on_progress(update: ProgressUpdate) -> None:
+            # Update stage progress bar in place
             stage_name = update.stage.value
-            # Marshal UI updates to main thread (called from worker thread)
-            if update.total > 1:
-                self.app.call_from_thread(
-                    output.write_progress, stage_name, update.current, update.total
-                )
-            else:
-                msg = f"   {stage_name}... {update.message or ''}"
-                self.app.call_from_thread(output.write_info, msg)
+            progress.update_stage_progress(
+                update.current,
+                update.total,
+                stage_name,
+            )
 
         def on_file_complete(file_result: ingest.FileIngestResult) -> None:
-            # Marshal UI updates to main thread (called from worker thread)
-            if file_result.skipped:
-                msg = f"   Skipped: {file_result.reason or 'unchanged'}"
-                self.app.call_from_thread(output.write_info, msg)
+            filename = os.path.basename(file_result.filepath)
+            # Log result immediately
+            if file_result.failed:
+                msg = f"{filename} - {file_result.reason or 'failed'}"
+                output.write_error(msg)
+            elif file_result.skipped:
+                msg = f"{filename} - skipped"
+                output.write_info(msg)
             else:
-                self.app.call_from_thread(
-                    output.write_success,
-                    f"{file_result.chunks} chunks, {file_result.questions} questions",
-                )
+                msg = f"{filename} - {file_result.questions} questions"
+                output.write_success(msg)
 
-        result = await asyncio.to_thread(
-            ingest.ingest,
+        result = await ingest.aingest(
             path=path,
             data_dir=self._data_dir,
             on_progress=on_progress,
@@ -349,10 +371,11 @@ class MainScreen(Screen[None]):
             on_file_complete=on_file_complete,
         )
 
+        progress.hide()
         header.hide()
 
         if not result.success:
-            output.write_error(result.error or "Unknown error")
+            self._write_error(output, result.error, result.error_details)
             return
 
         if result.files_processed == 0 and result.files_skipped == 0:
@@ -361,7 +384,7 @@ class MainScreen(Screen[None]):
 
         output.write("")
         output.write_success(
-            f"Done! Ingested {result.files_processed} files → {result.total_questions} questions"
+            f"Done! {result.files_processed} files → {result.total_questions} questions"
         )
         if result.files_skipped:
             output.write_info(f"Skipped {result.files_skipped} unchanged files")
@@ -392,7 +415,7 @@ class MainScreen(Screen[None]):
             # Handle cancellation gracefully (not an error)
             if result.error == "Cancelled.":
                 return
-            output.write_error(result.error or "Unknown error")
+            self._write_error(output, result.error, result.error_details)
             return
 
         output.write_success(f"Deleted {result.chunks_deleted} chunks from {source}")
@@ -447,7 +470,7 @@ class MainScreen(Screen[None]):
             if "Data directory not found" in error_msg:
                 output.write_warning("No database found. Use 'ingest' first.")
             else:
-                output.write_error(error_msg)
+                self._write_error(output, result.error, result.error_details)
             return
 
         if not result.results:

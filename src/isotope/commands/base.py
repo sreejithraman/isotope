@@ -119,10 +119,17 @@ ConfirmCallback = Callable[[ConfirmRequest], bool]
 
 @dataclass
 class CommandResult:
-    """Base result type for commands."""
+    """Base result type for commands.
+
+    Attributes:
+        success: Whether the command succeeded
+        error: Clean, user-friendly error message
+        error_details: Full error details for verbose/debug mode
+    """
 
     success: bool
     error: str | None = None
+    error_details: str | None = None
 
 
 @dataclass

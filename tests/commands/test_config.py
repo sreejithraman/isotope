@@ -38,7 +38,7 @@ class TestConfigCommand:
 
         setting_names = [s.name for s in result.settings]
         assert "questions_per_atom" in setting_names
-        assert "use_sentence_atomizer" in setting_names
+        assert "atomization_granularity" in setting_names
 
     def test_config_returns_data_dir(self) -> None:
         """Config returns data directory."""

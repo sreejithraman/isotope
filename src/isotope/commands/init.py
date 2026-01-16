@@ -61,9 +61,9 @@ def get_settings_for_init(
         Dictionary of settings that differ from defaults
     """
     if is_local:
-        # Local models: low concurrency, sentence atomizer for speed
+        # Local models: low concurrency, coarse atomization for speed
         return {
-            "use_sentence_atomizer": True,
+            "atomization_granularity": "coarse",
             "questions_per_atom": 5,
             "max_concurrent_llm_calls": 1,
         }
@@ -71,19 +71,19 @@ def get_settings_for_init(
     if rate_limited:
         if priority == "speed":
             return {
-                "use_sentence_atomizer": True,
-                "questions_per_atom": 3,
+                "atomization_granularity": "coarse",
+                "questions_per_atom": 5,
                 "max_concurrent_llm_calls": 2,
             }
         elif priority == "quality":
             return {
-                "use_sentence_atomizer": False,
+                "atomization_granularity": "fine",
                 "questions_per_atom": 5,
                 "max_concurrent_llm_calls": 2,
             }
         else:  # balanced
             return {
-                "use_sentence_atomizer": False,
+                "atomization_granularity": "medium",
                 "questions_per_atom": 5,
                 "max_concurrent_llm_calls": 2,
             }
@@ -91,18 +91,20 @@ def get_settings_for_init(
         # High-limit APIs
         if priority == "speed":
             return {
-                "use_sentence_atomizer": True,
+                "atomization_granularity": "coarse",
                 "questions_per_atom": 5,
                 "max_concurrent_llm_calls": 10,
             }
         elif priority == "quality":
             return {
-                "use_sentence_atomizer": False,
+                "atomization_granularity": "fine",
                 "questions_per_atom": 10,
                 "max_concurrent_llm_calls": 10,
             }
-        else:  # balanced - these are the defaults
-            return {}
+        else:  # balanced - use medium granularity
+            return {
+                "atomization_granularity": "medium",
+            }
 
 
 def generate_config_content(
@@ -137,16 +139,27 @@ embedding_model: {embedding_model}
                 content += f"  {key}: {value}\n"
 
     content += """
-# Uncomment to customize (showing defaults):
-#   use_sentence_atomizer: false  # true = fast, false = LLM quality
-#   questions_per_atom: 5         # more = better recall, higher cost
-#   diversity_scope: global       # global | per_chunk | per_atom
-#   max_concurrent_llm_calls: 10  # parallel LLM requests
+# Uncomment to customize:
 #
-# Advanced settings:
-#   num_retries: 5
-#   question_diversity_threshold: 0.85
-#   default_k: 5
+# === Ingestion Settings ===
+#   atomization_granularity: fine  # coarse (3-5 facts) | medium | fine (all facts)
+#   questions_per_atom: 5          # questions per atomic fact (more = better recall, higher cost)
+#   batch_size: 5                  # atoms per LLM prompt (higher = fewer API calls, faster)
+#   max_concurrent_llm_calls: 10   # parallel LLM requests during ingestion
+#   num_retries: 5                 # retry count on LLM failures
+#
+# === Retrieval Settings ===
+#   default_k: 5                  # default number of results to return from queries
+#   synthesis_temperature: 0.3   # temperature for answer synthesis (0.0-1.0)
+#
+# === Diversity Filtering ===
+#   question_diversity_threshold: 0.85  # similarity threshold for dedup (null = disable)
+#   diversity_scope: global             # global | per_chunk | per_atom
+#
+# === Custom Prompts (advanced, overrides atomization_granularity if set) ===
+#   question_generator_prompt: null  # custom prompt for question generation
+#   atomizer_prompt: null            # custom prompt for LLM atomization
+#   synthesis_prompt: null           # custom prompt for answer synthesis
 """
 
     return content

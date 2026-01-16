@@ -18,7 +18,7 @@ class TestSettings:
         assert settings.default_k == 5
         assert settings.max_concurrent_llm_calls == 10
         assert settings.num_retries == 5
-        assert settings.use_sentence_atomizer is False
+        assert settings.atomization_granularity == "fine"
         assert settings.question_generator_prompt is None
         assert settings.atomizer_prompt is None
         assert settings.synthesis_prompt is None

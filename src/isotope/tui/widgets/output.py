@@ -81,30 +81,6 @@ class OutputDisplay(RichLog):
         text.append(message, style="#ff8787")
         self.write(text)
 
-    def write_progress(self, stage: str, current: int, total: int, detail: str = "") -> None:
-        """Display progress information with a styled bar."""
-        if total > 0:
-            pct = current / total
-            bar_width = 20
-            filled = int(bar_width * pct)
-
-            text = Text()
-            text.append(f"  {stage:>12} ", style="#ff8700")
-            text.append("[", style="dim")
-            text.append("\u2588" * filled, style="#ff8700")
-            text.append("\u2591" * (bar_width - filled), style="dim")
-            text.append("]", style="dim")
-            text.append(f" {current}/{total}", style="dim")
-            if detail:
-                text.append(f" {detail}", style="dim")
-            self.write(text)
-        else:
-            text = Text()
-            text.append(f"   {stage} ", style="#ff8700")
-            if detail:
-                text.append(detail, style="dim")
-            self.write(text)
-
     def write_sources(self, sources: list[tuple[str, float]]) -> None:
         """Display source references with scores."""
         text = Text()

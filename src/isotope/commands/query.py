@@ -7,10 +7,12 @@ This module provides the core query logic that both CLI and TUI use.
 from __future__ import annotations
 
 import os
+import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from isotope.commands.base import QueryResult, SearchResult
+from isotope.providers.litellm import LLMError
 
 if TYPE_CHECKING:
     from isotope import Isotope
@@ -70,11 +72,20 @@ def query(
     # Create Isotope instance
     try:
         iso = create_isotope(iso_config)
+    except LLMError as e:
+        return QueryResult(
+            success=False,
+            query=question,
+            error=f"Failed to create Isotope: {e.message}",
+            error_details=e.details,
+        )
     except Exception as e:
+        details = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         return QueryResult(
             success=False,
             query=question,
             error=f"Failed to create Isotope: {e}",
+            error_details=details,
         )
 
     # Build LLM client for synthesis (if not raw mode)
@@ -92,11 +103,20 @@ def query(
 
     try:
         response = retriever.get_answer(question)
+    except LLMError as e:
+        return QueryResult(
+            success=False,
+            query=question,
+            error=f"Query failed: {e.message}",
+            error_details=e.details,
+        )
     except Exception as e:
+        details = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         return QueryResult(
             success=False,
             query=question,
             error=f"Query failed: {e}",
+            error_details=details,
         )
 
     if not response.results:
@@ -157,11 +177,20 @@ def query_with_isotope(
 
     try:
         response = retriever.get_answer(question)
+    except LLMError as e:
+        return QueryResult(
+            success=False,
+            query=question,
+            error=f"Query failed: {e.message}",
+            error_details=e.details,
+        )
     except Exception as e:
+        details = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         return QueryResult(
             success=False,
             query=question,
             error=f"Query failed: {e}",
+            error_details=details,
         )
 
     if not response.results:

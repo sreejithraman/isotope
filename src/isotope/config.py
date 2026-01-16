@@ -134,7 +134,7 @@ VALID_ROOT_KEYS = {
 }
 
 VALID_SETTINGS_KEYS = {
-    "use_sentence_atomizer",
+    "atomization_granularity",
     "questions_per_atom",
     "question_generator_prompt",
     "atomizer_prompt",
@@ -212,7 +212,11 @@ def _parse_threshold(value: str | None) -> float | None:
     """Parse diversity threshold from string, treating empty string as None."""
     if value is None or value == "":
         return None
-    return float(value)
+    try:
+        return float(value)
+    except ValueError:
+        logger.warning("Invalid threshold value '%s', ignoring", value)
+        return None
 
 
 def _parse_diversity_scope(value: str | None) -> FilterScope:
@@ -271,12 +275,10 @@ def get_settings_from_env() -> dict[str, Any]:
         result["num_retries"] = val
     if "ISOTOPE_RATE_LIMIT_PROFILE" in os.environ:
         result["rate_limit_profile"] = os.environ["ISOTOPE_RATE_LIMIT_PROFILE"]
-    if "ISOTOPE_USE_SENTENCE_ATOMIZER" in os.environ:
-        result["use_sentence_atomizer"] = os.environ["ISOTOPE_USE_SENTENCE_ATOMIZER"].lower() in (
-            "true",
-            "1",
-            "yes",
-        )
+    if "ISOTOPE_ATOMIZATION_GRANULARITY" in os.environ:
+        granularity = os.environ["ISOTOPE_ATOMIZATION_GRANULARITY"].lower()
+        if granularity in ("coarse", "medium", "fine"):
+            result["atomization_granularity"] = granularity
 
     return result
 
@@ -296,7 +298,7 @@ def get_settings_from_yaml(config: dict[str, Any]) -> dict[str, Any]:
 
     # Keys that map directly to Settings field names
     valid_keys = {
-        "use_sentence_atomizer",
+        "atomization_granularity",
         "questions_per_atom",
         "question_generator_prompt",
         "atomizer_prompt",
@@ -543,7 +545,7 @@ def create_isotope(config: IsotopeConfig) -> Isotope:
             provider=LiteLLMProvider(
                 llm=config.llm_model,
                 embedding=config.embedding_model,
-                atomizer_type="sentence" if config.settings.use_sentence_atomizer else "llm",
+                atomizer_type="llm",  # Always use LLM atomizer with granularity settings
                 llm_api_key=config.llm_api_key,
                 embedding_api_key=config.embedding_api_key,
             ),

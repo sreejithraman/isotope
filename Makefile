@@ -41,7 +41,7 @@ help:
 	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 
 install:
-	pip install -e ".[dev]"
+	pip install -e ".[dev,all]"
 
 dev-setup: install
 	pre-commit install --hook-type pre-commit --hook-type pre-push
@@ -105,7 +105,7 @@ tui: .install-tui
 	isotope-tui $(ARGS)
 
 .install-example: pyproject.toml
-	pip install -e ".[cli,tui,chroma,litellm]"
+	pip install -e ".[cli,tui,chroma,litellm,loaders]"
 	@touch .install-example
 
 example: .install-example

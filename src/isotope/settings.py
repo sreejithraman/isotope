@@ -79,8 +79,12 @@ class Settings(BaseModel):
         settings = Settings.with_profile("conservative")
     """
 
-    # Atomization
-    use_sentence_atomizer: bool = False  # True = fast sentence-based, False = LLM quality
+    # Atomization granularity: controls how many atomic facts are extracted per chunk
+    # - "fine": Extract all atomic facts (most thorough, highest cost)
+    # - "medium": Extract key facts, combining related details
+    # - "coarse": Extract only 3-5 essential facts (demo-friendly, lowest cost)
+    # Note: If atomizer_prompt is set, this setting is ignored.
+    atomization_granularity: Literal["coarse", "medium", "fine"] = "fine"
 
     # Question generation
     questions_per_atom: int = 5
@@ -91,7 +95,7 @@ class Settings(BaseModel):
     generation_preset: Literal["cloud", "local"] | None = None
     batch_size: int | None = None  # Atoms per LLM prompt (None = use preset default)
 
-    # Custom atomization prompt (only used when use_sentence_atomizer=False)
+    # Custom atomization prompt (overrides atomization_granularity if set)
     atomizer_prompt: str | None = None
 
     # Question diversity deduplication

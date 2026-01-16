@@ -77,6 +77,7 @@ class InitScreen(Screen[bool]):
 
     Button {
         margin: 0 1;
+        min-width: 12;
     }
 
     #btn-next {

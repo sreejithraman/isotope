@@ -22,7 +22,7 @@ class TestGetSettingsForInit:
             priority="balanced",
         )
 
-        assert settings["use_sentence_atomizer"] is True
+        assert settings["atomization_granularity"] == "coarse"
         assert settings["questions_per_atom"] == 5
         assert settings["max_concurrent_llm_calls"] == 1
 
@@ -34,8 +34,8 @@ class TestGetSettingsForInit:
             priority="speed",
         )
 
-        assert settings["use_sentence_atomizer"] is True
-        assert settings["questions_per_atom"] == 3
+        assert settings["atomization_granularity"] == "coarse"
+        assert settings["questions_per_atom"] == 5
         assert settings["max_concurrent_llm_calls"] == 2
 
     def test_rate_limited_quality_priority(self) -> None:
@@ -46,7 +46,7 @@ class TestGetSettingsForInit:
             priority="quality",
         )
 
-        assert settings["use_sentence_atomizer"] is False
+        assert settings["atomization_granularity"] == "fine"
         assert settings["questions_per_atom"] == 5
         assert settings["max_concurrent_llm_calls"] == 2
 
@@ -58,7 +58,7 @@ class TestGetSettingsForInit:
             priority="speed",
         )
 
-        assert settings["use_sentence_atomizer"] is True
+        assert settings["atomization_granularity"] == "coarse"
         assert settings["max_concurrent_llm_calls"] == 10
 
     def test_high_limit_quality_priority(self) -> None:
@@ -69,19 +69,19 @@ class TestGetSettingsForInit:
             priority="quality",
         )
 
-        assert settings["use_sentence_atomizer"] is False
+        assert settings["atomization_granularity"] == "fine"
         assert settings["questions_per_atom"] == 10
         assert settings["max_concurrent_llm_calls"] == 10
 
-    def test_high_limit_balanced_returns_empty(self) -> None:
-        """High-limit API with balanced priority uses defaults."""
+    def test_high_limit_balanced_returns_medium_granularity(self) -> None:
+        """High-limit API with balanced priority uses medium granularity."""
         settings = init_cmd.get_settings_for_init(
             is_local=False,
             rate_limited=False,
             priority="balanced",
         )
 
-        assert settings == {}
+        assert settings["atomization_granularity"] == "medium"
 
 
 class TestGenerateConfigContent:
@@ -104,22 +104,22 @@ class TestGenerateConfigContent:
         content = init_cmd.generate_config_content(
             llm_model="openai/gpt-5-mini",
             embedding_model="openai/text-embedding-3-small",
-            settings={"use_sentence_atomizer": True, "questions_per_atom": 5},
+            settings={"atomization_granularity": "coarse", "questions_per_atom": 5},
         )
 
         assert "settings:" in content
-        assert "use_sentence_atomizer: true" in content
+        assert "atomization_granularity: coarse" in content
         assert "questions_per_atom: 5" in content
 
-    def test_boolean_values_are_lowercase(self) -> None:
-        """Boolean values are lowercase YAML format."""
+    def test_string_values_are_preserved(self) -> None:
+        """String values are preserved in YAML format."""
         content = init_cmd.generate_config_content(
             llm_model="model",
             embedding_model="embed",
-            settings={"use_sentence_atomizer": False},
+            settings={"atomization_granularity": "fine"},
         )
 
-        assert "use_sentence_atomizer: false" in content
+        assert "atomization_granularity: fine" in content
 
 
 class TestSaveApiKeyToEnv:

@@ -19,6 +19,7 @@ class CommandType(Enum):
     HELP = auto()
     QUIT = auto()
     CLEAR = auto()
+    VERBOSE = auto()
     UNKNOWN = auto()
 
 
@@ -65,6 +66,8 @@ class CommandParser:
         "q": CommandType.QUIT,
         "clear": CommandType.CLEAR,
         "cls": CommandType.CLEAR,
+        "verbose": CommandType.VERBOSE,
+        "debug": CommandType.VERBOSE,
     }
 
     # Natural language patterns that suggest queries

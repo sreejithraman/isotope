@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Container, VerticalScroll
+from textual.css.query import NoMatches
 from textual.screen import Screen
 
 from isotope.tui.widgets.ascii_logo import ASCIILogo
@@ -30,7 +31,7 @@ class WelcomeScreen(Screen):
         """Focus the command input."""
         try:
             self.query_one(CommandInput).focus()
-        except Exception:
+        except NoMatches:
             # Retry with timer if not ready
             self.set_timer(0.1, self._focus_input)
 

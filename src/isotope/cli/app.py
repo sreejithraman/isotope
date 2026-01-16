@@ -11,6 +11,7 @@ Each command:
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 try:
@@ -50,6 +51,28 @@ questions_app = typer.Typer(help="Inspect generated questions")
 app.add_typer(questions_app, name="questions")
 console = Console()
 
+# Global verbose flag - set by main callback
+_verbose = False
+
+
+def _print_error(error: str | None, error_details: str | None = None, plain: bool = False) -> None:
+    """Print an error message, showing details if verbose mode is enabled."""
+    if _verbose and error_details:
+        if plain:
+            console.print(f"Error: {error}")
+            console.print("\nDetails:")
+            console.print(error_details)
+        else:
+            console.print(f"[red]Error: {error}[/red]")
+            console.print()
+            console.print("[dim]Details:[/dim]")
+            console.print(f"[dim]{error_details}[/dim]")
+    else:
+        if plain:
+            console.print(f"Error: {error}")
+        else:
+            console.print(f"[red]Error: {error}[/red]")
+
 
 def version_callback(value: bool) -> None:
     if value:
@@ -67,8 +90,15 @@ def main(
         is_eager=True,
         help="Show version and exit.",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="Show detailed error messages for debugging.",
+    ),
 ) -> None:
     """Isotope - Reverse RAG database."""
+    global _verbose
+    _verbose = verbose
     load_env_file()
 
 
@@ -181,13 +211,15 @@ def _ingest_with_progress(
         def on_file_complete(result: FileIngestResult) -> None:
             progress.update(stage_task, visible=False)
 
-        result = ingest.ingest(
-            path=path,
-            data_dir=data_dir,
-            config_path=config_file,
-            on_progress=on_progress,
-            on_file_start=on_file_start,
-            on_file_complete=on_file_complete,
+        result = asyncio.run(
+            ingest.aingest(
+                path=path,
+                data_dir=data_dir,
+                config_path=config_file,
+                on_progress=on_progress,
+                on_file_start=on_file_start,
+                on_file_complete=on_file_complete,
+            )
         )
 
         progress.update(
@@ -210,16 +242,20 @@ def _ingest_simple(
 
     def on_file_complete(file_result: FileIngestResult) -> None:
         if not plain:
-            if file_result.skipped:
+            if file_result.failed:
+                console.print(f"[red]Failed {file_result.filepath}: {file_result.reason}[/red]")
+            elif file_result.skipped:
                 console.print(f"[dim]Skipped {file_result.filepath}: {file_result.reason}[/dim]")
             else:
                 console.print(f"[green]Ingested {file_result.filepath}[/green]")
 
-    result = ingest.ingest(
-        path=path,
-        data_dir=data_dir,
-        config_path=config_file,
-        on_file_complete=on_file_complete,
+    result = asyncio.run(
+        ingest.aingest(
+            path=path,
+            data_dir=data_dir,
+            config_path=config_file,
+            on_file_complete=on_file_complete,
+        )
     )
 
     _render_ingest_result(result, plain=plain)
@@ -228,7 +264,7 @@ def _ingest_simple(
 def _render_ingest_result(result: IngestResult, plain: bool) -> None:
     """Render ingest result to console."""
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details, plain=plain)
         raise typer.Exit(1)
 
     # Show warning if error is set but success=True (e.g., "No supported files found")
@@ -314,7 +350,7 @@ def query_cmd(
     )
 
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details, plain=plain)
         raise typer.Exit(1)
 
     if not result.results:
@@ -384,7 +420,7 @@ def list_sources_cmd(
     )
 
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details, plain=plain)
         raise typer.Exit(1)
 
     if not result.sources:
@@ -448,7 +484,7 @@ def status_cmd(
     )
 
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details, plain=plain)
         raise typer.Exit(1)
 
     if result.total_sources == 0:
@@ -557,10 +593,7 @@ def delete_cmd(
         if result.error == "Cancelled.":
             console.print("Cancelled.")
             raise typer.Exit(0)
-        if plain:
-            console.print(f"Error: {result.error}")
-        else:
-            console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details, plain=plain)
         raise typer.Exit(1)
 
     if plain:
@@ -582,7 +615,7 @@ def config_cmd_handler(
     result = config_cmd.config(config_path=config_file)
 
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details)
         raise typer.Exit(1)
 
     table = Table(title="Isotope Configuration")
@@ -624,6 +657,40 @@ def config_cmd_handler(
         console.print("\n[dim]No config file found. Using env vars / defaults.[/dim]")
 
     console.print("\n[dim]Precedence: env var > yaml settings > default[/dim]")
+
+
+@app.command(
+    name="help", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def help_cmd(
+    ctx: typer.Context,
+    command: str = typer.Argument(None, help="Command to get help for"),
+) -> None:
+    """Show help for isotope or a specific command."""
+    import click
+
+    # Get the parent Typer app as a Click command
+    click_app = typer.main.get_command(app)
+
+    if command is None:
+        # Show main help
+        with click.Context(click_app) as click_ctx:
+            console.print(click_app.get_help(click_ctx))
+    else:
+        # Find the subcommand
+        if command in click_app.commands:
+            sub_cmd = click_app.commands[command]
+            with click.Context(
+                sub_cmd, info_name=command, parent=click.Context(click_app)
+            ) as click_ctx:
+                console.print(sub_cmd.get_help(click_ctx))
+        else:
+            console.print(f"[red]Unknown command: {command}[/red]")
+            console.print()
+            console.print("Available commands:")
+            for name in sorted(click_app.commands.keys()):
+                console.print(f"  {name}")
+            raise typer.Exit(1)
 
 
 @app.command(name="init")
@@ -696,7 +763,7 @@ def init_cmd(
         raise typer.Exit(0) from None
 
     if not result.success:
-        console.print(f"[red]Error: {result.error}[/red]")
+        _print_error(result.error, result.error_details)
         raise typer.Exit(1)
 
     console.print(f"\n[green]Created {result.config_path}[/green]")

@@ -78,7 +78,7 @@ def config(
 
     # Build settings list with sources
     setting_keys = [
-        ("use_sentence_atomizer", str(settings.use_sentence_atomizer)),
+        ("atomization_granularity", settings.atomization_granularity),
         ("questions_per_atom", str(settings.questions_per_atom)),
         (
             "diversity_threshold",
