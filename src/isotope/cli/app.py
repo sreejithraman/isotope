@@ -669,8 +669,9 @@ def help_cmd(
     """Show help for isotope or a specific command."""
     import click
 
-    # Get the parent Typer app as a Click command
+    # Get the parent Typer app as a Click Group (Typer apps are Groups)
     click_app = typer.main.get_command(app)
+    assert isinstance(click_app, click.Group)
 
     if command is None:
         # Show main help

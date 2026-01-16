@@ -50,8 +50,9 @@ class TestQueryCommand:
                 k=10,
             )
 
-            # Will fail because no database, but k parameter was accepted
-            assert result.success is False
+            # Empty database returns success with no results
+            assert result.success is True
+            assert result.results == []
 
     def test_query_with_raw_mode(self) -> None:
         """Query accepts raw mode parameter."""
@@ -62,5 +63,6 @@ class TestQueryCommand:
                 raw=True,
             )
 
-            # Will fail because no database, but raw parameter was accepted
-            assert result.success is False
+            # Empty database returns success with no results
+            assert result.success is True
+            assert result.results == []
