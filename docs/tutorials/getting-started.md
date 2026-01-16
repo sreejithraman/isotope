@@ -59,7 +59,7 @@ iso = Isotope(
     ),
     storage=LocalStorage("./my_isotope_data"),
     settings=Settings(
-        use_sentence_atomizer=True,  # Faster, no LLM for atomization
+        atomization_granularity="coarse",  # Fast, extracts 3-5 key facts per chunk
     ),
 )
 
@@ -168,7 +168,7 @@ iso = Isotope(
     ),
     storage=LocalStorage("./my_data"),
     settings=Settings(
-        use_sentence_atomizer=True,  # Fast sentence-based atomization
+        atomization_granularity="coarse",  # Fast, extracts 3-5 key facts per chunk
     ),
 )
 

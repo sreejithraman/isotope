@@ -60,6 +60,16 @@ def query(
             error=f"Data directory not found: {effective_data_dir}. Run 'isotope ingest' first.",
         )
 
+    # Check if database is actually initialized (has chroma directory)
+    # If not, return error - user needs to run ingest first
+    chroma_dir = os.path.join(effective_data_dir, "chroma")
+    if not os.path.exists(chroma_dir):
+        return QueryResult(
+            success=False,
+            query=question,
+            error=f"Database not initialized in {effective_data_dir}. Run 'isotope ingest' first.",
+        )
+
     # Get Isotope config
     iso_config = get_isotope_config(data_dir, config_path)
     if isinstance(iso_config, ConfigError):

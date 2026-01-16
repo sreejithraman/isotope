@@ -347,7 +347,7 @@ isotope config
 │ embedding_model              │ openai/text-embedding-3-small│ yaml    │
 │ data_dir                     │ ./isotope_data               │ default │
 │                              │                              │         │
-│ use_sentence_atomizer        │ False                        │ default │
+│ atomization_granularity      │ fine                         │ default │
 │ questions_per_atom           │ 5                            │ default │
 │ diversity_threshold          │ 0.85                         │ default │
 │ diversity_scope              │ global                       │ default │
@@ -448,10 +448,10 @@ settings:
   max_concurrent_llm_calls: 2  # rate-limit friendly
 
 # Uncomment to customize (showing defaults):
-#   use_sentence_atomizer: false  # true = fast, false = LLM quality
-#   questions_per_atom: 5         # more = better recall, higher cost
-#   diversity_scope: global       # global | per_chunk | per_atom
-#   max_concurrent_llm_calls: 10  # parallel LLM requests
+#   atomization_granularity: fine  # coarse=fast, medium=balanced, fine=quality
+#   questions_per_atom: 5          # more = better recall, higher cost
+#   diversity_scope: global        # global | per_chunk | per_atom
+#   max_concurrent_llm_calls: 10   # parallel LLM requests
 #
 # Advanced settings:
 #   num_retries: 5
@@ -498,7 +498,7 @@ The CLI reads configuration from YAML files and environment variables. See [Conf
 - `ISOTOPE_EMBEDDING_API_KEY` - API key for embedding calls (optional, falls back to LLM key)
 - `ISOTOPE_LITELLM_LLM_MODEL` - LiteLLM model (CLI fallback if no config file)
 - `ISOTOPE_LITELLM_EMBEDDING_MODEL` - LiteLLM embedding model (CLI fallback)
-- `ISOTOPE_USE_SENTENCE_ATOMIZER` - Use sentence-based atomizer (`true`/`false`)
+- `ISOTOPE_ATOMIZATION_GRANULARITY` - Atomization detail: `coarse`, `medium`, `fine` (default)
 - `ISOTOPE_QUESTIONS_PER_ATOM` - Question generation count per atom
 - `ISOTOPE_DIVERSITY_SCOPE` - Diversity scope (`global`, `per_chunk`, `per_atom`)
 - `ISOTOPE_MAX_CONCURRENT_LLM_CALLS` - Parallel LLM requests

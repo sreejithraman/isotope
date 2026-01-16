@@ -41,7 +41,7 @@ class TestQueryCommand:
         assert result.query == question
 
     def test_query_with_k_parameter(self) -> None:
-        """Query accepts k parameter."""
+        """Query accepts k parameter but returns error for uninitialized database."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Should not raise error for k parameter
             result = query.query(
@@ -50,12 +50,13 @@ class TestQueryCommand:
                 k=10,
             )
 
-            # Empty database returns success with no results
-            assert result.success is True
-            assert result.results == []
+            # Uninitialized database returns error
+            assert result.success is False
+            assert result.error is not None
+            assert "not initialized" in result.error.lower()
 
     def test_query_with_raw_mode(self) -> None:
-        """Query accepts raw mode parameter."""
+        """Query accepts raw mode parameter but returns error for uninitialized database."""
         with tempfile.TemporaryDirectory() as tmpdir:
             result = query.query(
                 question="test",
@@ -63,6 +64,7 @@ class TestQueryCommand:
                 raw=True,
             )
 
-            # Empty database returns success with no results
-            assert result.success is True
-            assert result.results == []
+            # Uninitialized database returns error
+            assert result.success is False
+            assert result.error is not None
+            assert "not initialized" in result.error.lower()

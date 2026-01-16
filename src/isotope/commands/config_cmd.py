@@ -62,19 +62,40 @@ def config(
         found_config_path = find_config_file()
         result.config_path = str(found_config_path) if found_config_path else None
 
-    # Provider config
-    result.provider = cli_config.get("provider", "litellm")
+    # Provider config with source tracking
+    if "provider" in cli_config:
+        result.provider = cli_config["provider"]
+        result.provider_source = "yaml"
+    else:
+        result.provider = "litellm"
+        result.provider_source = "default"
 
     if result.provider == "litellm":
-        result.llm_model = cli_config.get("llm_model") or os.environ.get(
-            "ISOTOPE_LITELLM_LLM_MODEL"
-        )
-        result.embedding_model = cli_config.get("embedding_model") or os.environ.get(
-            "ISOTOPE_LITELLM_EMBEDDING_MODEL"
-        )
+        # LLM model: check yaml first, then env var
+        if cli_config.get("llm_model"):
+            result.llm_model = cli_config["llm_model"]
+            result.llm_model_source = "yaml"
+        elif os.environ.get("ISOTOPE_LITELLM_LLM_MODEL"):
+            result.llm_model = os.environ["ISOTOPE_LITELLM_LLM_MODEL"]
+            result.llm_model_source = "env var"
+        # else: remains None with "default" source
 
-    # Data directory
-    result.data_dir = cli_config.get("data_dir") or DEFAULT_DATA_DIR
+        # Embedding model: check yaml first, then env var
+        if cli_config.get("embedding_model"):
+            result.embedding_model = cli_config["embedding_model"]
+            result.embedding_model_source = "yaml"
+        elif os.environ.get("ISOTOPE_LITELLM_EMBEDDING_MODEL"):
+            result.embedding_model = os.environ["ISOTOPE_LITELLM_EMBEDDING_MODEL"]
+            result.embedding_model_source = "env var"
+        # else: remains None with "default" source
+
+    # Data directory with source tracking
+    if cli_config.get("data_dir"):
+        result.data_dir = cli_config["data_dir"]
+        result.data_dir_source = "yaml"
+    else:
+        result.data_dir = DEFAULT_DATA_DIR
+        result.data_dir_source = "default"
 
     # Build settings list with sources
     setting_keys = [

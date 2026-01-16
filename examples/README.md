@@ -175,9 +175,10 @@ Ollama isn't running. Start it:
 
 ### Ingestion is really slow
 
-This is normal for large documents - Isotope generates many questions per fact. For faster (but less precise) results, add this to your `isotope.yaml`:
+This is normal for large documents - Isotope generates many questions per fact. For faster (but less detailed) results, add this to your `isotope.yaml`:
 ```yaml
-use_sentence_atomizer: true
+settings:
+  atomization_granularity: coarse  # Extract only 3-5 key facts per chunk
 ```
 
 ### Still stuck?

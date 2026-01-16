@@ -93,15 +93,16 @@ settings:
 
 ### When should I use LLMAtomizer vs SentenceAtomizer?
 
-| Atomizer | Best For | Trade-off |
-|----------|----------|-----------|
-| **SentenceAtomizer** | Speed, cost-sensitive | Faster, may miss context |
-| **LLMAtomizer** | Quality, complex docs | Slower, better semantic units |
+| Granularity | Best For | Trade-off |
+|-------------|----------|-----------|
+| **coarse** | Speed, demos, cost-sensitive | Fastest, extracts 3-5 key facts |
+| **medium** | Balanced | Moderate, combines related details |
+| **fine** | Quality, complex docs (default) | Thorough, all atomic facts |
 
 ```yaml
 settings:
-  use_sentence_atomizer: true   # Fast
-  use_sentence_atomizer: false  # Quality (default)
+  atomization_granularity: coarse  # Fast (3-5 facts per chunk)
+  atomization_granularity: fine    # Quality (default, all facts)
 ```
 
 ### How do I update indexed documents?
@@ -193,7 +194,7 @@ Isotope generates multiple LLM calls per chunk:
 **Speed up with:**
 ```yaml
 settings:
-  use_sentence_atomizer: true      # Skip LLM atomization
+  atomization_granularity: coarse  # Extract only 3-5 key facts per chunk
   questions_per_atom: 3            # Fewer questions
   max_concurrent_llm_calls: 10     # More parallelism (if not rate-limited)
 ```

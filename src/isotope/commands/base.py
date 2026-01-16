@@ -271,17 +271,25 @@ class ConfigResult(CommandResult):
 
     Attributes:
         provider: Provider type (litellm, custom)
+        provider_source: Source of provider setting
         llm_model: LLM model name
+        llm_model_source: Source of llm_model setting
         embedding_model: Embedding model name
+        embedding_model_source: Source of embedding_model setting
         data_dir: Data directory path
+        data_dir_source: Source of data_dir setting
         settings: List of behavioral settings with sources
         config_path: Path to config file (if found)
     """
 
     provider: str = "litellm"
+    provider_source: str = "default"
     llm_model: str | None = None
+    llm_model_source: str = "default"
     embedding_model: str | None = None
+    embedding_model_source: str = "default"
     data_dir: str = ""
+    data_dir_source: str = "default"
     settings: list[SettingInfo] = field(default_factory=list)
     config_path: str | None = None
 

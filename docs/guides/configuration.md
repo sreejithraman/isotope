@@ -75,7 +75,7 @@ iso = Isotope(
     storage=LocalStorage("./isotope_data"),
     # Optional: customize behavior
     settings=Settings(
-        use_sentence_atomizer=False,  # True = fast, False = LLM quality
+        atomization_granularity="fine",  # coarse=fast, medium=balanced, fine=quality (default)
         questions_per_atom=5,
     ),
 )
@@ -175,7 +175,7 @@ data_dir: ./isotope_data
 
 # Behavioral settings (all optional)
 settings:
-  use_sentence_atomizer: false   # true = fast, false = LLM quality
+  atomization_granularity: fine  # coarse=fast (3-5 facts), medium=balanced, fine=quality (default)
   questions_per_atom: 5          # questions per atomic fact
   diversity_scope: global        # global | per_chunk | per_atom
   max_concurrent_llm_calls: 10   # parallel LLM requests
@@ -234,7 +234,7 @@ The CLI supports a subset via `ISOTOPE_*` env vars and YAML `settings:`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ISOTOPE_USE_SENTENCE_ATOMIZER` | `false` | Use fast sentence-based atomizer (`true`) or LLM quality (`false`) |
+| `ISOTOPE_ATOMIZATION_GRANULARITY` | `fine` | Atomization detail: `coarse` (fast, 3-5 facts), `medium`, `fine` (default, all facts) |
 | `ISOTOPE_QUESTIONS_PER_ATOM` | `5` | Questions to generate per atom |
 | `ISOTOPE_DIVERSITY_SCOPE` | `global` | Scope for diversity filter: `global`, `per_chunk`, `per_atom` |
 | `ISOTOPE_MAX_CONCURRENT_LLM_CALLS` | `10` | Maximum concurrent async LLM requests |
@@ -537,7 +537,7 @@ print(settings.build_batch_config())         # BatchConfig(batch_size=5, max_con
 OPENAI_API_KEY=your-openai-api-key
 
 # Behavioral settings (all optional, shown with defaults)
-ISOTOPE_USE_SENTENCE_ATOMIZER=false
+ISOTOPE_ATOMIZATION_GRANULARITY=fine
 ISOTOPE_QUESTIONS_PER_ATOM=5
 ISOTOPE_DIVERSITY_SCOPE=global
 ISOTOPE_MAX_CONCURRENT_LLM_CALLS=10

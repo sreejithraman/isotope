@@ -624,22 +624,22 @@ def config_cmd_handler(
     table.add_column("Source", style="dim")
 
     # Provider config
-    table.add_row("provider", result.provider, "yaml" if result.config_path else "default")
+    table.add_row("provider", result.provider, result.provider_source)
 
     if result.provider == "litellm":
         table.add_row(
             "llm_model",
             result.llm_model or "(not set)",
-            "yaml" if result.llm_model else "env var",
+            result.llm_model_source if result.llm_model else "not set",
         )
         table.add_row(
             "embedding_model",
             result.embedding_model or "(not set)",
-            "yaml" if result.embedding_model else "env var",
+            result.embedding_model_source if result.embedding_model else "not set",
         )
 
     # Data directory
-    table.add_row("data_dir", result.data_dir, "yaml" if result.config_path else "default")
+    table.add_row("data_dir", result.data_dir, result.data_dir_source)
 
     # Separator
     table.add_row("", "", "")

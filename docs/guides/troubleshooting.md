@@ -79,10 +79,10 @@ Ingestion can be slow for large documents because Isotope generates multiple que
 
 **Solutions:**
 
-1. **Use sentence atomizer** (faster but less precise):
+1. **Use coarse atomization** (faster but less detailed):
    ```yaml
    settings:
-     use_sentence_atomizer: true
+     atomization_granularity: coarse  # Extract only 3-5 key facts per chunk
    ```
 
 2. **Reduce questions per atom**:

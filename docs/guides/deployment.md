@@ -323,10 +323,10 @@ def test_known_question():
 
 ### Reduce Ingestion Costs
 
-1. **Use sentence atomizer** for large corpora:
+1. **Use coarse atomization** for large corpora:
    ```yaml
    settings:
-     use_sentence_atomizer: true
+     atomization_granularity: coarse  # Extract only 3-5 key facts per chunk
    ```
 
 2. **Reduce questions per atom**:
