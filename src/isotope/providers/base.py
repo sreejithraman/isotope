@@ -36,15 +36,13 @@ class LLMClient(ABC):
         """
         ...
 
+    @abstractmethod
     async def acomplete(
         self,
         messages: list[dict],
         temperature: float | None = None,
     ) -> str:
         """Generate a completion for the given messages (async).
-
-        Default implementation calls sync complete() for backwards compatibility.
-        Override in subclasses for true async behavior.
 
         Args:
             messages: List of message dicts with 'role' and 'content' keys.
@@ -53,7 +51,7 @@ class LLMClient(ABC):
         Returns:
             The generated text response.
         """
-        return self.complete(messages, temperature)
+        ...
 
 
 class EmbeddingClient(ABC):

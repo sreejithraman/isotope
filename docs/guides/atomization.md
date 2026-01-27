@@ -135,7 +135,7 @@ iso = Isotope(
     ),
     storage=LocalStorage("./isotope_data"),
     settings=Settings(
-        use_sentence_atomizer=True,  # True = fast sentence-based, False = LLM quality
+        atomization_granularity="coarse",  # coarse=fast, medium=balanced, fine=quality (default)
     ),
 )
 ```
@@ -147,7 +147,7 @@ llm_model: openai/gpt-5-mini-2025-08-07
 embedding_model: openai/text-embedding-3-small
 
 settings:
-  use_sentence_atomizer: true  # true = fast, false = LLM quality (default)
+  atomization_granularity: coarse  # coarse=fast, medium=balanced, fine=quality (default)
 ```
 
 ## Custom Atomizer

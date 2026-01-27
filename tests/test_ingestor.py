@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from litellm.types.utils import Choices, Message
 
 from isotope.atomizer import SentenceAtomizer
 from isotope.embedder import ClientEmbedder
@@ -44,7 +45,13 @@ class TestIngestChunks:
     def test_ingest_single_chunk(self, mock_acompletion, mock_embedding, stores):
         # Setup mocks - acompletion is async so return value works the same
         mock_acompletion.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content='["Q1?", "Q2?"]'))]
+            choices=[
+                Choices(
+                    finish_reason="stop",
+                    index=0,
+                    message=Message(role="assistant", content='["Q1?", "Q2?"]'),
+                )
+            ]
         )
         # embed_texts accesses response.data as a list of dicts with "embedding" and "index" keys
         mock_embedding.return_value = MagicMock(
@@ -104,7 +111,13 @@ class TestIngestorProgress:
     @patch("isotope.providers.litellm.client.litellm.acompletion")
     def test_progress_callback_called(self, mock_acompletion, mock_embedding, stores):
         mock_acompletion.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content='["Q1?"]'))]
+            choices=[
+                Choices(
+                    finish_reason="stop",
+                    index=0,
+                    message=Message(role="assistant", content='["Q1?"]'),
+                )
+            ]
         )
 
         # Return one embedding per input text

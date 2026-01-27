@@ -1,10 +1,67 @@
 # src/isotope/providers/litellm/client.py
 """LiteLLM client implementations for LLM and embedding APIs."""
 
+import re
+import traceback
+
 import litellm
+from litellm.types.utils import Choices
 
 from isotope.providers.base import EmbeddingClient, LLMClient
 from isotope.providers.litellm.models import ChatModels, EmbeddingModels
+
+
+class LLMError(Exception):
+    """Exception for LLM API errors with clean user-facing messages.
+
+    Attributes:
+        message: Clean, user-friendly error message
+        details: Full error details for verbose/debug mode
+    """
+
+    def __init__(self, message: str, details: str | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.details = details
+
+
+def _extract_clean_message(e: Exception) -> tuple[str, str]:
+    """Extract a clean user-facing message from a LiteLLM exception.
+
+    Returns:
+        Tuple of (clean_message, full_details)
+    """
+    full_details = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+    error_str = str(e)
+
+    # Strip LiteLLM boilerplate
+    boilerplate_pattern = (
+        r"Give Feedback / Get Help:.*?LiteLLM\.Info:.*?`litellm\._turn_on_debug\(\)'\.?"
+    )
+    cleaned = re.sub(boilerplate_pattern, "", error_str, flags=re.DOTALL).strip()
+
+    # Handle specific error types
+    error_type = type(e).__name__
+
+    if "AuthenticationError" in error_type or "401" in error_str:
+        clean = "Authentication failed: Check your API key"
+        if cleaned and cleaned != clean:
+            clean = f"Authentication failed: {cleaned}"
+    elif "RateLimitError" in error_type or "429" in error_str:
+        clean = f"Rate limited: {cleaned}" if cleaned else "Rate limited by API"
+    elif "APIConnectionError" in error_type or "connection" in error_str.lower():
+        clean = f"Connection failed: {cleaned}" if cleaned else "Failed to connect to API"
+    elif "NotFoundError" in error_type or "404" in error_str:
+        clean = f"Model not found: {cleaned}" if cleaned else "Model not found"
+    elif cleaned:
+        clean = cleaned
+    else:
+        clean = f"API error: {error_type}"
+
+    # Ensure clean message doesn't still have boilerplate
+    clean = re.sub(boilerplate_pattern, "", clean, flags=re.DOTALL).strip()
+
+    return clean, full_details
 
 
 class LiteLLMClient(LLMClient):
@@ -45,31 +102,52 @@ class LiteLLMClient(LLMClient):
         self.num_retries = num_retries
         self.api_key = api_key
 
-    def complete(
-        self,
-        messages: list[dict],
-        temperature: float | None = None,
-    ) -> str:
-        """Generate a completion using LiteLLM."""
-        completion_kwargs: dict = {
+    def _build_completion_kwargs(self, messages: list[dict], temperature: float | None) -> dict:
+        """Build kwargs for litellm completion calls."""
+        kwargs: dict = {
             "model": self.model,
             "messages": messages,
             "drop_params": True,
             "num_retries": self.num_retries,
         }
         if temperature is not None:
-            completion_kwargs["temperature"] = temperature
+            kwargs["temperature"] = temperature
         if self.api_key is not None:
-            completion_kwargs["api_key"] = self.api_key
+            kwargs["api_key"] = self.api_key
+        return kwargs
 
-        response = litellm.completion(**completion_kwargs)
-
+    def _extract_content(self, response: litellm.ModelResponse) -> str:
+        """Extract content from litellm response."""
         if not response.choices:
             raise ValueError(f"LLM returned no choices for model {self.model}")
-        content = response.choices[0].message.content
+
+        choice = response.choices[0]
+
+        # We use non-streaming completion, so expect Choices (not StreamingChoices)
+        if not isinstance(choice, Choices):
+            raise ValueError(
+                f"Expected non-streaming response (Choices), got {type(choice).__name__}. "
+                f"This client does not support streaming."
+            )
+
+        content = choice.message.content
         if content is None:
             raise ValueError(f"LLM returned None content for model {self.model}")
         return str(content)
+
+    def complete(
+        self,
+        messages: list[dict],
+        temperature: float | None = None,
+    ) -> str:
+        """Generate a completion using LiteLLM."""
+        kwargs = self._build_completion_kwargs(messages, temperature)
+        try:
+            response = litellm.completion(**kwargs)
+        except Exception as e:
+            clean, details = _extract_clean_message(e)
+            raise LLMError(clean, details) from e
+        return self._extract_content(response)
 
     async def acomplete(
         self,
@@ -77,25 +155,13 @@ class LiteLLMClient(LLMClient):
         temperature: float | None = None,
     ) -> str:
         """Generate a completion using LiteLLM (async)."""
-        completion_kwargs: dict = {
-            "model": self.model,
-            "messages": messages,
-            "drop_params": True,
-            "num_retries": self.num_retries,
-        }
-        if temperature is not None:
-            completion_kwargs["temperature"] = temperature
-        if self.api_key is not None:
-            completion_kwargs["api_key"] = self.api_key
-
-        response = await litellm.acompletion(**completion_kwargs)
-
-        if not response.choices:
-            raise ValueError(f"LLM returned no choices for model {self.model}")
-        content = response.choices[0].message.content
-        if content is None:
-            raise ValueError(f"LLM returned None content for model {self.model}")
-        return str(content)
+        kwargs = self._build_completion_kwargs(messages, temperature)
+        try:
+            response = await litellm.acompletion(**kwargs)
+        except Exception as e:
+            clean, details = _extract_clean_message(e)
+            raise LLMError(clean, details) from e
+        return self._extract_content(response)
 
 
 class LiteLLMEmbeddingClient(EmbeddingClient):
@@ -148,7 +214,11 @@ class LiteLLMEmbeddingClient(EmbeddingClient):
         if self.api_key is not None:
             embedding_kwargs["api_key"] = self.api_key
 
-        response = litellm.embedding(**embedding_kwargs)
+        try:
+            response = litellm.embedding(**embedding_kwargs)
+        except Exception as e:
+            clean, details = _extract_clean_message(e)
+            raise LLMError(clean, details) from e
         # Sort by index to maintain order
         sorted_data = sorted(response.data, key=lambda x: x["index"])
         return [item["embedding"] for item in sorted_data]

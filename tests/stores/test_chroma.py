@@ -5,8 +5,6 @@ import tempfile
 
 import pytest
 
-pytest.importorskip("chromadb", reason="Tests require chromadb package")
-
 from isotope.models import EmbeddedQuestion, Question
 from isotope.stores.base import EmbeddedQuestionStore
 from isotope.stores.chroma import ChromaEmbeddedQuestionStore

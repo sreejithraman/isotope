@@ -15,7 +15,11 @@ Usage:
     atomizer = LLMAtomizer(llm_client=client)
 """
 
-from isotope.providers.litellm.client import LiteLLMClient, LiteLLMEmbeddingClient
+from isotope.providers.litellm.client import (
+    LiteLLMClient,
+    LiteLLMEmbeddingClient,
+    LLMError,
+)
 from isotope.providers.litellm.models import ChatModels, EmbeddingModels
 
 __all__ = [
@@ -25,4 +29,6 @@ __all__ = [
     # Clients
     "LiteLLMClient",
     "LiteLLMEmbeddingClient",
+    # Exceptions
+    "LLMError",
 ]

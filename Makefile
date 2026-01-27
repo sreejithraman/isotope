@@ -1,4 +1,4 @@
-.PHONY: help install dev-setup lint format fix test typecheck ci clean build release
+.PHONY: help install dev-setup lint format fix test typecheck ci clean build release cli example
 
 ORANGE := \033[38;5;208m
 BOLD := \033[1m
@@ -23,6 +23,11 @@ help:
 	@printf "$(DIM)│$(RESET)  $(BOLD)ci$(RESET)           Run all checks (like CI)     $(DIM)│$(RESET)\n"
 	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 	@printf "\n"
+	@printf "$(DIM)╭─$(RESET)$(ORANGE) Running $(RESET)$(DIM)────────────────────────────────────────────────╮$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)example$(RESET)      Install deps for examples (run this first!)      $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)cli$(RESET)          Run CLI: make cli ARGS=\"config\"                 $(DIM)│$(RESET)\n"
+	@printf "$(DIM)╰────────────────────────────────────────────────────────────╯$(RESET)\n"
+	@printf "\n"
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Release $(RESET)$(DIM)──────────────────────────────────╮$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)build$(RESET)        Build distribution packages  $(DIM)│$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)release$(RESET)      Tag and push a release       $(DIM)│$(RESET)\n"
@@ -33,7 +38,7 @@ help:
 	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 
 install:
-	pip install -e ".[dev]"
+	pip install -e ".[dev,all]"
 
 dev-setup: install
 	pre-commit install --hook-type pre-commit --hook-type pre-push
@@ -78,4 +83,24 @@ endif
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
+	rm -f .install-cli .install-example
 	find . -type d -name __pycache__ -exec rm -rf {} +
+
+# Smart install markers - reinstall when pyproject.toml changes
+.install-cli: pyproject.toml
+	pip install -e ".[cli]"
+	@touch .install-cli
+
+cli: .install-cli
+	isotope $(ARGS)
+
+.install-example: pyproject.toml
+	pip install -e ".[cli,chroma,litellm,loaders]"
+	@touch .install-example
+
+example: .install-example
+	@printf "$(ORANGE)✓ Example environment ready!$(RESET)\n"
+	@printf "\nNext steps:\n"
+	@printf "  1. isotope init                              # Set up provider\n"
+	@printf "  2. isotope ingest examples/data/hacker-laws.pdf\n"
+	@printf "  3. isotope query 'What is Brooks Law?'\n"

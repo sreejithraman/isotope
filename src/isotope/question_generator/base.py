@@ -151,19 +151,15 @@ class AsyncOnlyGeneratorMixin:
             RuntimeError: If called from within an existing event loop.
                 Use `await agenerate_batch()` instead in async contexts.
         """
-        # Detect running event loop to provide a helpful error message
         try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                raise RuntimeError(
-                    "Cannot call sync `generate_batch` from a running event loop. "
-                    "Use `await agenerate_batch()` instead."
-                )
-        except RuntimeError as e:
-            # Re-raise if it's our custom error
-            if "Cannot call sync" in str(e):
-                raise
-            # Otherwise, no running loop - this is expected for sync contexts
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass  # No running loop - expected for sync contexts
+        else:
+            raise RuntimeError(
+                "Cannot call sync `generate_batch` from a running event loop. "
+                "Use `await agenerate_batch()` instead."
+            )
 
         return asyncio.run(
             self.agenerate_batch(atoms, chunk_contents, config)  # type: ignore[attr-defined]

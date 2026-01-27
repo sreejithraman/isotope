@@ -80,7 +80,7 @@ pip install isotope-rag[litellm,chroma]  # Add LiteLLM + ChromaDB
 
 ## Quick Start
 
-### Option 1: Command Line (fastest)
+### Option 1: Command Line
 
 ```bash
 # 0. Configure models (writes isotope.yaml)

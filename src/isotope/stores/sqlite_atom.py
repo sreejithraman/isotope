@@ -108,3 +108,16 @@ class SQLiteAtomStore(AtomStore):
             cursor = conn.execute("SELECT COUNT(id) FROM atoms")
             count = cursor.fetchone()
             return count[0] if count else 0
+
+    def count_by_chunk_ids(self, chunk_ids: list[str]) -> int:
+        """Count atoms for given chunk IDs."""
+        if not chunk_ids:
+            return 0
+        placeholders = ",".join("?" * len(chunk_ids))
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                f"SELECT COUNT(id) FROM atoms WHERE chunk_id IN ({placeholders})",
+                chunk_ids,
+            )
+            count = cursor.fetchone()
+            return count[0] if count else 0

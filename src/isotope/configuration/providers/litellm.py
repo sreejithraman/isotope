@@ -79,13 +79,15 @@ class LiteLLMProvider:
         return ClientEmbedder(embedding_client=embedding_client)
 
     def build_atomizer(self, settings: Settings) -> Atomizer:
-        """Build an atomizer based on atomizer_type.
+        """Build an atomizer based on atomizer_type and settings.
 
         Args:
-            settings: Settings containing atomizer_prompt and num_retries.
+            settings: Settings containing atomizer_prompt, atomization_granularity,
+                      and num_retries.
 
         Returns:
-            LLMAtomizer if atomizer_type="llm", SentenceAtomizer otherwise.
+            LLMAtomizer with configured granularity, or SentenceAtomizer if
+            atomizer_type="sentence".
         """
         from isotope.atomizer import LLMAtomizer, SentenceAtomizer
         from isotope.providers.litellm import LiteLLMClient
@@ -101,6 +103,7 @@ class LiteLLMProvider:
         return LLMAtomizer(
             llm_client=llm_client,
             prompt_template=settings.atomizer_prompt,
+            granularity=settings.atomization_granularity,
         )
 
     def build_question_generator(self, settings: Settings) -> QuestionGenerator:

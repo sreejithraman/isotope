@@ -18,6 +18,28 @@ make test       # Run tests
 make typecheck  # Run mypy
 ```
 
+## Running the App
+
+```bash
+make cli                              # Run CLI (auto-installs if needed)
+make cli ARGS="ingest examples/data"  # With arguments
+make cli ARGS="query 'what is X'"
+make tui                              # Run TUI (auto-installs if needed)
+```
+
+These commands auto-install dependencies and skip reinstall when `pyproject.toml` hasn't changed.
+
+## Running Tests
+
+Tests require all dependencies:
+
+```bash
+pip install -e ".[dev,all]"
+make test
+```
+
+This matches what CI runs.
+
 ## Before Submitting a PR
 
 Pre-commit hooks run automatically on commit. If you need to fix issues manually:
@@ -34,8 +56,6 @@ lint ────┼──► type-check ──┐
          │                 │
          ├──► test ────────┼──► ci (gate)
          │                 │
-         ├──► test-loaders─┘
-         │
 security─┘
 ```
 

@@ -5,19 +5,36 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-pytest.importorskip("litellm", reason="Tests require litellm package")
+from litellm.types.utils import Choices, Message
 
 from isotope.atomizer import Atomizer, LLMAtomizer
 from isotope.models import Chunk
 from isotope.providers.litellm import LiteLLMClient
 
 
-def mock_completion_response(facts: list[str]):
+def _make_message(content: str) -> Message:
+    """Create a Message with all required fields."""
+    return Message(
+        role="assistant",
+        content=content,
+        tool_calls=None,
+        function_call=None,
+    )
+
+
+def _make_choice(content: str) -> Choices:
+    """Create a Choices object with all required fields."""
+    return Choices(
+        finish_reason="stop",
+        index=0,
+        message=_make_message(content),
+    )
+
+
+def mock_completion_response(facts: list[str]) -> MagicMock:
     """Create a mock LiteLLM completion response."""
     mock_response = MagicMock()
-    mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = json.dumps(facts)
+    mock_response.choices = [_make_choice(json.dumps(facts))]
     return mock_response
 
 
@@ -98,8 +115,7 @@ class TestLLMAtomizer:
     def test_handles_code_block_response(self, mock_completion, atomizer):
         # Some LLMs wrap JSON in code blocks
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = '```json\n["Fact 1", "Fact 2"]\n```'
+        mock_response.choices = [_make_choice('```json\n["Fact 1", "Fact 2"]\n```')]
         mock_completion.return_value = mock_response
 
         chunk = Chunk(content="Content", source="test.md")
@@ -112,8 +128,7 @@ class TestLLMAtomizer:
     def test_fallback_on_invalid_json(self, mock_completion, atomizer):
         # If LLM returns non-JSON, fall back to line splitting
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Fact 1\nFact 2\nFact 3"
+        mock_response.choices = [_make_choice("Fact 1\nFact 2\nFact 3")]
         mock_completion.return_value = mock_response
 
         chunk = Chunk(content="Content", source="test.md")
