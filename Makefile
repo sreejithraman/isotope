@@ -1,4 +1,4 @@
-.PHONY: help install dev-setup lint format fix test typecheck ci clean build release cli tui example
+.PHONY: help install dev-setup lint format fix test typecheck ci clean build release cli example
 
 ORANGE := \033[38;5;208m
 BOLD := \033[1m
@@ -26,7 +26,6 @@ help:
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Running $(RESET)$(DIM)────────────────────────────────────────────────╮$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)example$(RESET)      Install deps for examples (run this first!)      $(DIM)│$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)cli$(RESET)          Run CLI: make cli ARGS=\"config\"                 $(DIM)│$(RESET)\n"
-	@printf "$(DIM)│$(RESET)  $(BOLD)tui$(RESET)          Run TUI                                          $(DIM)│$(RESET)\n"
 	@printf "$(DIM)╰────────────────────────────────────────────────────────────╯$(RESET)\n"
 	@printf "\n"
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Release $(RESET)$(DIM)──────────────────────────────────╮$(RESET)\n"
@@ -84,7 +83,7 @@ endif
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
-	rm -f .install-cli .install-tui .install-example
+	rm -f .install-cli .install-example
 	find . -type d -name __pycache__ -exec rm -rf {} +
 
 # Smart install markers - reinstall when pyproject.toml changes
@@ -92,18 +91,11 @@ clean:
 	pip install -e ".[cli]"
 	@touch .install-cli
 
-.install-tui: pyproject.toml
-	pip install -e ".[tui]"
-	@touch .install-tui
-
 cli: .install-cli
 	isotope $(ARGS)
 
-tui: .install-tui
-	isotope-tui $(ARGS)
-
 .install-example: pyproject.toml
-	pip install -e ".[cli,tui,chroma,litellm,loaders]"
+	pip install -e ".[cli,chroma,litellm,loaders]"
 	@touch .install-example
 
 example: .install-example
@@ -112,4 +104,3 @@ example: .install-example
 	@printf "  1. isotope init                              # Set up provider\n"
 	@printf "  2. isotope ingest examples/data/hacker-laws.pdf\n"
 	@printf "  3. isotope query 'What is Brooks Law?'\n"
-	@printf "\nOr use the interactive TUI: isotope-tui\n"

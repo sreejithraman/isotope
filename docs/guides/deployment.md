@@ -232,8 +232,8 @@ COPY isotope_data/ ./isotope_data/
 # Set environment variables
 ENV ISOTOPE_DATA_DIR=/app/isotope_data
 
-# Default command
-CMD ["isotope-tui"]
+# Default command - start a shell for running isotope commands
+CMD ["bash"]
 ```
 
 ### Docker Compose

@@ -133,10 +133,6 @@ isotope list
 isotope delete /path/to/file.md
 ```
 
-In TUI, add `--force`:
-```
-> delete /path/to/file.md --force
-```
 
 ---
 

@@ -30,19 +30,10 @@ src/isotope/
 │   ├── config_cmd.py      # Config command logic
 │   └── init.py            # Init command logic
 │
-├── cli/                    # Typer CLI (thin wrapper)
-│   ├── __init__.py
-│   ├── __main__.py        # python -m isotope.cli
-│   └── app.py             # Typer commands → Rich rendering
-│
-└── tui/                    # Textual TUI
-    ├── app.py             # Main TUI app
-    ├── screens/           # TUI screens
-    │   ├── main.py        # Command handling → output widgets
-    │   ├── init.py        # Interactive init wizard
-    │   └── welcome.py     # Welcome screen
-    ├── widgets/           # Custom Textual widgets
-    └── commands/          # TUI command parsing
+└── cli/                    # Typer CLI (thin wrapper)
+    ├── __init__.py
+    ├── __main__.py        # python -m isotope.cli
+    └── app.py             # Typer commands → Rich rendering
 ```
 
 ## Design Principles
@@ -67,12 +58,6 @@ result = status.status(data_dir=data_dir, detailed=detailed)
 table = Table(title="Database Status")
 table.add_row("Sources", str(result.total_sources))
 console.print(table)
-
-# tui/screens/main.py - Renders with Textual
-result = status.status(data_dir=self._data_dir, detailed=detailed)
-table = Table(title="Database Status")
-table.add_row("Sources", str(result.total_sources))
-output.write_table(table)
 ```
 
 ### 2. Callbacks for Progress and Interaction
@@ -102,7 +87,7 @@ def ingest(path, on_progress=None, on_file_start=None, on_file_complete=None):
 
 ### 3. Shared Configuration
 
-The `config.py` module provides utilities used by both CLI and TUI:
+The `config.py` module provides utilities used by the CLI:
 
 ```python
 from isotope.config import (
@@ -177,29 +162,6 @@ def query_cmd(question: str, k: int = 5, raw: bool = False):
     # ... render sources
 ```
 
-### TUI (`tui/`)
-
-Textual-based interactive interface. The `MainScreen` handles commands:
-
-1. Parse user input with `CommandParser`
-2. Call appropriate `_cmd_*` method
-3. Method calls `commands.X()` and renders to `OutputDisplay`
-
-```python
-# tui/screens/main.py
-async def _cmd_query(self, output, header, question, flags):
-    result = query.query(
-        question=question,
-        data_dir=self._data_dir,
-        k=flags.get("k"),
-        raw=flags.get("raw"),
-    )
-
-    if result.answer:
-        output.write_markdown(result.answer, title="Answer")
-    # ... render sources
-```
-
 ## Result Types
 
 All commands return dataclass results from `commands/base.py`:
@@ -247,25 +209,7 @@ All results have:
        # Render with Rich
    ```
 
-5. **Add TUI handler** in `tui/screens/main.py`:
-   ```python
-   async def _cmd_my_command(self, output, flags):
-       result = my_cmd.my_command(...)
-       # Render to output widget
-   ```
-
-6. **Add to TUI parser** in `tui/commands/parser.py`:
-   ```python
-   class CommandType(Enum):
-       MY_COMMAND = auto()
-
-   ALIASES = {
-       "mycommand": CommandType.MY_COMMAND,
-       "mc": CommandType.MY_COMMAND,  # alias
-   }
-   ```
-
-7. **Add tests** in `tests/commands/test_my_cmd.py`
+5. **Add tests** in `tests/commands/test_my_cmd.py`
 
 ## Testing
 
@@ -292,18 +236,6 @@ def test_status_command(runner):
     assert result.exit_code == 0
 ```
 
-### TUI Tests
-
-Test parser and widgets:
-
-```python
-# tests/tui/test_parser.py
-def test_parse_status(parser):
-    result = parser.parse("status --detailed")
-    assert result.type == CommandType.STATUS
-    assert result.flags.get("detailed") is True
-```
-
 ## File Locations Quick Reference
 
 | What | Where |
@@ -311,9 +243,6 @@ def test_parse_status(parser):
 | Command result types | `src/isotope/commands/base.py` |
 | Command implementations | `src/isotope/commands/*.py` |
 | CLI commands | `src/isotope/cli/app.py` |
-| TUI command handlers | `src/isotope/tui/screens/main.py` |
-| TUI command parser | `src/isotope/tui/commands/parser.py` |
 | Config utilities | `src/isotope/config.py` |
 | CLI tests | `tests/test_cli.py` |
 | Command tests | `tests/commands/test_*.py` |
-| TUI parser tests | `tests/tui/test_parser.py` |
