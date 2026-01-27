@@ -44,6 +44,7 @@ jobs:
         # Ignored vulnerabilities with no available fix:
         # - urllib3 CVEs: chromadb -> kubernetes pins urllib3<2.4.0
         # - pdfminer-six: no patched version available (pdfplumber dependency)
+        # - protobuf: no patched version available (grpcio/chromadb dependency)
         run: |
           pip-audit \
             --ignore-vuln CVE-2025-50182 \
@@ -51,6 +52,7 @@ jobs:
             --ignore-vuln CVE-2025-66418 \
             --ignore-vuln CVE-2025-66471 \
             --ignore-vuln CVE-2026-21441 \
+            --ignore-vuln CVE-2026-0994 \
             --ignore-vuln GHSA-f83h-ghpp-7wcc
 
   type-check:
