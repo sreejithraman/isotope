@@ -7,7 +7,7 @@ from isotope.embedder import Embedder
 from isotope.models import Chunk, EmbeddedQuestion
 from isotope.question_generator import DiversityFilter, FilterScope, QuestionGenerator
 from isotope.question_generator.base import BatchConfig
-from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore
+from isotope.stores import AtomStore, ChunkEmbeddingStore, ChunkStore, EmbeddedQuestionStore
 
 ProgressCallback = Callable[[str, int, int, str], None]
 """Callback for ingestion progress updates.
@@ -49,6 +49,7 @@ class Ingestor:
         atomizer: Atomizer,
         embedder: Embedder,
         question_generator: QuestionGenerator,
+        chunk_embedding_store: ChunkEmbeddingStore | None = None,
         diversity_filter: DiversityFilter | None = None,
         diversity_scope: FilterScope = "global",
         batch_config: BatchConfig | None = None,
@@ -62,6 +63,7 @@ class Ingestor:
             atomizer: Component to split chunks into atoms
             embedder: Component to embed questions
             question_generator: Component to generate questions from atoms
+            chunk_embedding_store: Optional store for chunk embeddings (hybrid fallback)
             diversity_filter: Optional filter to remove duplicate questions
             diversity_scope: Scope for diversity filtering. Options:
                 - "global": Filter across all questions (default, paper-validated)
@@ -77,6 +79,7 @@ class Ingestor:
         self.atomizer = atomizer
         self.embedder = embedder
         self.question_generator = question_generator
+        self.chunk_embedding_store = chunk_embedding_store
         self.diversity_filter = diversity_filter
         self.diversity_scope = diversity_scope
         self.batch_config = batch_config or BatchConfig()
@@ -93,6 +96,15 @@ class Ingestor:
         """
         progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
         self.chunk_store.put_many(chunks)
+
+        if self.chunk_embedding_store is not None:
+            chunk_texts = [chunk.content for chunk in chunks]
+            chunk_embeddings = self.embedder.embed_texts(chunk_texts)
+            self.chunk_embedding_store.add(
+                chunk_ids=[chunk.id for chunk in chunks],
+                embeddings=chunk_embeddings,
+            )
+
         progress("storing", 1, 1, "Storing chunks complete")
 
         progress("atomizing", 0, len(chunks), "Atomizing chunks...")
