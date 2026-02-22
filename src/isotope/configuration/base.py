@@ -25,7 +25,13 @@ if TYPE_CHECKING:
     from isotope.providers import LLMClient
     from isotope.question_generator import QuestionGenerator
     from isotope.settings import Settings
-    from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore, SourceRegistry
+    from isotope.stores import (
+        AtomStore,
+        ChunkEmbeddingStore,
+        ChunkStore,
+        EmbeddedQuestionStore,
+        SourceRegistry,
+    )
 
 
 @runtime_checkable
@@ -103,13 +109,33 @@ class StorageConfig(Protocol):
 
             def build_stores(
                 self,
-            ) -> tuple[EmbeddedQuestionStore, ChunkStore, AtomStore, SourceRegistry]: ...
+            ) -> tuple[
+                EmbeddedQuestionStore,
+                ChunkEmbeddingStore,
+                ChunkStore,
+                AtomStore,
+                SourceRegistry,
+            ]: ...
     """
 
-    def build_stores(self) -> tuple[EmbeddedQuestionStore, ChunkStore, AtomStore, SourceRegistry]:
-        """Build all four storage components.
+    def build_stores(
+        self,
+    ) -> tuple[
+        EmbeddedQuestionStore,
+        ChunkEmbeddingStore,
+        ChunkStore,
+        AtomStore,
+        SourceRegistry,
+    ]:
+        """Build all five storage components.
 
         Returns:
-            Tuple of (embedded_question_store, chunk_store, atom_store, source_registry)
+            Tuple of (
+                embedded_question_store,
+                chunk_embedding_store,
+                chunk_store,
+                atom_store,
+                source_registry,
+            )
         """
         ...

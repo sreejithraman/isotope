@@ -7,10 +7,11 @@ import pytest
 
 
 class TestLocalStorage:
-    def test_build_stores_creates_all_four(self, temp_dir):
-        """Test that LocalStorage.build_stores() creates all four stores."""
+    def test_build_stores_creates_all_five(self, temp_dir):
+        """Test that LocalStorage.build_stores() creates all five stores."""
         from isotope.configuration import LocalStorage
         from isotope.stores import (
+            ChromaChunkEmbeddingStore,
             ChromaEmbeddedQuestionStore,
             SQLiteAtomStore,
             SQLiteChunkStore,
@@ -18,9 +19,16 @@ class TestLocalStorage:
         )
 
         storage = LocalStorage(temp_dir)
-        embedded_question_store, chunk_store, atom_store, source_registry = storage.build_stores()
+        (
+            embedded_question_store,
+            chunk_embedding_store,
+            chunk_store,
+            atom_store,
+            source_registry,
+        ) = storage.build_stores()
 
         assert isinstance(embedded_question_store, ChromaEmbeddedQuestionStore)
+        assert isinstance(chunk_embedding_store, ChromaChunkEmbeddingStore)
         assert isinstance(chunk_store, SQLiteChunkStore)
         assert isinstance(atom_store, SQLiteAtomStore)
         assert isinstance(source_registry, SQLiteSourceRegistry)

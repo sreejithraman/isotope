@@ -39,11 +39,18 @@ def temp_dir():
 @pytest.fixture
 def stores(temp_dir):
     """Create store instances for testing."""
-    from isotope.stores import ChromaEmbeddedQuestionStore, SQLiteAtomStore, SQLiteChunkStore
+    from isotope.stores import (
+        ChromaChunkEmbeddingStore,
+        ChromaEmbeddedQuestionStore,
+        SQLiteAtomStore,
+        SQLiteChunkStore,
+    )
 
     chroma_store = ChromaEmbeddedQuestionStore(os.path.join(temp_dir, "chroma"))
+    chunk_embedding_store = ChromaChunkEmbeddingStore(os.path.join(temp_dir, "chunk_embeddings"))
     stores_dict = {
         "embedded_question_store": chroma_store,
+        "chunk_embedding_store": chunk_embedding_store,
         "chunk_store": SQLiteChunkStore(os.path.join(temp_dir, "chunks.db")),
         "atom_store": SQLiteAtomStore(os.path.join(temp_dir, "atoms.db")),
     }
@@ -52,6 +59,7 @@ def stores(temp_dir):
     # Cleanup: close ChromaDB to release file handles
     # This prevents "too many open files" errors in test suites
     chroma_store.close()
+    chunk_embedding_store.close()
 
 
 @pytest.fixture

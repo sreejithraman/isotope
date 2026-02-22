@@ -15,7 +15,13 @@ if TYPE_CHECKING:
     from isotope.providers import LLMClient
     from isotope.question_generator import DiversityFilter, FilterScope
     from isotope.retriever import Retriever
-    from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore, SourceRegistry
+    from isotope.stores import (
+        AtomStore,
+        ChunkEmbeddingStore,
+        ChunkStore,
+        EmbeddedQuestionStore,
+        SourceRegistry,
+    )
 
 from isotope.question_generator.base import BatchConfig
 from isotope.settings import Settings
@@ -70,6 +76,7 @@ class Isotope:
         storage: StorageConfig | None = None,
         # ...OR explicit stores
         embedded_question_store: EmbeddedQuestionStore | None = None,
+        chunk_embedding_store: ChunkEmbeddingStore | None = None,
         chunk_store: ChunkStore | None = None,
         atom_store: AtomStore | None = None,
         source_registry: SourceRegistry | None = None,
@@ -104,18 +111,38 @@ class Isotope:
 
         # Path 1: Storage bundle (convenience)
         if storage is not None:
-            if any([embedded_question_store, chunk_store, atom_store, source_registry]):
+            if any(
+                [
+                    embedded_question_store,
+                    chunk_embedding_store,
+                    chunk_store,
+                    atom_store,
+                    source_registry,
+                ]
+            ):
                 raise ValueError("Cannot mix 'storage' bundle with explicit stores")
-            (
-                self.embedded_question_store,
-                self.chunk_store,
-                self.atom_store,
-                self._source_registry,
-            ) = storage.build_stores()
+            stores = storage.build_stores()
+            if len(stores) == 5:
+                (
+                    self.embedded_question_store,
+                    self.chunk_embedding_store,
+                    self.chunk_store,
+                    self.atom_store,
+                    self._source_registry,
+                ) = stores
+            else:
+                (
+                    self.embedded_question_store,
+                    self.chunk_store,
+                    self.atom_store,
+                    self._source_registry,
+                ) = stores
+                self.chunk_embedding_store = None
 
         # Path 2: Explicit stores (enterprise)
         elif all([embedded_question_store, chunk_store, atom_store, source_registry]):
             self.embedded_question_store = cast("EmbeddedQuestionStore", embedded_question_store)
+            self.chunk_embedding_store = chunk_embedding_store
             self.chunk_store = cast("ChunkStore", chunk_store)
             self.atom_store = cast("AtomStore", atom_store)
             self._source_registry = cast("SourceRegistry", source_registry)
@@ -146,6 +173,7 @@ class Isotope:
         chunk_store: ChunkStore,
         atom_store: AtomStore,
         source_registry: SourceRegistry,
+        chunk_embedding_store: ChunkEmbeddingStore | None = None,
         settings: Settings | None = None,
         loader_registry: LoaderRegistry | None = None,
     ) -> Isotope:
@@ -178,6 +206,7 @@ class Isotope:
         return cls(
             provider=provider,
             embedded_question_store=embedded_question_store,
+            chunk_embedding_store=chunk_embedding_store,
             chunk_store=chunk_store,
             atom_store=atom_store,
             source_registry=source_registry,
@@ -209,6 +238,7 @@ class Isotope:
         synthesis_prompt: str | None = None,
         synthesis_temperature: float | None = None,
         default_k: int | None = None,
+        hybrid_confidence_threshold: float | None = None,
     ) -> Retriever:
         """Create a Retriever using this instance's stores.
 
@@ -219,6 +249,8 @@ class Isotope:
             synthesis_prompt: Custom synthesis prompt template.
             synthesis_temperature: Temperature for synthesis LLM calls.
             default_k: Number of results to return. If None, uses settings default.
+            hybrid_confidence_threshold: Override the hybrid fallback threshold.
+                If None, uses settings.hybrid_confidence_threshold.
 
         Returns:
             Configured Retriever instance.
@@ -236,6 +268,12 @@ class Isotope:
             atom_store=self.atom_store,
             embedder=self.embedder,
             default_k=default_k if default_k is not None else self._settings.default_k,
+            chunk_embedding_store=self.chunk_embedding_store,
+            hybrid_confidence_threshold=(
+                hybrid_confidence_threshold
+                if hybrid_confidence_threshold is not None
+                else self._settings.hybrid_confidence_threshold
+            ),
             llm_client=llm_client,
             synthesis_prompt=synthesis_prompt or self._settings.synthesis_prompt,
             synthesis_temperature=(
@@ -299,6 +337,7 @@ class Isotope:
             atomizer=self._atomizer,
             embedder=self.embedder,
             question_generator=self._question_generator,
+            chunk_embedding_store=self.chunk_embedding_store,
             diversity_filter=effective_diversity_filter,
             diversity_scope=effective_diversity_scope,
             batch_config=effective_batch_config,
@@ -330,6 +369,8 @@ class Isotope:
         chunk_ids = self.chunk_store.get_chunk_ids_by_source(source)
         if chunk_ids:
             self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
+            if self.chunk_embedding_store is not None:
+                self.chunk_embedding_store.delete_by_chunk_ids(chunk_ids)
             self.atom_store.delete_by_chunk_ids(chunk_ids)
             self.chunk_store.delete_by_source(source)
             self._source_registry.delete(source)
@@ -449,6 +490,8 @@ class Isotope:
             return {"deleted": False, "reason": "source not found"}
 
         self.embedded_question_store.delete_by_chunk_ids(chunk_ids)
+        if self.chunk_embedding_store is not None:
+            self.chunk_embedding_store.delete_by_chunk_ids(chunk_ids)
         self.atom_store.delete_by_chunk_ids(chunk_ids)
         self.chunk_store.delete_by_source(source)
         self._source_registry.delete(source)
@@ -469,3 +512,5 @@ class Isotope:
         """
         if hasattr(self.embedded_question_store, "close"):
             self.embedded_question_store.close()
+        if self.chunk_embedding_store is not None and hasattr(self.chunk_embedding_store, "close"):
+            self.chunk_embedding_store.close()

@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore, SourceRegistry
+    from isotope.stores import (
+        AtomStore,
+        ChunkEmbeddingStore,
+        ChunkStore,
+        EmbeddedQuestionStore,
+        SourceRegistry,
+    )
 
 
 @dataclass(frozen=True)
@@ -43,15 +49,30 @@ class LocalStorage:
 
     data_dir: str
 
-    def build_stores(self) -> tuple[EmbeddedQuestionStore, ChunkStore, AtomStore, SourceRegistry]:
-        """Build all four storage components.
+    def build_stores(
+        self,
+    ) -> tuple[
+        EmbeddedQuestionStore,
+        ChunkEmbeddingStore,
+        ChunkStore,
+        AtomStore,
+        SourceRegistry,
+    ]:
+        """Build all five storage components.
 
         Creates the data directory if it doesn't exist.
 
         Returns:
-            Tuple of (embedded_question_store, chunk_store, atom_store, source_registry)
+            Tuple of (
+                embedded_question_store,
+                chunk_embedding_store,
+                chunk_store,
+                atom_store,
+                source_registry,
+            )
         """
         from isotope.stores import (
+            ChromaChunkEmbeddingStore,
             ChromaEmbeddedQuestionStore,
             SQLiteAtomStore,
             SQLiteChunkStore,
@@ -61,9 +82,17 @@ class LocalStorage:
         # Ensure directory exists
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)
 
-        embedded_question_store = ChromaEmbeddedQuestionStore(os.path.join(self.data_dir, "chroma"))
+        chroma_dir = os.path.join(self.data_dir, "chroma")
+        embedded_question_store = ChromaEmbeddedQuestionStore(chroma_dir)
+        chunk_embedding_store = ChromaChunkEmbeddingStore(chroma_dir)
         chunk_store = SQLiteChunkStore(os.path.join(self.data_dir, "chunks.db"))
         atom_store = SQLiteAtomStore(os.path.join(self.data_dir, "atoms.db"))
         source_registry = SQLiteSourceRegistry(os.path.join(self.data_dir, "sources.db"))
 
-        return embedded_question_store, chunk_store, atom_store, source_registry
+        return (
+            embedded_question_store,
+            chunk_embedding_store,
+            chunk_store,
+            atom_store,
+            source_registry,
+        )
