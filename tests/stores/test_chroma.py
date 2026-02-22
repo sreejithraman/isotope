@@ -6,8 +6,8 @@ import tempfile
 import pytest
 
 from isotope.models import EmbeddedQuestion, Question
-from isotope.stores.base import EmbeddedQuestionStore
-from isotope.stores.chroma import ChromaEmbeddedQuestionStore
+from isotope.stores.base import ChunkEmbeddingStore, EmbeddedQuestionStore
+from isotope.stores.chroma import ChromaChunkEmbeddingStore, ChromaEmbeddedQuestionStore
 
 
 @pytest.fixture
@@ -21,6 +21,12 @@ def temp_dir():
 def embedded_question_store(temp_dir):
     """Create a ChromaEmbeddedQuestionStore instance."""
     return ChromaEmbeddedQuestionStore(temp_dir)
+
+
+@pytest.fixture
+def chunk_embedding_store(temp_dir):
+    """Create a ChromaChunkEmbeddingStore instance."""
+    return ChromaChunkEmbeddingStore(temp_dir)
 
 
 def make_embedded(
@@ -90,3 +96,53 @@ class TestChromaEmbeddedQuestionStore:
     def test_search_empty_store(self, embedded_question_store):
         results = embedded_question_store.search([1.0, 0.0, 0.0], k=5)
         assert results == []
+
+
+class TestChromaChunkEmbeddingStore:
+    def test_is_chunk_embedding_store(self, chunk_embedding_store):
+        assert isinstance(chunk_embedding_store, ChunkEmbeddingStore)
+
+    def test_add_and_search(self, chunk_embedding_store):
+        chunk_embedding_store.add(
+            chunk_ids=["c1", "c2"],
+            embeddings=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        )
+        results = chunk_embedding_store.search([0.9, 0.1, 0.0], k=2)
+        assert len(results) == 2
+        # First result should be closest
+        assert results[0][0] == "c1"
+        assert results[0][1] > results[1][1]
+
+    def test_search_returns_chunk_id_score_tuples(self, chunk_embedding_store):
+        chunk_embedding_store.add(chunk_ids=["c1"], embeddings=[[1.0, 0.0, 0.0]])
+        results = chunk_embedding_store.search([1.0, 0.0, 0.0], k=1)
+        assert len(results) == 1
+        chunk_id, score = results[0]
+        assert chunk_id == "c1"
+        assert isinstance(score, float)
+
+    def test_delete_by_chunk_ids(self, chunk_embedding_store):
+        chunk_embedding_store.add(
+            chunk_ids=["c1", "c2", "c3"],
+            embeddings=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        )
+        chunk_embedding_store.delete_by_chunk_ids(["c1", "c2"])
+        results = chunk_embedding_store.search([0.0, 0.0, 1.0], k=10)
+        assert len(results) == 1
+        assert results[0][0] == "c3"
+
+    def test_count(self, chunk_embedding_store):
+        assert chunk_embedding_store.count() == 0
+        chunk_embedding_store.add(
+            chunk_ids=["c1", "c2"],
+            embeddings=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        )
+        assert chunk_embedding_store.count() == 2
+
+    def test_search_empty_store(self, chunk_embedding_store):
+        results = chunk_embedding_store.search([1.0, 0.0, 0.0], k=5)
+        assert results == []
+
+    def test_delete_empty_list(self, chunk_embedding_store):
+        """delete_by_chunk_ids with empty list should not error."""
+        chunk_embedding_store.delete_by_chunk_ids([])
