@@ -3,7 +3,7 @@
 from isotope.embedder import Embedder
 from isotope.models import QueryResponse, SearchResult
 from isotope.providers import LLMClient
-from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore
+from isotope.stores import AtomStore, ChunkEmbeddingStore, ChunkStore, EmbeddedQuestionStore
 
 SYNTHESIS_PROMPT = """Based on the following context, answer the user's question.
 If the context doesn't contain enough information to answer, say so.
@@ -26,6 +26,8 @@ class Retriever:
         atom_store: AtomStore,
         embedder: Embedder,
         default_k: int = 5,
+        chunk_embedding_store: ChunkEmbeddingStore | None = None,
+        hybrid_confidence_threshold: float = 0.7,
         llm_client: LLMClient | None = None,
         synthesis_prompt: str | None = None,
         synthesis_temperature: float | None = 0.3,
@@ -38,6 +40,8 @@ class Retriever:
             atom_store: Atom store for atom retrieval
             embedder: Embedder for query embedding
             default_k: Default number of results to return
+            chunk_embedding_store: Optional chunk embedding store for hybrid fallback
+            hybrid_confidence_threshold: Threshold for triggering chunk fallback
             llm_client: LLM client for answer synthesis (optional)
             synthesis_prompt: Custom synthesis prompt template
             synthesis_temperature: Temperature for synthesis LLM calls
@@ -47,6 +51,8 @@ class Retriever:
         self.atom_store = atom_store
         self.embedder = embedder
         self.default_k = default_k
+        self.chunk_embedding_store = chunk_embedding_store
+        self.hybrid_confidence_threshold = hybrid_confidence_threshold
         self._llm_client = llm_client
         self.synthesis_prompt = synthesis_prompt or SYNTHESIS_PROMPT
         self.synthesis_temperature = synthesis_temperature
@@ -69,11 +75,9 @@ class Retriever:
         # Step 2: Search embedded question store
         question_scores = self.embedded_question_store.search(query_embedding, k=k)
 
-        if not question_scores:
-            return []
-
         # Step 3: Fetch chunks and atoms
-        results = []
+        results: list[SearchResult] = []
+        seen_chunk_ids: set[str] = set()
         for question, score in question_scores:
             chunk = self.chunk_store.get(question.chunk_id)
             atom = self.atom_store.get(question.atom_id)
@@ -87,8 +91,39 @@ class Retriever:
                         atom=atom,
                     )
                 )
+                seen_chunk_ids.add(chunk.id)
 
-        return results
+        # Step 4: Hybrid fallback to chunk embeddings when confidence is low
+        if self._should_fallback(results):
+            remaining_k = k - len(results)
+            if remaining_k > 0 and self.chunk_embedding_store is not None:
+                chunk_results = self.chunk_embedding_store.search(
+                    query_embedding,
+                    k=remaining_k + len(seen_chunk_ids),
+                )
+                for chunk_id, score in chunk_results:
+                    if chunk_id in seen_chunk_ids:
+                        continue
+                    chunk = self.chunk_store.get(chunk_id)
+                    if chunk is None:
+                        continue
+                    results.append(SearchResult(chunk=chunk, score=score))
+                    seen_chunk_ids.add(chunk_id)
+                    if len(results) >= k:
+                        break
+
+        return results[:k]
+
+    def _should_fallback(self, results: list[SearchResult]) -> bool:
+        """Return True when hybrid fallback should run."""
+        if self.hybrid_confidence_threshold <= 0:
+            return False
+        if self.chunk_embedding_store is None:
+            return False
+        if not results:
+            return True
+        best_score = max(result.score for result in results)
+        return best_score < self.hybrid_confidence_threshold
 
     def get_answer(self, query: str, k: int | None = None) -> QueryResponse:
         """Get an answer to a query using retrieved context.
