@@ -105,7 +105,9 @@ from isotope.settings import Settings
 # Storage ABCs
 from isotope.stores import (
     AtomStore,
+    ChromaChunkEmbeddingStore,
     ChromaEmbeddedQuestionStore,
+    ChunkEmbeddingStore,
     ChunkStore,
     EmbeddedQuestionStore,
     SourceRegistry,
@@ -133,7 +135,9 @@ __all__ = [
     "LocalStorage",
     # Storage ABCs
     "AtomStore",
+    "ChromaChunkEmbeddingStore",
     "ChromaEmbeddedQuestionStore",
+    "ChunkEmbeddingStore",
     "ChunkStore",
     "EmbeddedQuestionStore",
     "SourceRegistry",

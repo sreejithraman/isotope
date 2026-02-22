@@ -13,7 +13,7 @@ from isotope.stores.base import ChunkEmbeddingStore, EmbeddedQuestionStore
 class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
     """ChromaDB-based embedded question store."""
 
-    def __init__(self, persist_dir: str, collection_name: str = "isotope") -> None:
+    def __init__(self, persist_dir: str, collection_name: str = "isotope_questions") -> None:
         """Initialize the ChromaDB store."""
         Path(persist_dir).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=persist_dir)
