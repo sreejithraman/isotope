@@ -104,6 +104,10 @@ class Settings(BaseModel):
 
     # Retrieval
     default_k: int = 5
+    # Hybrid retrieval fallback
+    # When best question-match score is below this threshold, also search chunk embeddings.
+    # 0 = disabled (pure question-matching), 1.0 = always include chunk fallback.
+    hybrid_confidence_threshold: float = 0.7
     synthesis_prompt: str | None = None
     synthesis_temperature: float | None = 0.3
 
