@@ -108,6 +108,7 @@ class Isotope:
         """
         # Use provided settings or defaults
         self._settings = settings if settings is not None else Settings()
+        self.chunk_embedding_store: ChunkEmbeddingStore | None = None
 
         # Path 1: Storage bundle (convenience)
         if storage is not None:
