@@ -146,3 +146,12 @@ class TestChromaChunkEmbeddingStore:
     def test_delete_empty_list(self, chunk_embedding_store):
         """delete_by_chunk_ids with empty list should not error."""
         chunk_embedding_store.delete_by_chunk_ids([])
+
+    def test_add_upserts_existing_chunk_id(self, chunk_embedding_store):
+        """Adding the same chunk ID twice updates instead of failing."""
+        chunk_embedding_store.add(chunk_ids=["c1"], embeddings=[[1.0, 0.0, 0.0]])
+        chunk_embedding_store.add(chunk_ids=["c1"], embeddings=[[0.0, 1.0, 0.0]])
+
+        results = chunk_embedding_store.search([0.0, 1.0, 0.0], k=1)
+        assert results[0][0] == "c1"
+        assert chunk_embedding_store.count() == 1

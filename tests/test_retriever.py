@@ -387,6 +387,34 @@ class TestRetrieverHybridFallback:
 
     @pytest.mark.mock_integration
     @patch("isotope.providers.litellm.client.litellm.embedding")
+    def test_fallback_always_triggers_at_threshold_one(
+        self, mock_embedding, stores, chunk_embedding_store
+    ):
+        """threshold=1.0 always includes chunk fallback, even with perfect question scores."""
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])
+        chunk, atom, question = create_test_data(stores)
+
+        # Question embedding matches query perfectly (score ~1.0)
+        # Add a second chunk only in chunk_embedding_store
+        chunk2 = Chunk(content="Extra info.", source="test2.md")
+        stores["chunk_store"].put(chunk2)
+        chunk_embedding_store.add([chunk.id, chunk2.id], [[1.0, 0.0, 0.0], [0.9, 0.1, 0.0]])
+
+        retriever = Retriever(
+            embedded_question_store=stores["embedded_question_store"],
+            chunk_store=stores["chunk_store"],
+            atom_store=stores["atom_store"],
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            chunk_embedding_store=chunk_embedding_store,
+            hybrid_confidence_threshold=1.0,
+        )
+        results = retriever.get_context("What is Python?", k=5)
+        # Should have both question-match and chunk-fallback results
+        has_chunk_fallback = any(r.question is None for r in results)
+        assert has_chunk_fallback
+
+    @pytest.mark.mock_integration
+    @patch("isotope.providers.litellm.client.litellm.embedding")
     def test_results_capped_at_k(self, mock_embedding, stores, chunk_embedding_store):
         """Combined results don't exceed k."""
         mock_embedding.return_value = MagicMock(data=[{"embedding": [1.0, 0.0, 0.0], "index": 0}])

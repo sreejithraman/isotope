@@ -41,7 +41,11 @@ class Retriever:
             embedder: Embedder for query embedding
             default_k: Default number of results to return
             chunk_embedding_store: Optional chunk embedding store for hybrid fallback
-            hybrid_confidence_threshold: Threshold for triggering chunk fallback
+            hybrid_confidence_threshold: Threshold for triggering chunk fallback.
+                0 = disabled (pure question-matching).
+                1.0 = always include chunk fallback.
+                Otherwise, fallback runs when best question-match score is below
+                this threshold.
             llm_client: LLM client for answer synthesis (optional)
             synthesis_prompt: Custom synthesis prompt template
             synthesis_temperature: Temperature for synthesis LLM calls
@@ -115,12 +119,19 @@ class Retriever:
         return results[:k]
 
     def _should_fallback(self, results: list[SearchResult]) -> bool:
-        """Return True when hybrid fallback should run."""
+        """Return True when hybrid fallback should run.
+
+        Fallback is triggered when the best question-match score is below
+        ``hybrid_confidence_threshold``.  A threshold of 1.0 means "always
+        include chunk fallback" (per design doc), so we special-case it.
+        """
         if self.hybrid_confidence_threshold <= 0:
             return False
         if self.chunk_embedding_store is None:
             return False
         if not results:
+            return True
+        if self.hybrid_confidence_threshold >= 1.0:
             return True
         best_score = max(result.score for result in results)
         return best_score < self.hybrid_confidence_threshold

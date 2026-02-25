@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from isotope.question_generator.base import BatchConfig
@@ -107,7 +107,7 @@ class Settings(BaseModel):
     # Hybrid retrieval fallback
     # When best question-match score is below this threshold, also search chunk embeddings.
     # 0 = disabled (pure question-matching), 1.0 = always include chunk fallback.
-    hybrid_confidence_threshold: float = 0.7
+    hybrid_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     synthesis_prompt: str | None = None
     synthesis_temperature: float | None = 0.3
 

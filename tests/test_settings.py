@@ -92,3 +92,15 @@ class TestHybridSettings:
     def test_hybrid_disabled_with_zero(self):
         settings = Settings(hybrid_confidence_threshold=0)
         assert settings.hybrid_confidence_threshold == 0
+
+    def test_hybrid_threshold_rejects_negative(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            Settings(hybrid_confidence_threshold=-0.1)
+
+    def test_hybrid_threshold_rejects_above_one(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            Settings(hybrid_confidence_threshold=1.5)
