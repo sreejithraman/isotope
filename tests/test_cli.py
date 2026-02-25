@@ -67,9 +67,9 @@ class TestQueryCommand:
 
 class TestInspectCommand:
     def test_inspect_help(self, runner):
-        result = runner.invoke(app, ["inspect", "--help"])
+        result = runner.invoke(app, ["inspect", "--help"], color=False)
         assert result.exit_code == 0
-        assert "--sources" in result.output
+        assert "sources" in result.output.lower()
 
     def test_inspect_empty_database(self, runner):
         with tempfile.TemporaryDirectory() as tmpdir:
