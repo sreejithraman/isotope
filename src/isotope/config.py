@@ -19,6 +19,7 @@ import importlib
 import logging
 import os
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
@@ -629,3 +630,52 @@ def get_isotope(
     if isinstance(config, ConfigError):
         return config
     return create_isotope(config)
+
+
+def setup_file_logging(data_dir: str) -> tuple[logging.Handler, int]:
+    """Add a file handler to the isotope logger. Returns (handler, previous_level) for cleanup.
+
+    Writes to ``{data_dir}/ingest.log`` in append mode with DEBUG-level capture.
+    The isotope logger level is set to DEBUG so that INFO/DEBUG records emit
+    (by default it inherits WARNING from the root logger).
+
+    Args:
+        data_dir: Directory where ``ingest.log`` will be written.
+
+    Returns:
+        Tuple of (handler, previous_level) — pass both to :func:`teardown_file_logging`.
+    """
+    from datetime import datetime
+
+    isotope_logger = logging.getLogger("isotope")
+    previous_level = isotope_logger.level
+
+    os.makedirs(data_dir, exist_ok=True)
+    log_path = os.path.join(data_dir, "ingest.log")
+
+    handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s  %(message)s")
+    handler.setFormatter(formatter)
+
+    isotope_logger.addHandler(handler)
+    isotope_logger.setLevel(logging.DEBUG)
+
+    # Write run-start separator
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    isotope_logger.info("--- Ingest run: %s ---", now)
+
+    return handler, previous_level
+
+
+def teardown_file_logging(handler: logging.Handler, previous_level: int) -> None:
+    """Remove the file handler and restore the previous logger level.
+
+    Args:
+        handler: The handler returned by :func:`setup_file_logging`.
+        previous_level: The logger level to restore.
+    """
+    isotope_logger = logging.getLogger("isotope")
+    isotope_logger.removeHandler(handler)
+    handler.close()
+    isotope_logger.setLevel(previous_level)

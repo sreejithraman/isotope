@@ -6,6 +6,7 @@ This module provides the core ingest logic that both CLI and TUI use.
 
 from __future__ import annotations
 
+import logging
 import os
 import traceback
 from collections.abc import Callable
@@ -29,6 +30,8 @@ from isotope.providers.litellm import LLMError
 if TYPE_CHECKING:
     from isotope.isotope import Isotope
 
+logger = logging.getLogger("isotope.commands.ingest")
+
 
 # Map internal stage names to CommandStage
 STAGE_MAP = {
@@ -47,6 +50,7 @@ def _do_ingest(
     on_progress: ProgressCallback | None = None,
     on_file_start: Callable | None = None,
     on_file_complete: Callable | None = None,
+    force: bool = False,
 ) -> IngestResult:
     """Core ingest logic shared between ingest() and ingest_with_isotope()."""
     from isotope.loaders import LoaderRegistry
@@ -69,29 +73,48 @@ def _do_ingest(
     result = IngestResult(success=True)
 
     for i, filepath in enumerate(files):
+        logger.info("Ingesting %s (%d/%d)", filepath, i + 1, len(files))
         if on_file_start:
             on_file_start(filepath, i, len(files))
 
-        file_result = _ingest_file(iso=iso, filepath=filepath, on_progress=on_progress)
+        file_result = _ingest_file(iso=iso, filepath=filepath, on_progress=on_progress, force=force)
         result.file_results.append(file_result)
 
         if file_result.failed:
             result.files_failed += 1
             result.errors.append((filepath, file_result.reason or "Unknown error"))
+            logger.warning("Failed %s: %s", filepath, file_result.reason)
         elif file_result.skipped:
             result.files_skipped += 1
+            logger.info("Skipped %s: %s", filepath, file_result.reason)
         else:
             result.files_processed += 1
             result.total_chunks += file_result.chunks
             result.total_atoms += file_result.atoms
             result.total_questions += file_result.questions
             result.total_questions_filtered += file_result.questions_filtered
+            logger.info(
+                "Completed %s: %d chunks, %d atoms, %d questions",
+                filepath,
+                file_result.chunks,
+                file_result.atoms,
+                file_result.questions,
+            )
+            if file_result.questions == 0 and file_result.atoms > 0:
+                logger.warning("0 questions for %s (%d atoms)", filepath, file_result.atoms)
 
         if on_file_complete:
             on_file_complete(file_result)
 
     if result.files_failed > 0 and result.files_processed == 0:
         result.success = False
+        first_error = result.errors[0][1] if result.errors else "All files failed"
+        result.error = first_error
+        if len(result.errors) > 1:
+            details_lines = [f"  {filepath}: {reason}" for filepath, reason in result.errors]
+            result.error_details = f"All {result.files_failed} files failed:\n" + "\n".join(
+                details_lines
+            )
 
     return result
 
@@ -103,6 +126,7 @@ def ingest(
     on_progress: ProgressCallback | None = None,
     on_file_start: Callable | None = None,
     on_file_complete: Callable | None = None,
+    force: bool = False,
 ) -> IngestResult:
     """Ingest files or directories into the knowledge base.
 
@@ -116,6 +140,7 @@ def ingest(
         on_progress: Callback for progress updates during ingestion
         on_file_start: Callback when starting a file (receives filepath, file_index, total_files)
         on_file_complete: Callback when a file is done (receives FileIngestResult)
+        force: If True, re-ingest even if content hash is unchanged
 
     Returns:
         IngestResult with aggregated statistics and per-file results
@@ -145,13 +170,14 @@ def ingest(
             error_details=details,
         )
 
-    return _do_ingest(iso, path, on_progress, on_file_start, on_file_complete)
+    return _do_ingest(iso, path, on_progress, on_file_start, on_file_complete, force=force)
 
 
 def _ingest_file(
     iso: Isotope,
     filepath: str,
     on_progress: ProgressCallback | None = None,
+    force: bool = False,
 ) -> FileIngestResult:
     """Ingest a single file.
 
@@ -159,6 +185,7 @@ def _ingest_file(
         iso: Isotope instance to use
         filepath: Path to the file
         on_progress: Optional progress callback
+        force: If True, re-ingest even if content hash is unchanged
 
     Returns:
         FileIngestResult with stats for this file
@@ -180,6 +207,7 @@ def _ingest_file(
     try:
         result = iso.ingest_file(
             filepath,
+            force=force,
             on_progress=progress_adapter if on_progress else None,
         )
 
@@ -219,6 +247,7 @@ async def _aingest_file(
     iso: Isotope,
     filepath: str,
     on_progress: ProgressCallback | None = None,
+    force: bool = False,
 ) -> FileIngestResult:
     """Ingest a single file asynchronously.
 
@@ -226,6 +255,7 @@ async def _aingest_file(
         iso: Isotope instance to use
         filepath: Path to the file
         on_progress: Optional progress callback
+        force: If True, re-ingest even if content hash is unchanged
 
     Returns:
         FileIngestResult with stats for this file
@@ -247,6 +277,7 @@ async def _aingest_file(
     try:
         result = await iso.aingest_file(
             filepath,
+            force=force,
             on_progress=progress_adapter if on_progress else None,
         )
 
@@ -288,6 +319,7 @@ async def _do_ingest_async(
     on_progress: ProgressCallback | None = None,
     on_file_start: Callable | None = None,
     on_file_complete: Callable | None = None,
+    force: bool = False,
 ) -> IngestResult:
     """Core async ingest logic."""
     from isotope.loaders import LoaderRegistry
@@ -310,29 +342,50 @@ async def _do_ingest_async(
     result = IngestResult(success=True)
 
     for i, filepath in enumerate(files):
+        logger.info("Ingesting %s (%d/%d)", filepath, i + 1, len(files))
         if on_file_start:
             on_file_start(filepath, i, len(files))
 
-        file_result = await _aingest_file(iso=iso, filepath=filepath, on_progress=on_progress)
+        file_result = await _aingest_file(
+            iso=iso, filepath=filepath, on_progress=on_progress, force=force
+        )
         result.file_results.append(file_result)
 
         if file_result.failed:
             result.files_failed += 1
             result.errors.append((filepath, file_result.reason or "Unknown error"))
+            logger.warning("Failed %s: %s", filepath, file_result.reason)
         elif file_result.skipped:
             result.files_skipped += 1
+            logger.info("Skipped %s: %s", filepath, file_result.reason)
         else:
             result.files_processed += 1
             result.total_chunks += file_result.chunks
             result.total_atoms += file_result.atoms
             result.total_questions += file_result.questions
             result.total_questions_filtered += file_result.questions_filtered
+            logger.info(
+                "Completed %s: %d chunks, %d atoms, %d questions",
+                filepath,
+                file_result.chunks,
+                file_result.atoms,
+                file_result.questions,
+            )
+            if file_result.questions == 0 and file_result.atoms > 0:
+                logger.warning("0 questions for %s (%d atoms)", filepath, file_result.atoms)
 
         if on_file_complete:
             on_file_complete(file_result)
 
     if result.files_failed > 0 and result.files_processed == 0:
         result.success = False
+        first_error = result.errors[0][1] if result.errors else "All files failed"
+        result.error = first_error
+        if len(result.errors) > 1:
+            details_lines = [f"  {filepath}: {reason}" for filepath, reason in result.errors]
+            result.error_details = f"All {result.files_failed} files failed:\n" + "\n".join(
+                details_lines
+            )
 
     return result
 
@@ -344,6 +397,7 @@ async def aingest(
     on_progress: ProgressCallback | None = None,
     on_file_start: Callable | None = None,
     on_file_complete: Callable | None = None,
+    force: bool = False,
 ) -> IngestResult:
     """Ingest files or directories asynchronously.
 
@@ -357,6 +411,7 @@ async def aingest(
         on_progress: Callback for progress updates during ingestion
         on_file_start: Callback when starting a file (receives filepath, file_index, total_files)
         on_file_complete: Callback when a file is done (receives FileIngestResult)
+        force: If True, re-ingest even if content hash is unchanged
 
     Returns:
         IngestResult with aggregated statistics and per-file results
@@ -386,7 +441,9 @@ async def aingest(
             error_details=details,
         )
 
-    return await _do_ingest_async(iso, path, on_progress, on_file_start, on_file_complete)
+    return await _do_ingest_async(
+        iso, path, on_progress, on_file_start, on_file_complete, force=force
+    )
 
 
 def ingest_with_isotope(

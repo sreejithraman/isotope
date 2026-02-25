@@ -66,6 +66,8 @@ except PackageNotFoundError:
 
 # Core models
 # Abstract base classes
+import logging
+
 from isotope.atomizer import Atomizer, SentenceAtomizer
 
 # Configuration objects
@@ -73,6 +75,7 @@ from isotope.configuration import (
     LiteLLMProvider,
     LocalStorage,
     ProviderConfig,
+    StorageBundle,
     StorageConfig,
 )
 from isotope.embedder import Embedder
@@ -116,6 +119,8 @@ from isotope.stores import (
     SQLiteSourceRegistry,
 )
 
+logging.getLogger("isotope").addHandler(logging.NullHandler())
+
 __all__ = [
     # Version
     "__version__",
@@ -130,6 +135,7 @@ __all__ = [
     "Settings",
     # Configuration objects
     "ProviderConfig",
+    "StorageBundle",
     "StorageConfig",
     "LiteLLMProvider",
     "LocalStorage",

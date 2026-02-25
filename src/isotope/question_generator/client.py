@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import logging
 import re
 
 from isotope.models import Atom, Question
@@ -13,6 +14,8 @@ from isotope.question_generator.base import (
     QuestionGenerator,
 )
 from isotope.question_generator.exceptions import BatchGenerationError
+
+logger = logging.getLogger("isotope.question_generator")
 
 # Single-atom prompt template (used when batch_size=1)
 SINGLE_ATOM_PROMPT = """Generate {num_questions} diverse questions that this atomic fact answers.
@@ -130,6 +133,10 @@ class ClientQuestionGenerator(AsyncOnlyGeneratorMixin, QuestionGenerator):
 
             question_texts = json.loads(response_text)
         except json.JSONDecodeError:
+            logger.warning(
+                "JSON parse failed for single-atom response (len=%d), falling back to line parsing",
+                len(response_text),
+            )
             # Fallback: line-by-line parsing
             question_texts = [
                 re.sub(r"^\s*(?:[-*]|\d+[.)])\s+", "", line.strip())
@@ -182,6 +189,14 @@ class ClientQuestionGenerator(AsyncOnlyGeneratorMixin, QuestionGenerator):
                     return all_questions
         except json.JSONDecodeError:
             pass
+
+        # All JSON strategies failed — fall back to line parsing
+        logger.warning(
+            "All JSON strategies failed for multi-atom response (len=%d), "
+            "falling back to line parsing",
+            len(response_text),
+        )
+        logger.debug("Multi-atom response preview (parse failure): %s...", response_text[:200])
 
         # Strategy 3: Line-by-line with ATOM delimiters
         current_atom_idx = 0
@@ -313,9 +328,22 @@ class ClientQuestionGenerator(AsyncOnlyGeneratorMixin, QuestionGenerator):
 
         for i, result in enumerate(results):
             if isinstance(result, BaseException):
+                logger.warning("Batch %d failed: %s: %s", i, type(result).__name__, result)
                 errors.append((i, result))
             else:
                 all_questions.extend(result)
+
+        if errors:
+            pct = len(errors) / len(batches) * 100
+            logger.warning("%d/%d batches failed (%.0f%%)", len(errors), len(batches), pct)
+
+        logger.info(
+            "Generated %d questions from %d atoms (%d batches, %d failed)",
+            len(all_questions),
+            len(atoms),
+            len(batches),
+            len(errors),
+        )
 
         # Raise if more than 50% of batches failed
         if errors and len(errors) / len(batches) > 0.5:
