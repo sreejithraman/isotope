@@ -149,6 +149,7 @@ VALID_SETTINGS_KEYS = {
     "rate_limit_profile",
     "batch_size",
     "generation_preset",
+    "embedding_batch_size",
 }
 
 
@@ -280,6 +281,8 @@ def get_settings_from_env() -> dict[str, Any]:
         granularity = os.environ["ISOTOPE_ATOMIZATION_GRANULARITY"].lower()
         if granularity in ("coarse", "medium", "fine"):
             result["atomization_granularity"] = granularity
+    if (val := _safe_int(os.environ.get("ISOTOPE_EMBEDDING_BATCH_SIZE"))) is not None:
+        result["embedding_batch_size"] = val
 
     return result
 
@@ -313,6 +316,7 @@ def get_settings_from_yaml(config: dict[str, Any]) -> dict[str, Any]:
         "rate_limit_profile",
         "batch_size",
         "generation_preset",
+        "embedding_batch_size",
     }
 
     return {k: v for k, v in yaml_settings.items() if k in valid_keys}

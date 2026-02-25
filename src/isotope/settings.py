@@ -102,6 +102,9 @@ class Settings(BaseModel):
     question_diversity_threshold: float | None = 0.85
     diversity_scope: Literal["global", "per_chunk", "per_atom"] = "global"
 
+    # Embedding batching (provider API limits)
+    embedding_batch_size: int = 100
+
     # Retrieval
     default_k: int = 5
     # Hybrid retrieval fallback

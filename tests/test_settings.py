@@ -22,6 +22,7 @@ class TestSettings:
         assert settings.question_generator_prompt is None
         assert settings.atomizer_prompt is None
         assert settings.synthesis_prompt is None
+        assert settings.embedding_batch_size == 100
 
     def test_settings_with_custom_values(self):
         """Test Settings accepts custom values."""
