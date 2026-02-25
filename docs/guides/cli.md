@@ -119,26 +119,7 @@ isotope query "Who created Python?" --plain
 isotope query "authentication" --show-matched-questions
 ```
 
-**With LLM synthesis (default):**
-```
-┌─────────────────────────────────────────────────────────┐
-│ Answer                                                   │
-├─────────────────────────────────────────────────────────┤
-│ Python was created by Guido van Rossum and was first   │
-│ released in 1991.                                        │
-└─────────────────────────────────────────────────────────┘
-
-Sources:
-  [1] docs/python.md (score: 0.923)
-      Python is a high-level programming language created by Guido...
-```
-
-**Raw mode (`--raw`):**
-```
-Sources:
-  [1] docs/python.md (score: 0.923)
-      Python is a high-level programming language created by Guido...
-```
+Returns a synthesized answer with source citations. Use `--raw` to skip synthesis and get matched chunks only.
 
 ---
 
@@ -177,33 +158,7 @@ isotope status
 └─────────────────────┴───────────────┘
 ```
 
-**Detailed output:**
-```bash
-isotope status --detailed
-```
-
-```
-┌─────────────────────────────────────┐
-│         Database Status             │
-├─────────────────────┬───────────────┤
-│ Metric              │ Value         │
-├─────────────────────┼───────────────┤
-│ Data directory      │ ./isotope_data│
-│ Sources             │ 5             │
-│ Chunks              │ 23            │
-│ Atoms               │ 89            │
-│ Indexed questions   │ 231           │
-└─────────────────────┴───────────────┘
-
-┌──────────────────────────────────────────────────────┐
-│        Question Distribution by Source                │
-├─────────────────────────────┬────────┬───────────────┤
-│ Source                      │ Chunks │ Questions     │
-├─────────────────────────────┼────────┼───────────────┤
-│ /path/docs/api.md           │ 3      │ 57            │
-│ /path/docs/auth.md          │ 2      │ 32            │
-└─────────────────────────────┴────────┴───────────────┘
-```
+Use `--detailed` to see question distribution per source.
 
 ---
 
@@ -226,22 +181,7 @@ isotope list [options]
 isotope list
 ```
 
-**Output:**
-```
-┌─────────────────────────────────────┐
-│     Indexed Sources (5)             │
-├─────────────────────────────┬───────┤
-│ Source                      │ Chunks│
-├─────────────────────────────┼───────┤
-│ /Users/you/project/docs/api.md            │ 3     │
-│ /Users/you/project/docs/authentication.md │ 2     │
-│ /Users/you/project/docs/getting-started.md│ 5     │
-│ /Users/you/project/docs/quickstart.md     │ 1     │
-│ /Users/you/project/README.md              │ 12    │
-└─────────────────────────────┴───────┘
-```
-
-Sources are stored as absolute paths by default, so your output will likely show full paths.
+Lists all indexed sources with chunk counts. Sources are stored as absolute paths.
 
 ---
 
@@ -273,20 +213,7 @@ isotope questions sample -n 10
 isotope questions sample --source /Users/you/project/docs/api.md
 ```
 
-**Output:**
-```
-┌──────────────────────────────────────────────┐
-│ Sample Questions (5 of 231)                  │
-├────┬─────────────────────────────────────────┤
-│ #  │ Question                                │
-├────┼─────────────────────────────────────────┤
-│ 1  │ How do I authenticate with the API?     │
-│ 2  │ What rate limits apply to write calls?  │
-│ 3  │ Which endpoints require admin access?   │
-│ 4  │ How do I rotate API keys?               │
-│ 5  │ What formats are supported for export?  │
-└────┴─────────────────────────────────────────┘
-```
+Shows a table of randomly sampled questions from the index.
 
 ---
 
@@ -337,32 +264,7 @@ isotope config
 **Options:**
 - `--config, -c` - Path to config file (overrides auto-discovery)
 
-**Output:**
-```
-┌──────────────────────────────┬──────────────────────────────┬─────────┐
-│ Setting                      │ Value                        │ Source  │
-├──────────────────────────────┼──────────────────────────────┼─────────┤
-│ provider                     │ litellm                      │ yaml    │
-│ llm_model                    │ openai/gpt-5-mini-2025-08-07  │ yaml    │
-│ embedding_model              │ openai/text-embedding-3-small│ yaml    │
-│ data_dir                     │ ./isotope_data               │ default │
-│                              │                              │         │
-│ atomization_granularity      │ fine                         │ default │
-│ questions_per_atom           │ 5                            │ default │
-│ diversity_threshold          │ 0.85                         │ default │
-│ diversity_scope              │ global                       │ default │
-│ max_concurrent_llm_calls      │ 10                           │ default │
-│ num_retries                  │ 5                            │ default │
-│ default_k                    │ 5                            │ default │
-└──────────────────────────────┴──────────────────────────────┴─────────┘
-
-Config file: /path/to/isotope.yaml
-```
-
-The source column shows where each value comes from:
-- `yaml` - from `isotope.yaml` config file
-- `env var` - from `ISOTOPE_*` environment variable
-- `default` - built-in default value
+Shows all effective settings with their values and source (`yaml`, `env var`, or `default`).
 
 ---
 
@@ -385,48 +287,7 @@ isotope init [options]
 isotope init
 ```
 
-The wizard asks about your models, API keys, and priorities:
-
-```
-Select your LLM model
-  [1] openai/gpt-5-mini-2025-08-07
-  [2] anthropic/claude-sonnet-4-5-20250929
-  [3] gemini/gemini-3-flash-preview
-  [4] ollama/llama3.2
-Choose [1]: 1
-
-Select your embedding model
-  [1] openai/text-embedding-3-small
-  [2] openai/text-embedding-3-large
-  [3] gemini/gemini-embedding-001
-  [4] ollama/nomic-embed-text
-Choose [1]: 1
-
-Are you on a rate-limited or free tier API?
-  [1] Yes - configure for rate limits
-  [2] No - I have high rate limits
-  [3] Not sure - use safe defaults
-Choose [3]: 1
-
-What's your priority?
-  [1] Retrieval quality (slower, more API calls)
-  [2] Speed & cost savings (faster, fewer calls)
-  [3] Balanced
-Choose [3]: 2
-
-Enter your LLM API key (leave empty if not needed): sk-xxx
-
-Embedding API key
-  [1] Same as LLM
-  [2] None (not needed)
-  [3] Different key
-Choose [1]: 1
-
-Created isotope.yaml
-Saved API key(s) to .env
-```
-
-For local models (e.g., `ollama/llama3.2`), the API key prompts are skipped automatically.
+The wizard walks you through selecting LLM/embedding models, API keys, rate-limit preferences, and quality priorities. It generates `isotope.yaml` and saves API keys to `.env`. For local models (e.g., `ollama/llama3.2`), API key prompts are skipped automatically.
 
 **Non-interactive mode:**
 
@@ -473,44 +334,6 @@ isotope --version
 isotope --help
 isotope ingest --help
 ```
-
-## Configuration
-
-The CLI reads configuration from YAML files and environment variables. See [Configuration Guide](./configuration.md) for full details.
-
-**Config file discovery**:
-- Looks for `isotope.yaml`, `isotope.yml`, or `.isotoperc` in the current directory or parents
-- Use `--config` to point to a specific file
-
-**API keys + .env**:
-- During `isotope init`, you can enter API keys which are saved to `.env`
-- The CLI auto-loads `.env` files from the current directory
-- Set `ISOTOPE_LLM_API_KEY` for LLM calls and optionally `ISOTOPE_EMBEDDING_API_KEY` for embeddings
-- If both use the same key, just set `ISOTOPE_LLM_API_KEY`
-
-**Precedence** (highest to lowest):
-1. Environment variables (`ISOTOPE_*`)
-2. YAML config file (`settings:` section)
-3. Built-in defaults
-
-**Key environment variables**:
-- `ISOTOPE_LLM_API_KEY` - API key for LLM calls (set by `isotope init`)
-- `ISOTOPE_EMBEDDING_API_KEY` - API key for embedding calls (optional, falls back to LLM key)
-- `ISOTOPE_LITELLM_LLM_MODEL` - LiteLLM model (CLI fallback if no config file)
-- `ISOTOPE_LITELLM_EMBEDDING_MODEL` - LiteLLM embedding model (CLI fallback)
-- `ISOTOPE_ATOMIZATION_GRANULARITY` - Atomization detail: `coarse`, `medium`, `fine` (default)
-- `ISOTOPE_QUESTIONS_PER_ATOM` - Question generation count per atom
-- `ISOTOPE_DIVERSITY_SCOPE` - Diversity scope (`global`, `per_chunk`, `per_atom`)
-- `ISOTOPE_MAX_CONCURRENT_LLM_CALLS` - Parallel LLM requests
-- `ISOTOPE_NUM_RETRIES` - Retry count on failures
-- `ISOTOPE_RATE_LIMIT_PROFILE` - `aggressive` or `conservative` preset
-- `ISOTOPE_QUESTION_DIVERSITY_THRESHOLD` - Diversity filter threshold
-- `ISOTOPE_DEFAULT_K` - Default top-k
-- `ISOTOPE_QUESTION_GENERATOR_PROMPT` - Custom prompt template for question generation
-- `ISOTOPE_ATOMIZER_PROMPT` - Custom prompt template for LLM atomization
-- `ISOTOPE_SYNTHESIS_PROMPT` - Custom prompt template for answer synthesis
-
-Note: Provider-specific env vars (like `OPENAI_API_KEY`) still work if `ISOTOPE_LLM_API_KEY` is not set.
 
 ## Scripting
 

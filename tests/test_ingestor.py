@@ -11,6 +11,7 @@ from isotope.ingestor import Ingestor
 from isotope.models import Chunk
 from isotope.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
 from isotope.question_generator import ClientQuestionGenerator, DiversityFilter
+from isotope.stores.chroma import ChromaChunkEmbeddingStore
 
 
 class TestIngestorInit:
@@ -156,3 +157,79 @@ class TestIngestorProgress:
         # Should include different phases
         phases = {e[0] for e in progress_events}
         assert "atomizing" in phases or "generating" in phases or "embedding" in phases
+
+
+class TestIngestorChunkEmbedding:
+    @pytest.mark.mock_integration
+    @patch("isotope.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
+    def test_ingest_embeds_chunks(self, mock_acompletion, mock_embedding, stores, tmp_path):
+        """Ingestor embeds chunks and stores them in chunk_embedding_store."""
+        mock_acompletion.return_value = MagicMock(
+            choices=[
+                Choices(
+                    finish_reason="stop",
+                    index=0,
+                    message=Message(role="assistant", content='["Q1?"]'),
+                )
+            ]
+        )
+
+        def make_embeddings(*args, **kwargs):
+            input_texts = kwargs.get("input", args[1] if len(args) > 1 else [])
+            if isinstance(input_texts, str):
+                input_texts = [input_texts]
+            return MagicMock(
+                data=[{"embedding": [0.1, 0.2, 0.3], "index": i} for i in range(len(input_texts))]
+            )
+
+        mock_embedding.side_effect = make_embeddings
+
+        chunk_embedding_store = ChromaChunkEmbeddingStore(str(tmp_path / "chunk_emb"))
+
+        ingestor = Ingestor(
+            embedded_question_store=stores["embedded_question_store"],
+            chunk_store=stores["chunk_store"],
+            atom_store=stores["atom_store"],
+            atomizer=SentenceAtomizer(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+            chunk_embedding_store=chunk_embedding_store,
+        )
+
+        chunk = Chunk(content="Python is great.", source="test.md")
+        ingestor.ingest_chunks([chunk])
+
+        assert chunk_embedding_store.count() == 1
+        chunk_embedding_store.close()
+
+    @pytest.mark.mock_integration
+    @patch("isotope.providers.litellm.client.litellm.embedding")
+    @patch("isotope.providers.litellm.client.litellm.acompletion")
+    def test_ingest_works_without_chunk_embedding_store(
+        self, mock_acompletion, mock_embedding, stores
+    ):
+        """Ingestor works without chunk_embedding_store (backward compat)."""
+        mock_acompletion.return_value = MagicMock(
+            choices=[
+                Choices(
+                    finish_reason="stop",
+                    index=0,
+                    message=Message(role="assistant", content='["Q1?"]'),
+                )
+            ]
+        )
+        mock_embedding.return_value = MagicMock(data=[{"embedding": [0.1, 0.2, 0.3], "index": 0}])
+
+        ingestor = Ingestor(
+            embedded_question_store=stores["embedded_question_store"],
+            chunk_store=stores["chunk_store"],
+            atom_store=stores["atom_store"],
+            atomizer=SentenceAtomizer(),
+            embedder=ClientEmbedder(embedding_client=LiteLLMEmbeddingClient()),
+            question_generator=ClientQuestionGenerator(llm_client=LiteLLMClient()),
+        )
+
+        chunk = Chunk(content="Python is great.", source="test.md")
+        result = ingestor.ingest_chunks([chunk])
+        assert result["chunks"] == 1

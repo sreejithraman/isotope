@@ -7,13 +7,13 @@ from typing import cast
 import chromadb
 
 from isotope.models import EmbeddedQuestion, Question
-from isotope.stores.base import EmbeddedQuestionStore
+from isotope.stores.base import ChunkEmbeddingStore, EmbeddedQuestionStore
 
 
 class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
     """ChromaDB-based embedded question store."""
 
-    def __init__(self, persist_dir: str, collection_name: str = "isotope") -> None:
+    def __init__(self, persist_dir: str, collection_name: str = "isotope_questions") -> None:
         """Initialize the ChromaDB store."""
         Path(persist_dir).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=persist_dir)
@@ -164,3 +164,58 @@ class ChromaEmbeddedQuestionStore(EmbeddedQuestionStore):
             include=[],  # Only need count, no data
         )
         return len(results["ids"])
+
+
+class ChromaChunkEmbeddingStore(ChunkEmbeddingStore):
+    """ChromaDB-based chunk embedding store for hybrid retrieval fallback."""
+
+    def __init__(self, persist_dir: str, collection_name: str = "isotope_chunks") -> None:
+        """Initialize the ChromaDB chunk embedding store."""
+        Path(persist_dir).mkdir(parents=True, exist_ok=True)
+        self._client = chromadb.PersistentClient(path=persist_dir)
+        self._collection = self._client.get_or_create_collection(
+            name=collection_name,
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    def close(self) -> None:
+        """Close the store and release resources."""
+        self._collection = None  # type: ignore[assignment]
+        try:
+            if self._client is not None and hasattr(self._client, "_system"):
+                self._client._system.stop()
+        except Exception:
+            pass
+        self._client = None  # type: ignore[assignment]
+
+    def add(self, chunk_ids: list[str], embeddings: list[list[float]]) -> None:
+        """Add or update chunk embeddings by chunk ID."""
+        if not chunk_ids:
+            return
+        self._collection.upsert(
+            ids=chunk_ids,
+            embeddings=embeddings,  # type: ignore[arg-type]
+        )
+
+    def search(self, embedding: list[float], k: int = 5) -> list[tuple[str, float]]:
+        """Search for similar chunks and return (chunk_id, score) pairs."""
+        if self._collection.count() == 0:
+            return []
+        results = self._collection.query(
+            query_embeddings=[embedding],  # type: ignore[arg-type]
+            n_results=min(k, self._collection.count()),
+            include=["distances"],
+        )
+        ids = results["ids"][0]
+        distances = results["distances"][0]  # type: ignore[index]
+        return [(cid, 1.0 - dist) for cid, dist in zip(ids, distances, strict=True)]
+
+    def delete_by_chunk_ids(self, chunk_ids: list[str]) -> None:
+        """Delete embeddings for the given chunk IDs."""
+        if not chunk_ids:
+            return
+        self._collection.delete(ids=chunk_ids)
+
+    def count(self) -> int:
+        """Return the total number of chunk embeddings."""
+        return self._collection.count()

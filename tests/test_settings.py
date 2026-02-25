@@ -22,6 +22,7 @@ class TestSettings:
         assert settings.question_generator_prompt is None
         assert settings.atomizer_prompt is None
         assert settings.synthesis_prompt is None
+        assert settings.embedding_batch_size == 100
 
     def test_settings_with_custom_values(self):
         """Test Settings accepts custom values."""
@@ -78,3 +79,29 @@ class TestSettings:
 
         with pytest.raises(ValueError, match="Unknown profile"):
             Settings.with_profile("invalid")  # type: ignore[arg-type]
+
+
+class TestHybridSettings:
+    def test_default_hybrid_threshold(self):
+        settings = Settings()
+        assert settings.hybrid_confidence_threshold == 0.7
+
+    def test_custom_hybrid_threshold(self):
+        settings = Settings(hybrid_confidence_threshold=0.5)
+        assert settings.hybrid_confidence_threshold == 0.5
+
+    def test_hybrid_disabled_with_zero(self):
+        settings = Settings(hybrid_confidence_threshold=0)
+        assert settings.hybrid_confidence_threshold == 0
+
+    def test_hybrid_threshold_rejects_negative(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            Settings(hybrid_confidence_threshold=-0.1)
+
+    def test_hybrid_threshold_rejects_above_one(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            Settings(hybrid_confidence_threshold=1.5)

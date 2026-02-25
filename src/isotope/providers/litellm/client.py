@@ -10,6 +10,8 @@ from litellm.types.utils import Choices
 from isotope.providers.base import EmbeddingClient, LLMClient
 from isotope.providers.litellm.models import ChatModels, EmbeddingModels
 
+litellm.suppress_debug_info = True
+
 
 class LLMError(Exception):
     """Exception for LLM API errors with clean user-facing messages.

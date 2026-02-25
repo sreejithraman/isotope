@@ -227,6 +227,38 @@ class TestIsotopeRetriever:
         assert retriever.synthesis_prompt == custom_prompt
 
 
+class TestIsotopeHybridRetrieval:
+    def test_retriever_gets_chunk_embedding_store(self, temp_dir, mock_provider):
+        """Retriever receives chunk_embedding_store from Isotope."""
+        iso = Isotope(provider=mock_provider, storage=LocalStorage(temp_dir))
+        retriever = iso.retriever()
+        assert retriever.chunk_embedding_store is not None
+
+    def test_retriever_gets_hybrid_threshold_from_settings(self, temp_dir, mock_provider):
+        """Retriever uses hybrid_confidence_threshold from Settings."""
+        from isotope.settings import Settings
+
+        iso = Isotope(
+            provider=mock_provider,
+            storage=LocalStorage(temp_dir),
+            settings=Settings(hybrid_confidence_threshold=0.5),
+        )
+        retriever = iso.retriever()
+        assert retriever.hybrid_confidence_threshold == 0.5
+
+    def test_retriever_hybrid_threshold_override(self, temp_dir, mock_provider):
+        """Retriever accepts hybrid_confidence_threshold override."""
+        iso = Isotope(provider=mock_provider, storage=LocalStorage(temp_dir))
+        retriever = iso.retriever(hybrid_confidence_threshold=0.3)
+        assert retriever.hybrid_confidence_threshold == 0.3
+
+    def test_ingestor_gets_chunk_embedding_store(self, temp_dir, mock_provider):
+        """Ingestor receives chunk_embedding_store from Isotope."""
+        iso = Isotope(provider=mock_provider, storage=LocalStorage(temp_dir))
+        ingestor = iso.ingestor()
+        assert ingestor.chunk_embedding_store is not None
+
+
 class TestIsotopeIngestor:
     def test_ingestor_creates_ingestor(self, temp_dir, mock_provider):
         """Test that ingestor() returns an Ingestor instance."""

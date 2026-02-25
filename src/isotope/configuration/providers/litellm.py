@@ -76,7 +76,10 @@ class LiteLLMProvider:
             num_retries=settings.num_retries,
             api_key=api_key,
         )
-        return ClientEmbedder(embedding_client=embedding_client)
+        return ClientEmbedder(
+            embedding_client=embedding_client,
+            batch_size=settings.embedding_batch_size,
+        )
 
     def build_atomizer(self, settings: Settings) -> Atomizer:
         """Build an atomizer based on atomizer_type and settings.

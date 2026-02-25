@@ -121,6 +121,21 @@ atoms = atomizer.atomize(chunk)
 - Prefer `SentenceAtomizer` when speed/cost matters
 - Use `LLMAtomizer` when semantic quality matters more than cost
 
+## Questions Per Atom
+
+The default is 5 questions per atom. Adjust based on your needs:
+
+| Setting | Effect |
+|---------|--------|
+| 3 | Faster, cheaper, lower recall |
+| 5 | Balanced (default) |
+| 10 | Higher recall, more expensive |
+
+```yaml
+settings:
+  questions_per_atom: 5
+```
+
 ## Configuration
 
 Configure atomization explicitly in code or via the CLI config file:

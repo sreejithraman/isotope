@@ -1,5 +1,6 @@
 """Ingestion pipeline for Isotope."""
 
+import logging
 from collections.abc import Callable
 
 from isotope.atomizer import Atomizer
@@ -7,7 +8,9 @@ from isotope.embedder import Embedder
 from isotope.models import Chunk, EmbeddedQuestion
 from isotope.question_generator import DiversityFilter, FilterScope, QuestionGenerator
 from isotope.question_generator.base import BatchConfig
-from isotope.stores import AtomStore, ChunkStore, EmbeddedQuestionStore
+from isotope.stores import AtomStore, ChunkEmbeddingStore, ChunkStore, EmbeddedQuestionStore
+
+logger = logging.getLogger("isotope.ingestor")
 
 ProgressCallback = Callable[[str, int, int, str], None]
 """Callback for ingestion progress updates.
@@ -49,6 +52,7 @@ class Ingestor:
         atomizer: Atomizer,
         embedder: Embedder,
         question_generator: QuestionGenerator,
+        chunk_embedding_store: ChunkEmbeddingStore | None = None,
         diversity_filter: DiversityFilter | None = None,
         diversity_scope: FilterScope = "global",
         batch_config: BatchConfig | None = None,
@@ -62,6 +66,7 @@ class Ingestor:
             atomizer: Component to split chunks into atoms
             embedder: Component to embed questions
             question_generator: Component to generate questions from atoms
+            chunk_embedding_store: Optional store for chunk embeddings (hybrid fallback)
             diversity_filter: Optional filter to remove duplicate questions
             diversity_scope: Scope for diversity filtering. Options:
                 - "global": Filter across all questions (default, paper-validated)
@@ -77,6 +82,7 @@ class Ingestor:
         self.atomizer = atomizer
         self.embedder = embedder
         self.question_generator = question_generator
+        self.chunk_embedding_store = chunk_embedding_store
         self.diversity_filter = diversity_filter
         self.diversity_scope = diversity_scope
         self.batch_config = batch_config or BatchConfig()
@@ -93,6 +99,16 @@ class Ingestor:
         """
         progress("storing", 0, 1, f"Storing {len(chunks)} chunks...")
         self.chunk_store.put_many(chunks)
+        logger.info("Stored %d chunks", len(chunks))
+
+        if self.chunk_embedding_store is not None:
+            chunk_texts = [chunk.content for chunk in chunks]
+            chunk_embeddings = self.embedder.embed_texts(chunk_texts)
+            self.chunk_embedding_store.add(
+                chunk_ids=[chunk.id for chunk in chunks],
+                embeddings=chunk_embeddings,
+            )
+
         progress("storing", 1, 1, "Storing chunks complete")
 
         progress("atomizing", 0, len(chunks), "Atomizing chunks...")
@@ -105,6 +121,7 @@ class Ingestor:
             self.atom_store.put_many(atoms)
             progress("atomizing", i + 1, len(chunks), f"Atomized {i + 1}/{len(chunks)} chunks")
 
+        logger.info("Created %d atoms from %d chunks", len(all_atoms), len(chunks))
         return all_atoms, chunk_content_map
 
     def _embed_filter_store(
@@ -118,6 +135,7 @@ class Ingestor:
             Tuple of (embedded_questions, questions_filtered)
         """
         if not all_questions:
+            logger.warning("0 questions to embed/filter/store")
             return [], 0
 
         progress("embedding", 0, 1, f"Embedding {len(all_questions)} questions...")
@@ -144,10 +162,16 @@ class Ingestor:
                 embedded_questions, self.diversity_scope
             )
             questions_filtered = original_count - len(embedded_questions)
+            logger.info(
+                "Filtered %d duplicate questions, %d remaining (post-filter)",
+                questions_filtered,
+                len(embedded_questions),
+            )
             progress("filtering", 1, 1, f"Filtered {questions_filtered} similar questions")
 
         progress("indexing", 0, 1, f"Indexing {len(embedded_questions)} questions...")
         self.embedded_question_store.add(embedded_questions)
+        logger.info("Indexed %d questions (final)", len(embedded_questions))
         progress("indexing", 1, 1, "Indexing complete")
 
         return embedded_questions, questions_filtered
@@ -194,6 +218,11 @@ class Ingestor:
             chunk_contents=chunk_contents,
             config=self.batch_config,
         )
+        logger.info(
+            "Generated %d questions from %d atoms (pre-filter)", len(all_questions), len(all_atoms)
+        )
+        if not all_questions and all_atoms:
+            logger.warning("0 questions generated from %d atoms", len(all_atoms))
         progress("generating", len(all_atoms), len(all_atoms), "Question generation complete")
 
         # Steps 4-6: Embed, filter, store
@@ -251,6 +280,11 @@ class Ingestor:
             chunk_contents=chunk_contents,
             config=self.batch_config,
         )
+        logger.info(
+            "Generated %d questions from %d atoms (pre-filter)", len(all_questions), len(all_atoms)
+        )
+        if not all_questions and all_atoms:
+            logger.warning("0 questions generated from %d atoms", len(all_atoms))
         progress("generating", len(all_atoms), len(all_atoms), "Question generation complete")
 
         # Steps 4-6: Embed, filter, store

@@ -145,6 +145,18 @@ iso = Isotope(
 )
 ```
 
+## Storage
+
+Rough estimates per 1,000 chunks:
+
+| Component | Size |
+|-----------|------|
+| SQLite metadata | 1-5 MB |
+| Chroma embeddings | 50-100 MB |
+| Total | ~100 MB |
+
+For 100,000 chunks, plan for ~10 GB storage. SSD recommended for Chroma queries; avoid network mounts (NFS, SMB) for the data directory.
+
 ## CLI Configuration
 
 The CLI uses a config file (`isotope.yaml`, `isotope.yml`, or `.isotoperc`) for provider configuration.
@@ -271,106 +283,18 @@ settings = Settings.with_profile("conservative", questions_per_atom=5)
 
 ## Provider API Keys
 
-Isotope uses [LiteLLM](https://docs.litellm.ai/) for LLM and embedding calls. Set the appropriate API key for your provider:
+Isotope uses [LiteLLM](https://docs.litellm.ai/) for LLM and embedding calls. Set the appropriate API key for your provider.
 
-### OpenAI
+> **Can I use multiple providers?** Yes, but not simultaneously in one Isotope instance. You can use different providers for different projects (separate `isotope.yaml`) or switch providers by updating your config.
 
-```bash
-export OPENAI_API_KEY="your-openai-api-key"
-```
-
-```python
-from isotope import Isotope, LiteLLMProvider, LocalStorage
-
-iso = Isotope(
-    provider=LiteLLMProvider(
-        llm="openai/gpt-5-mini-2025-08-07",
-        embedding="openai/text-embedding-3-small",
-    ),
-    storage=LocalStorage("./isotope_data"),
-)
-```
-
-### Gemini
-
-```bash
-export GEMINI_API_KEY="your-gemini-api-key"
-```
-
-```python
-from isotope import Isotope, LiteLLMProvider, LocalStorage
-
-iso = Isotope(
-    provider=LiteLLMProvider(
-        llm="gemini/gemini-3-flash-preview",
-        embedding="gemini/gemini-embedding-001",
-    ),
-    storage=LocalStorage("./isotope_data"),
-)
-```
-
-### Anthropic
-
-```bash
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-```
-
-```python
-from isotope import Isotope, LiteLLMProvider, LocalStorage
-
-iso = Isotope(
-    provider=LiteLLMProvider(
-        llm="anthropic/claude-sonnet-4-5-20250929",
-        embedding="openai/text-embedding-3-small",  # Anthropic doesn't provide embeddings
-    ),
-    storage=LocalStorage("./isotope_data"),
-)
-```
-
-### Azure OpenAI
-
-```bash
-export AZURE_API_KEY="your-azure-api-key"
-export AZURE_API_BASE="https://your-resource.openai.azure.com"
-export AZURE_API_VERSION="2024-02-15-preview"
-```
-
-```python
-from isotope import Isotope, LiteLLMProvider, LocalStorage
-
-iso = Isotope(
-    provider=LiteLLMProvider(
-        llm="azure/your-deployment-name",
-        embedding="azure/your-embedding-deployment",
-    ),
-    storage=LocalStorage("./isotope_data"),
-)
-```
+| Provider | Env Var | LLM Model | Embedding Model |
+|----------|---------|-----------|-----------------|
+| **OpenAI** | `OPENAI_API_KEY` | `openai/gpt-5-mini-2025-08-07` | `openai/text-embedding-3-small` |
+| **Gemini** | `GEMINI_API_KEY` | `gemini/gemini-3-flash-preview` | `gemini/gemini-embedding-001` |
+| **Anthropic** | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4-5-20250929` | Use OpenAI or Gemini embeddings |
+| **Azure OpenAI** | `AZURE_API_KEY` + `AZURE_API_BASE` + `AZURE_API_VERSION` | `azure/your-deployment-name` | `azure/your-embedding-deployment` |
 
 See the [LiteLLM provider list](https://docs.litellm.ai/docs/providers) for more options.
-
-## Imports
-
-LiteLLM provider clients and model constants live in `isotope.providers.litellm`:
-
-```python
-# Configuration objects
-from isotope import Isotope, LiteLLMProvider, LocalStorage, Settings
-from isotope.configuration import ProviderConfig, StorageConfig
-
-# LiteLLM provider clients + model constants
-from isotope.providers.litellm import LiteLLMClient, LiteLLMEmbeddingClient
-from isotope.providers.litellm import ChatModels, EmbeddingModels
-
-# Component wrappers (use any LLMClient / EmbeddingClient)
-from isotope.atomizer import LLMAtomizer
-from isotope.embedder import ClientEmbedder
-from isotope.question_generator import ClientQuestionGenerator
-
-# Abstract base classes (for custom implementations)
-from isotope import Embedder, QuestionGenerator, Atomizer
-from isotope.providers import LLMClient, EmbeddingClient
-```
 
 ## Configuration Details
 
@@ -496,38 +420,6 @@ Used when synthesizing answers from retrieved context. Available variables:
 
 ```bash
 export ISOTOPE_SYNTHESIS_PROMPT="Answer based on context:\n\n{context}\n\nQuestion: {query}"
-```
-
-## Accessing Settings in Code
-
-```python
-from isotope import Isotope, LiteLLMProvider, LocalStorage, Settings
-
-# Settings are plain Python objects (no env auto-loading)
-settings = Settings(
-    questions_per_atom=10,
-    diversity_scope="per_chunk",
-    max_concurrent_llm_calls=20,  # For async ingestion
-    generation_preset="local",   # Batch multiple atoms per prompt
-    batch_size=5,                # Override preset batch size
-)
-
-iso = Isotope(
-    provider=LiteLLMProvider(
-        llm="openai/gpt-5-mini-2025-08-07",
-        embedding="openai/text-embedding-3-small",
-    ),
-    storage=LocalStorage("./isotope_data"),
-    settings=settings,
-)
-
-# Access values
-print(settings.questions_per_atom)          # 10
-print(settings.question_diversity_threshold)  # 0.85
-print(settings.diversity_scope)              # "per_chunk"
-print(settings.default_k)                    # 5
-print(settings.max_concurrent_llm_calls)     # 20
-print(settings.build_batch_config())         # BatchConfig(batch_size=5, max_concurrent=20)
 ```
 
 ## Example .env File (CLI)

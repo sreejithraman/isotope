@@ -53,6 +53,35 @@ class EmbeddedQuestionStore(ABC):
         ...
 
 
+class ChunkEmbeddingStore(ABC):
+    """Abstract base class for chunk embedding storage.
+
+    Stores chunk-level embeddings for hybrid retrieval fallback.
+    When question-match confidence is low, the retriever searches
+    this store directly for relevant chunks.
+    """
+
+    @abstractmethod
+    def add(self, chunk_ids: list[str], embeddings: list[list[float]]) -> None:
+        """Add chunk embeddings to the store."""
+        ...
+
+    @abstractmethod
+    def search(self, embedding: list[float], k: int = 5) -> list[tuple[str, float]]:
+        """Search for similar chunks. Returns (chunk_id, score) pairs ordered by relevance."""
+        ...
+
+    @abstractmethod
+    def delete_by_chunk_ids(self, chunk_ids: list[str]) -> None:
+        """Delete embeddings for the given chunk IDs."""
+        ...
+
+    @abstractmethod
+    def count(self) -> int:
+        """Count the total number of chunk embeddings in the store."""
+        ...
+
+
 class ChunkStore(ABC):
     """Abstract base class for chunk storage."""
 

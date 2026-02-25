@@ -16,13 +16,19 @@ class ClientEmbedder(Embedder):
         embedder = ClientEmbedder(embedding_client=client)
     """
 
-    def __init__(self, embedding_client: EmbeddingClient) -> None:
+    def __init__(
+        self,
+        embedding_client: EmbeddingClient,
+        batch_size: int | None = None,
+    ) -> None:
         """Initialize the embedder.
 
         Args:
             embedding_client: Any EmbeddingClient implementation
+            batch_size: Max texts per embedding API call. None means no limit.
         """
         self._client = embedding_client
+        self._batch_size = batch_size
 
     def embed_text(self, text: str) -> list[float]:
         """Generate an embedding vector for a single text."""
@@ -31,4 +37,11 @@ class ClientEmbedder(Embedder):
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Generate embedding vectors for multiple texts (batched)."""
-        return self._client.embed(texts)
+        if self._batch_size is None or len(texts) <= self._batch_size:
+            return self._client.embed(texts)
+
+        results: list[list[float]] = []
+        for i in range(0, len(texts), self._batch_size):
+            batch = texts[i : i + self._batch_size]
+            results.extend(self._client.embed(batch))
+        return results

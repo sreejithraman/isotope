@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 try:
     import typer
@@ -34,9 +36,9 @@ from isotope.commands import (
     delete,
     ingest,
     init,
-    list_cmd,
+    inspect,
     query,
-    status,
+    questions,
 )
 from isotope.commands.base import ConfirmRequest, FileIngestResult, IngestResult, PromptRequest
 from isotope.commands.init import InitCancelled
@@ -47,8 +49,6 @@ app = typer.Typer(
     help="Isotope - Reverse RAG database. Index questions, not chunks.",
     no_args_is_help=True,
 )
-questions_app = typer.Typer(help="Inspect generated questions")
-app.add_typer(questions_app, name="questions")
 console = Console()
 
 # Global verbose flag - set by main callback
@@ -116,7 +116,7 @@ STAGE_NAMES = {
 }
 
 
-@app.command(name="ingest")
+@app.command(name="ingest", rich_help_panel="Core")
 def ingest_cmd(
     path: str = typer.Argument(..., help="File or directory to ingest"),
     data_dir: str = typer.Option(
@@ -141,23 +141,60 @@ def ingest_cmd(
         "--no-progress",
         help="Disable progress bars",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Re-ingest even if content hasn't changed",
+    ),
 ) -> None:
     """Ingest a file or directory into the database."""
     # Determine if we should show progress bars
     show_progress = not plain and not no_progress and console.is_terminal
 
     if show_progress:
-        _ingest_with_progress(path, data_dir, config_file)
+        _ingest_with_progress(path, data_dir, config_file, force=force)
     else:
-        _ingest_simple(path, data_dir, config_file, plain)
+        _ingest_simple(path, data_dir, config_file, plain, force=force)
 
 
 def _ingest_with_progress(
     path: str,
     data_dir: str | None,
     config_file: str | None,
+    force: bool = False,
 ) -> None:
     """Ingest with Rich progress bars."""
+    with _file_logging_context(data_dir, config_file):
+        _ingest_with_progress_inner(path, data_dir, config_file, force)
+
+
+@contextmanager
+def _file_logging_context(data_dir: str | None, config_file: str | None) -> Iterator[None]:
+    """Set up file logging for CLI commands that need persistent logs."""
+    from isotope.config import (
+        DEFAULT_DATA_DIR,
+        load_config,
+        setup_file_logging,
+        teardown_file_logging,
+    )
+
+    cfg = load_config(config_file)
+    effective_data_dir = data_dir or cfg.get("data_dir") or DEFAULT_DATA_DIR
+    handler, prev_level = setup_file_logging(effective_data_dir)
+    try:
+        yield
+    finally:
+        teardown_file_logging(handler, prev_level)
+
+
+def _ingest_with_progress_inner(
+    path: str,
+    data_dir: str | None,
+    config_file: str | None,
+    force: bool = False,
+) -> None:
+    """Ingest with Rich progress bars (inner, after logging is wired)."""
     with Progress(
         SpinnerColumn(),
         TextColumn("[bold]{task.fields[stage]:>12}", justify="right"),
@@ -219,6 +256,7 @@ def _ingest_with_progress(
                 on_progress=on_progress,
                 on_file_start=on_file_start,
                 on_file_complete=on_file_complete,
+                force=force,
             )
         )
 
@@ -237,8 +275,21 @@ def _ingest_simple(
     data_dir: str | None,
     config_file: str | None,
     plain: bool,
+    force: bool = False,
 ) -> None:
     """Ingest with simple console output."""
+    with _file_logging_context(data_dir, config_file):
+        _ingest_simple_inner(path, data_dir, config_file, plain, force)
+
+
+def _ingest_simple_inner(
+    path: str,
+    data_dir: str | None,
+    config_file: str | None,
+    plain: bool,
+    force: bool = False,
+) -> None:
+    """Ingest with simple console output (inner, after logging is wired)."""
 
     def on_file_complete(file_result: FileIngestResult) -> None:
         if not plain:
@@ -255,6 +306,7 @@ def _ingest_simple(
             data_dir=data_dir,
             config_path=config_file,
             on_file_complete=on_file_complete,
+            force=force,
         )
     )
 
@@ -300,7 +352,7 @@ def _render_ingest_result(result: IngestResult, plain: bool) -> None:
         raise typer.Exit(1)
 
 
-@app.command(name="query")
+@app.command(name="query", rich_help_panel="Core")
 def query_cmd(
     question: str = typer.Argument(..., help="Question to ask"),
     data_dir: str = typer.Option(
@@ -393,93 +445,24 @@ def query_cmd(
                 console.print(f"      [yellow]Matched:[/yellow] {r.matched_question}")
 
 
-@app.command(name="list")
-def list_sources_cmd(
-    data_dir: str = typer.Option(
-        None,
-        "--data-dir",
-        "-d",
-        help="Data directory (default: from settings)",
-    ),
-    config_file: str = typer.Option(
-        None,
-        "--config",
-        "-c",
-        help="Path to config file",
-    ),
-    plain: bool = typer.Option(
-        False,
-        "--plain",
-        help="Plain output (no colors/formatting)",
-    ),
+def _run_inspect(
+    data_dir: str | None,
+    config_file: str | None,
+    sources: bool,
+    detailed: bool,
+    plain: bool,
 ) -> None:
-    """List all indexed sources."""
-    result = list_cmd.list_sources(
-        data_dir=data_dir,
-        config_path=config_file,
-    )
-
-    if not result.success:
-        _print_error(result.error, result.error_details, plain=plain)
-        raise typer.Exit(1)
-
-    if not result.sources:
-        if plain:
-            console.print("No sources indexed.")
-        else:
-            console.print("[dim]No sources indexed.[/dim]")
-        raise typer.Exit(0)
-
-    if plain:
-        console.print(f"Indexed sources ({len(result.sources)}):")
-        for source in result.sources:
-            console.print(f"  {source.source} ({source.chunk_count} chunks)")
-    else:
-        table = Table(title=f"Indexed Sources ({len(result.sources)})")
-        table.add_column("Source", style="cyan")
-        table.add_column("Chunks", justify="right")
-
-        for source in result.sources:
-            table.add_row(source.source, str(source.chunk_count))
-
-        console.print(table)
-
-
-@app.command(name="status")
-def status_cmd(
-    data_dir: str = typer.Option(
-        None,
-        "--data-dir",
-        "-d",
-        help="Data directory (default: from settings)",
-    ),
-    config_file: str = typer.Option(
-        None,
-        "--config",
-        "-c",
-        help="Path to config file",
-    ),
-    detailed: bool = typer.Option(
-        False,
-        "--detailed",
-        help="Show question distribution per source",
-    ),
-    plain: bool = typer.Option(
-        False,
-        "--plain",
-        help="Plain output (no colors/formatting)",
-    ),
-) -> None:
-    """Show database statistics."""
+    """Shared logic for inspect command and its aliases."""
     from isotope.config import DEFAULT_DATA_DIR, load_config
 
     # Get effective data_dir for display
     config = load_config(config_file)
     effective_data_dir = data_dir or config.get("data_dir") or DEFAULT_DATA_DIR
 
-    result = status.status(
+    result = inspect.inspect(
         data_dir=data_dir,
         config_path=config_file,
+        sources=sources,
         detailed=detailed,
     )
 
@@ -494,6 +477,24 @@ def status_cmd(
             console.print("[dim]No database found. Run 'isotope ingest' first.[/dim]")
         raise typer.Exit(0)
 
+    # Sources-only mode: simple table like the old `list` command
+    if sources and not detailed:
+        if plain:
+            console.print(f"Indexed sources ({result.total_sources}):")
+            for source in result.sources:
+                console.print(f"  {source.source} ({source.chunk_count} chunks)")
+        else:
+            table = Table(title=f"Indexed Sources ({result.total_sources})")
+            table.add_column("Source", style="cyan")
+            table.add_column("Chunks", justify="right")
+
+            for source in result.sources:
+                table.add_row(source.source, str(source.chunk_count))
+
+            console.print(table)
+        return
+
+    # Default: aggregate stats
     if plain:
         console.print("Database Status:")
         console.print(f"  Data directory: {effective_data_dir}")
@@ -540,7 +541,62 @@ def status_cmd(
             console.print(detail_table)
 
 
-@app.command(name="delete")
+@app.command(name="inspect", rich_help_panel="Database")
+def inspect_cmd(
+    data_dir: str = typer.Option(
+        None,
+        "--data-dir",
+        "-d",
+        help="Data directory (default: from settings)",
+    ),
+    config_file: str = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to config file",
+    ),
+    sources: bool = typer.Option(
+        False,
+        "--sources",
+        help="Show per-source breakdown with chunk counts",
+    ),
+    detailed: bool = typer.Option(
+        False,
+        "--detailed",
+        help="Show per-source breakdown with chunks, atoms, and questions",
+    ),
+    plain: bool = typer.Option(
+        False,
+        "--plain",
+        help="Plain output (no colors/formatting)",
+    ),
+) -> None:
+    """Show database statistics."""
+    _run_inspect(data_dir, config_file, sources, detailed, plain)
+
+
+@app.command(name="list", hidden=True)
+def list_alias_cmd(
+    data_dir: str = typer.Option(None, "--data-dir", "-d"),
+    config_file: str = typer.Option(None, "--config", "-c"),
+    plain: bool = typer.Option(False, "--plain"),
+) -> None:
+    """Alias for 'inspect --sources'."""
+    _run_inspect(data_dir, config_file, sources=True, detailed=False, plain=plain)
+
+
+@app.command(name="status", hidden=True)
+def status_alias_cmd(
+    data_dir: str = typer.Option(None, "--data-dir", "-d"),
+    config_file: str = typer.Option(None, "--config", "-c"),
+    detailed: bool = typer.Option(False, "--detailed"),
+    plain: bool = typer.Option(False, "--plain"),
+) -> None:
+    """Alias for 'inspect'."""
+    _run_inspect(data_dir, config_file, sources=False, detailed=detailed, plain=plain)
+
+
+@app.command(name="delete", rich_help_panel="Database")
 def delete_cmd(
     source: str = typer.Argument(..., help="Source path to delete"),
     data_dir: str = typer.Option(
@@ -602,7 +658,7 @@ def delete_cmd(
         console.print(f"[green]Deleted {result.chunks_deleted} chunks from {source}[/green]")
 
 
-@app.command(name="config")
+@app.command(name="config", rich_help_panel="Config")
 def config_cmd_handler(
     config_file: str = typer.Option(
         None,
@@ -659,42 +715,7 @@ def config_cmd_handler(
     console.print("\n[dim]Precedence: env var > yaml settings > default[/dim]")
 
 
-@app.command(
-    name="help", context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
-)
-def help_cmd(
-    ctx: typer.Context,
-    command: str = typer.Argument(None, help="Command to get help for"),
-) -> None:
-    """Show help for isotope or a specific command."""
-    import click
-
-    # Get the parent Typer app as a Click Group (Typer apps are Groups)
-    click_app = typer.main.get_command(app)
-    assert isinstance(click_app, click.Group)
-
-    if command is None:
-        # Show main help
-        with click.Context(click_app) as click_ctx:
-            console.print(click_app.get_help(click_ctx))
-    else:
-        # Find the subcommand
-        if command in click_app.commands:
-            sub_cmd = click_app.commands[command]
-            with click.Context(
-                sub_cmd, info_name=command, parent=click.Context(click_app)
-            ) as click_ctx:
-                console.print(sub_cmd.get_help(click_ctx))
-        else:
-            console.print(f"[red]Unknown command: {command}[/red]")
-            console.print()
-            console.print("Available commands:")
-            for name in sorted(click_app.commands.keys()):
-                console.print(f"  {name}")
-            raise typer.Exit(1)
-
-
-@app.command(name="init")
+@app.command(name="init", rich_help_panel="Core")
 def init_cmd(
     provider: str = typer.Option(
         "litellm",
@@ -785,8 +806,8 @@ def init_cmd(
         console.print("  3. Ingest documents: isotope ingest ./docs")
 
 
-@questions_app.command(name="sample")
-def sample_questions(
+@app.command(name="questions", rich_help_panel="Database")
+def questions_cmd(
     source: str = typer.Option(
         None,
         "--source",
@@ -816,55 +837,37 @@ def sample_questions(
         help="Plain output (no colors/formatting)",
     ),
 ) -> None:
-    """Show a random sample of generated questions."""
-    from isotope.config import DEFAULT_DATA_DIR, get_stores, load_config
+    """Show a sample of indexed questions."""
+    result = questions.sample_questions(
+        n=n,
+        source=source,
+        data_dir=data_dir,
+        config_path=config_file,
+    )
 
-    config = load_config(config_file)
-    effective_data_dir = data_dir or config.get("data_dir") or DEFAULT_DATA_DIR
+    if not result.success:
+        _print_error(result.error, result.error_details, plain=plain)
+        raise typer.Exit(1)
 
-    if not os.path.exists(effective_data_dir):
-        if plain:
-            console.print("No database found. Run 'isotope ingest' first.")
-        else:
-            console.print("[dim]No database found. Run 'isotope ingest' first.[/dim]")
-        raise typer.Exit(0)
-
-    try:
-        stores = get_stores(effective_data_dir)
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1) from None
-
-    # Get chunk_ids for source filtering if specified
-    chunk_ids: list[str] | None = None
-    if source:
-        chunk_ids = stores["chunk_store"].get_chunk_ids_by_source(source)
-        if not chunk_ids:
+    if not result.questions and not result.total:
+        if source:
             if plain:
                 console.print(f"No questions found for source: {source}")
             else:
                 console.print(f"[yellow]No questions found for source: {source}[/yellow]")
-            raise typer.Exit(0)
-
-    questions = stores["embedded_question_store"].sample(n=n, chunk_ids=chunk_ids)
-
-    if not questions:
-        if plain:
-            console.print("No questions indexed. Run 'isotope ingest' first.")
         else:
-            console.print("[dim]No questions indexed. Run 'isotope ingest' first.[/dim]")
+            if plain:
+                console.print("No questions indexed. Run 'isotope ingest' first.")
+            else:
+                console.print("[dim]No questions indexed. Run 'isotope ingest' first.[/dim]")
         raise typer.Exit(0)
 
-    total = stores["embedded_question_store"].count_questions()
-    if chunk_ids:
-        total = stores["embedded_question_store"].count_by_chunk_ids(chunk_ids)
-
     if plain:
-        console.print(f"Sample Questions ({len(questions)} of {total}):")
-        for i, q in enumerate(questions, 1):
+        console.print(f"Sample Questions ({len(result.questions)} of {result.total}):")
+        for i, q in enumerate(result.questions, 1):
             console.print(f"  {i}. {q.text}")
     else:
-        title = f"Sample Questions ({len(questions)} of {total})"
+        title = f"Sample Questions ({len(result.questions)} of {result.total})"
         if source:
             title += f" from {source}"
 
@@ -872,7 +875,7 @@ def sample_questions(
         table.add_column("#", style="dim", width=3)
         table.add_column("Question", style="cyan")
 
-        for i, q in enumerate(questions, 1):
+        for i, q in enumerate(result.questions, 1):
             table.add_row(str(i), q.text)
 
         console.print(table)

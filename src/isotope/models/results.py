@@ -9,12 +9,12 @@ from isotope.models.question import Question
 
 
 class SearchResult(BaseModel):
-    """A single matched question + its chunk + atom."""
+    """A single search result - chunk with optional question/atom context."""
 
-    question: Question
+    question: Question | None = None
     chunk: Chunk
     score: float
-    atom: Atom  # Required - every result includes its atom
+    atom: Atom | None = None
 
 
 class QueryResponse(BaseModel):
