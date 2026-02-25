@@ -1,7 +1,7 @@
-# src/isotope/commands/status.py
-"""Status command - show database statistics.
+# src/isotope/commands/inspect.py
+"""Inspect command - show database statistics and source breakdown.
 
-This module provides the status logic that both CLI and TUI use.
+This module provides the inspect logic that both CLI and TUI use.
 """
 
 from __future__ import annotations
@@ -13,9 +13,10 @@ from isotope.commands.base import SourceInfo, StatusResult
 from isotope.config import DEFAULT_DATA_DIR, get_stores, load_config
 
 
-def status(
+def inspect(
     data_dir: str | None = None,
     config_path: str | Path | None = None,
+    sources: bool = False,
     detailed: bool = False,
 ) -> StatusResult:
     """Get database statistics.
@@ -23,7 +24,8 @@ def status(
     Args:
         data_dir: Override data directory
         config_path: Override config file path
-        detailed: If True, include per-source breakdown
+        sources: If True, include per-source chunk counts
+        detailed: If True, include per-source breakdown with atoms and questions
 
     Returns:
         StatusResult with database statistics
@@ -53,8 +55,8 @@ def status(
     atom_store = stores["atom_store"]
     question_store = stores["embedded_question_store"]
 
-    sources = chunk_store.list_sources()
-    total_sources = len(sources)
+    source_names = chunk_store.list_sources()
+    total_sources = len(source_names)
     total_chunks = chunk_store.count_chunks()
     total_atoms = atom_store.count_atoms()
     total_questions = question_store.count_questions()
@@ -67,15 +69,18 @@ def status(
         total_questions=total_questions,
     )
 
-    # Add per-source breakdown if detailed
-    if detailed:
-        for source in sorted(sources):
+    # Add per-source breakdown if sources or detailed
+    if sources or detailed:
+        for source in sorted(source_names):
             chunk_ids = chunk_store.get_chunk_ids_by_source(source)
             chunk_count = len(chunk_ids)
 
-            # Get atom and question counts for this source
-            atom_count = atom_store.count_by_chunk_ids(chunk_ids)
-            question_count = question_store.count_by_chunk_ids(chunk_ids)
+            if detailed:
+                atom_count = atom_store.count_by_chunk_ids(chunk_ids)
+                question_count = question_store.count_by_chunk_ids(chunk_ids)
+            else:
+                atom_count = 0
+                question_count = 0
 
             result.sources.append(
                 SourceInfo(

@@ -65,12 +65,35 @@ class TestQueryCommand:
             assert result.exit_code != 0 or "not found" in result.output.lower()
 
 
-class TestListCommand:
-    def test_list_help(self, runner):
-        result = runner.invoke(app, ["list", "--help"])
+class TestInspectCommand:
+    def test_inspect_help(self, runner):
+        result = runner.invoke(app, ["inspect", "--help"])
         assert result.exit_code == 0
+        assert "--sources" in result.output
 
-    def test_list_empty_database(self, runner):
+    def test_inspect_empty_database(self, runner):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_dir = os.path.join(tmpdir, "data")
+            os.makedirs(data_dir)
+
+            result = runner.invoke(
+                app,
+                ["inspect", "--data-dir", data_dir],
+            )
+            assert result.exit_code == 0
+
+    def test_inspect_sources_flag(self, runner):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_dir = os.path.join(tmpdir, "data")
+            os.makedirs(data_dir)
+
+            result = runner.invoke(
+                app,
+                ["inspect", "--sources", "--data-dir", data_dir],
+            )
+            assert result.exit_code == 0
+
+    def test_list_alias_works(self, runner):
         with tempfile.TemporaryDirectory() as tmpdir:
             data_dir = os.path.join(tmpdir, "data")
             os.makedirs(data_dir)
@@ -79,16 +102,9 @@ class TestListCommand:
                 app,
                 ["list", "--data-dir", data_dir],
             )
-            # Should handle empty database gracefully
             assert result.exit_code == 0
 
-
-class TestStatusCommand:
-    def test_status_help(self, runner):
-        result = runner.invoke(app, ["status", "--help"])
-        assert result.exit_code == 0
-
-    def test_status_empty_database(self, runner):
+    def test_status_alias_works(self, runner):
         with tempfile.TemporaryDirectory() as tmpdir:
             data_dir = os.path.join(tmpdir, "data")
             os.makedirs(data_dir)
@@ -97,6 +113,25 @@ class TestStatusCommand:
                 app,
                 ["status", "--data-dir", data_dir],
             )
+            assert result.exit_code == 0
+
+
+class TestQuestionsCommand:
+    def test_questions_help(self, runner):
+        result = runner.invoke(app, ["questions", "--help"])
+        assert result.exit_code == 0
+        assert "sample" in result.output.lower() or "questions" in result.output.lower()
+
+    def test_questions_empty_database(self, runner):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_dir = os.path.join(tmpdir, "data")
+            os.makedirs(data_dir)
+
+            result = runner.invoke(
+                app,
+                ["questions", "--data-dir", data_dir],
+            )
+            # Should handle empty database gracefully
             assert result.exit_code == 0
 
 

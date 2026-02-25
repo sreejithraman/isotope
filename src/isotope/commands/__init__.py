@@ -5,7 +5,7 @@ This module provides command functions that both CLI and TUI can call.
 Commands return data structures, allowing UIs to render results appropriately.
 
 Usage:
-    from isotope.commands import ingest, query, status
+    from isotope.commands import ingest, query, inspect
 
     # Ingest files
     result = ingest.ingest("./docs", on_progress=my_callback)
@@ -13,12 +13,12 @@ Usage:
     # Query the database
     result = query.query("How does authentication work?")
 
-    # Get database status
-    result = status.status()
+    # Get database statistics
+    result = inspect.inspect()
 """
 
 # Import command modules for easy access
-from isotope.commands import config_cmd, delete, ingest, init, query, status
+from isotope.commands import config_cmd, delete, ingest, init, inspect, query, questions
 from isotope.commands import list as list_cmd
 from isotope.commands.base import (
     CommandResult,
@@ -37,6 +37,8 @@ from isotope.commands.base import (
     PromptCallback,
     PromptRequest,
     QueryResult,
+    QuestionInfo,
+    QuestionsResult,
     SearchResult,
     SettingInfo,
     SourceInfo,
@@ -66,10 +68,13 @@ __all__ = [
     "ConfigResult",
     "SettingInfo",
     "InitResult",
+    "QuestionInfo",
+    "QuestionsResult",
     # Command modules
     "ingest",
     "query",
-    "status",
+    "questions",
+    "inspect",
     "list_cmd",
     "delete",
     "config_cmd",

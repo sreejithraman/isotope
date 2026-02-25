@@ -295,6 +295,27 @@ class ConfigResult(CommandResult):
 
 
 @dataclass
+class QuestionInfo:
+    """A single question from the database."""
+
+    text: str
+    chunk_id: str
+
+
+@dataclass
+class QuestionsResult(CommandResult):
+    """Result of the questions command.
+
+    Attributes:
+        questions: Sampled questions
+        total: Total number of questions matching the filter
+    """
+
+    questions: list[QuestionInfo] = field(default_factory=list)
+    total: int = 0
+
+
+@dataclass
 class InitResult(CommandResult):
     """Result of the init command.
 

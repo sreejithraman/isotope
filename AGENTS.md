@@ -1,5 +1,9 @@
 # AI Agent Guidelines for Isotope
 
+## Versioning
+
+This project is pre-1.0 (`v0.x`). Breaking changes to APIs, storage formats, and configuration are expected and acceptable. Prioritize clean, intuitive design for new users over backward compatibility with existing users.
+
 ## Project Purpose
 
 Isotope is a **Reverse RAG** library that indexes *questions*, not chunks. Instead of hoping user queries match document chunks, we pre-generate questions each chunk can answer and match query-to-question. This gives tighter semantic alignment. Based on arXiv:2405.12363.
@@ -44,7 +48,7 @@ src/isotope/
 ├── isotope.py       # Central configuration facade
 ├── ingestor.py      # Ingestion pipeline
 ├── retriever.py     # Query pipeline with LLM synthesis
-├── cli.py           # Typer CLI (isotope init/config/ingest/query/list/status/delete)
+├── cli.py           # Typer CLI (isotope init/ingest/query/inspect/questions/delete/config)
 ├── settings.py      # Settings (Pydantic BaseModel; library does not read env vars)
 └── _optional.py     # Optional dependency handling
 ```
@@ -88,13 +92,14 @@ src/isotope/
 ## CLI Commands
 
 ```bash
-uv run isotope config              # Show current configuration
-uv run isotope ingest <path>       # Ingest file or directory
-uv run isotope query "<question>"  # Query with LLM synthesis (--raw for no synthesis)
-uv run isotope list                # List indexed sources
-uv run isotope status              # Show database statistics
-uv run isotope delete <source>     # Delete a source from the database
-uv run isotope init                # Create an isotope.yaml config file
+uv run isotope init                  # Create an isotope.yaml config file
+uv run isotope ingest <path>         # Ingest file or directory
+uv run isotope query "<question>"    # Query with LLM synthesis (--raw for no synthesis)
+uv run isotope inspect               # Show database statistics
+uv run isotope inspect --sources     # Show per-source breakdown
+uv run isotope questions             # Show sample of indexed questions
+uv run isotope delete <source>       # Delete a source from the database
+uv run isotope config                # Show current configuration
 ```
 
 ## Key Files to Read First
