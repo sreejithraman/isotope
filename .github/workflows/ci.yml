@@ -34,19 +34,18 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.11"
-          cache: 'pip'
+          enable-cache: true
       - name: Install dependencies
-        run: pip install -e ".[dev,all]" pip-audit
+        run: uv sync --extra dev --extra all
       - name: Run pip-audit
         # Ignored vulnerabilities with no available fix:
         # - urllib3 CVEs: chromadb -> kubernetes pins urllib3<2.4.0
         # - pdfminer-six: no patched version available (pdfplumber dependency)
         # - protobuf: no patched version available (grpcio/chromadb dependency)
         run: |
-          pip-audit \
+          uv run pip-audit \
             --ignore-vuln CVE-2025-50182 \
             --ignore-vuln CVE-2025-50181 \
             --ignore-vuln CVE-2025-66418 \
@@ -61,14 +60,13 @@ jobs:
     needs: [format, lint]
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.11"
-          cache: 'pip'
+          enable-cache: true
       - name: Install dependencies
-        run: pip install -e ".[dev,all]"
+        run: uv sync --extra dev --extra all
       - name: Run mypy
-        run: mypy src
+        run: uv run mypy src
 
   test:
     runs-on: ubuntu-latest
@@ -84,14 +82,14 @@ jobs:
     continue-on-error: ${{ matrix.experimental || false }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v6
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
       - name: Install dependencies
-        run: pip install -e ".[dev,all]"
+        run: uv sync --extra dev --extra all
       - name: Run tests
-        run: pytest
+        run: uv run pytest
 
   # Gate job: Aggregates all CI results into a single required check.
   # When adding new jobs, add them to the `needs` list below.
