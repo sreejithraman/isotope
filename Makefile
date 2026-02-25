@@ -1,4 +1,4 @@
-.PHONY: help install dev-setup lint format fix test typecheck ci clean build release cli example
+.PHONY: help install dev-setup lint format fix test typecheck ci clean build release cli example ingest query
 
 ORANGE := \033[38;5;208m
 BOLD := \033[1m
@@ -26,6 +26,8 @@ help:
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Running $(RESET)$(DIM)────────────────────────────────────────────────╮$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)example$(RESET)      Install deps for examples (run this first!)      $(DIM)│$(RESET)\n"
 	@printf "$(DIM)│$(RESET)  $(BOLD)cli$(RESET)          Run CLI: make cli ARGS=\"config\"                 $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)ingest$(RESET)       Ingest docs: make ingest [PATH_ARG=./path]      $(DIM)│$(RESET)\n"
+	@printf "$(DIM)│$(RESET)  $(BOLD)query$(RESET)        Query: make query ARGS=\"'your question'\"        $(DIM)│$(RESET)\n"
 	@printf "$(DIM)╰────────────────────────────────────────────────────────────╯$(RESET)\n"
 	@printf "\n"
 	@printf "$(DIM)╭─$(RESET)$(ORANGE) Release $(RESET)$(DIM)──────────────────────────────────╮$(RESET)\n"
@@ -104,3 +106,25 @@ example: .install-example
 	@printf "  1. uv run isotope init                              # Set up provider\n"
 	@printf "  2. uv run isotope ingest examples/data/hacker-laws.pdf\n"
 	@printf "  3. uv run isotope query 'What is Brooks Law?'\n"
+
+# Load .env if present (created by `isotope init`)
+-include .env
+export ISOTOPE_LLM_API_KEY
+export ISOTOPE_EMBEDDING_API_KEY
+
+# Dev testing - uses Gemini Flash (free tier) by default
+ingest: .install-example
+ifndef ISOTOPE_LLM_API_KEY
+	$(error Set ISOTOPE_LLM_API_KEY or run 'isotope init' first)
+endif
+	ISOTOPE_LITELLM_LLM_MODEL=gemini/gemini-3-flash-preview \
+	ISOTOPE_LITELLM_EMBEDDING_MODEL=gemini/gemini-embedding-001 \
+	isotope ingest --force $(or $(PATH_ARG),./docs)
+
+	query: .install-example
+	ifndef ISOTOPE_LLM_API_KEY
+		$(error Set ISOTOPE_LLM_API_KEY or run 'isotope init' first)
+	endif
+		ISOTOPE_LITELLM_LLM_MODEL=gemini/gemini-3-flash-preview \
+		ISOTOPE_LITELLM_EMBEDDING_MODEL=gemini/gemini-embedding-001 \
+		isotope query $(ARGS)
