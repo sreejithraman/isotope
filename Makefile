@@ -38,33 +38,33 @@ help:
 	@printf "$(DIM)╰────────────────────────────────────────────╯$(RESET)\n"
 
 install:
-	pip install -e ".[dev,all]"
+	uv sync --extra dev --extra all
 
 dev-setup: install
-	pre-commit install --hook-type pre-commit --hook-type pre-push
+	uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 	@echo "Done! Pre-commit hooks installed (lint on commit, mypy+pytest on push)."
 
 lint:
-	ruff check src tests
-	ruff format --check src tests
+	uv run ruff check src tests
+	uv run ruff format --check src tests
 
 format:
-	ruff format src tests
+	uv run ruff format src tests
 
 fix:
-	ruff check --fix src tests
-	ruff format src tests
+	uv run ruff check --fix src tests
+	uv run ruff format src tests
 
 test:
-	pytest
+	uv run pytest
 
 typecheck:
-	mypy src
+	uv run mypy src
 
 ci: lint typecheck test
 
 build:
-	python -m build
+	uv build
 
 release: lint test build
 ifndef VERSION
@@ -76,31 +76,31 @@ endif
 	@# Check tag doesn't already exist
 	@if git show-ref --verify --quiet "refs/tags/v$(VERSION)"; then echo "Error: Tag v$(VERSION) already exists"; exit 1; fi
 	@# Verify VERSION matches pyproject.toml
-	@python -c "import tomllib; v=tomllib.load(open('pyproject.toml','rb'))['project']['version']; exit(0 if v=='$(VERSION)' else print(f'Error: VERSION=$(VERSION) but pyproject.toml has {v}') or 1)"
+	@uv run python -c "import tomllib; v=tomllib.load(open('pyproject.toml','rb'))['project']['version']; exit(0 if v=='$(VERSION)' else print(f'Error: VERSION=$(VERSION) but pyproject.toml has {v}') or 1)"
 	@echo "Creating release v$(VERSION)..."
 	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
 	git push origin "v$(VERSION)"
 
 clean:
-	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
+	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info .venv
 	rm -f .install-cli .install-example
 	find . -type d -name __pycache__ -exec rm -rf {} +
 
 # Smart install markers - reinstall when pyproject.toml changes
 .install-cli: pyproject.toml
-	pip install -e ".[cli]"
+	uv sync --extra cli
 	@touch .install-cli
 
 cli: .install-cli
-	isotope $(ARGS)
+	uv run isotope $(ARGS)
 
 .install-example: pyproject.toml
-	pip install -e ".[cli,chroma,litellm,loaders]"
+	uv sync --extra cli --extra chroma --extra litellm --extra loaders
 	@touch .install-example
 
 example: .install-example
 	@printf "$(ORANGE)✓ Example environment ready!$(RESET)\n"
 	@printf "\nNext steps:\n"
-	@printf "  1. isotope init                              # Set up provider\n"
-	@printf "  2. isotope ingest examples/data/hacker-laws.pdf\n"
-	@printf "  3. isotope query 'What is Brooks Law?'\n"
+	@printf "  1. uv run isotope init                              # Set up provider\n"
+	@printf "  2. uv run isotope ingest examples/data/hacker-laws.pdf\n"
+	@printf "  3. uv run isotope query 'What is Brooks Law?'\n"

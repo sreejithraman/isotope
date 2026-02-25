@@ -41,6 +41,9 @@ isotope.yaml
 .DS_Store
 Thumbs.db
 
+# uv
+.uv/
+
 # Make install markers
 .install-cli
 .install-tui
