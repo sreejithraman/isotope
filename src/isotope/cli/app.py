@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from contextlib import contextmanager
 
 try:
     import typer
@@ -163,6 +164,13 @@ def _ingest_with_progress(
     force: bool = False,
 ) -> None:
     """Ingest with Rich progress bars."""
+    with _file_logging_context(data_dir, config_file):
+        _ingest_with_progress_inner(path, data_dir, config_file, force)
+
+
+@contextmanager
+def _file_logging_context(data_dir: str | None, config_file: str | None):
+    """Set up file logging for CLI commands that need persistent logs."""
     from isotope.config import (
         DEFAULT_DATA_DIR,
         load_config,
@@ -173,9 +181,8 @@ def _ingest_with_progress(
     cfg = load_config(config_file)
     effective_data_dir = data_dir or cfg.get("data_dir") or DEFAULT_DATA_DIR
     handler, prev_level = setup_file_logging(effective_data_dir)
-
     try:
-        _ingest_with_progress_inner(path, data_dir, config_file, force)
+        yield
     finally:
         teardown_file_logging(handler, prev_level)
 
@@ -270,21 +277,8 @@ def _ingest_simple(
     force: bool = False,
 ) -> None:
     """Ingest with simple console output."""
-    from isotope.config import (
-        DEFAULT_DATA_DIR,
-        load_config,
-        setup_file_logging,
-        teardown_file_logging,
-    )
-
-    cfg = load_config(config_file)
-    effective_data_dir = data_dir or cfg.get("data_dir") or DEFAULT_DATA_DIR
-    handler, prev_level = setup_file_logging(effective_data_dir)
-
-    try:
+    with _file_logging_context(data_dir, config_file):
         _ingest_simple_inner(path, data_dir, config_file, plain, force)
-    finally:
-        teardown_file_logging(handler, prev_level)
 
 
 def _ingest_simple_inner(

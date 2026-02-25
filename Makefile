@@ -113,18 +113,17 @@ export ISOTOPE_LLM_API_KEY
 export ISOTOPE_EMBEDDING_API_KEY
 
 # Dev testing - uses Gemini Flash (free tier) by default
+DEV_ENV := ISOTOPE_LITELLM_LLM_MODEL=gemini/gemini-3-flash-preview \
+	ISOTOPE_LITELLM_EMBEDDING_MODEL=gemini/gemini-embedding-001
+
 ingest: .install-example
 ifndef ISOTOPE_LLM_API_KEY
 	$(error Set ISOTOPE_LLM_API_KEY or run 'isotope init' first)
 endif
-	ISOTOPE_LITELLM_LLM_MODEL=gemini/gemini-3-flash-preview \
-	ISOTOPE_LITELLM_EMBEDDING_MODEL=gemini/gemini-embedding-001 \
-	isotope ingest --force $(or $(PATH_ARG),./docs)
+	$(DEV_ENV) isotope ingest --force $(or $(PATH_ARG),./docs)
 
-	query: .install-example
-	ifndef ISOTOPE_LLM_API_KEY
-		$(error Set ISOTOPE_LLM_API_KEY or run 'isotope init' first)
-	endif
-		ISOTOPE_LITELLM_LLM_MODEL=gemini/gemini-3-flash-preview \
-		ISOTOPE_LITELLM_EMBEDDING_MODEL=gemini/gemini-embedding-001 \
-		isotope query $(ARGS)
+query: .install-example
+ifndef ISOTOPE_LLM_API_KEY
+	$(error Set ISOTOPE_LLM_API_KEY or run 'isotope init' first)
+endif
+	$(DEV_ENV) isotope query $(ARGS)
