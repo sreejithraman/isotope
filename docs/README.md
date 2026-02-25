@@ -7,7 +7,6 @@ Welcome to the Isotope documentation.
 - [Getting Started Tutorial](./tutorials/getting-started.md) - Your first 10 minutes
 - [CLI Reference](./guides/cli.md) - Command-line interface
 - [Configuration Guide](./guides/configuration.md) - All settings and environment variables
-- [FAQ](./faq.md) - Frequently asked questions
 - [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
 
 ## Concepts
@@ -16,8 +15,6 @@ Understanding the theory behind Isotope:
 
 - [Reverse RAG Explained](./concepts/reverse-rag.md) - The paper (arXiv:2405.12363) and core insight
 - [Architecture](./concepts/architecture.md) - System design, `Isotope` class, and pipelines
-- [Developer Architecture](./concepts/developer-architecture.md) - Internal code structure (commands layer, CLI)
-
 ## Guides
 
 How-to guides for specific tasks:
@@ -26,8 +23,6 @@ How-to guides for specific tasks:
 - [Configuration](./guides/configuration.md) - Environment variables, providers, settings
 - [Atomization](./guides/atomization.md) - Choosing between sentence and LLM strategies
 - [Troubleshooting](./guides/troubleshooting.md) - Common issues and solutions
-- [Deployment](./guides/deployment.md) - Production deployment guidelines
-
 ## Tutorials
 
 Step-by-step learning:
@@ -39,7 +34,7 @@ Step-by-step learning:
 Resources for contributors:
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Development setup and workflow
-- [Developer Architecture](./concepts/developer-architecture.md) - Internal code structure
+- [AGENTS.md](../AGENTS.md) - Internal code structure (commands layer, CLI)
 
 ## Additional Resources
 

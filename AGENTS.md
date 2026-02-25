@@ -37,25 +37,116 @@ uv run pytest -m 'not mock_integration'
 
 ```
 src/isotope/
-├── models/          # Pydantic data models (Chunk, Atom, Question, etc.)
-├── stores/          # Storage ABCs + implementations (EmbeddedQuestionStore, ChunkStore, AtomStore, SourceRegistry)
-├── atomizer/        # Break chunks into atomic facts (SentenceAtomizer, LLMAtomizer)
-├── embedder/        # Embedding wrapper (ClientEmbedder)
-├── configuration/   # Provider/storage configuration objects (LiteLLMProvider, LocalStorage)
-├── question_generator/  # Question generation + diversity filtering
-├── loaders/         # File loaders (text, PDF, HTML) with registry pattern
-├── providers/       # LLM/embedding provider clients (LiteLLMClient, LiteLLMEmbeddingClient)
-├── isotope.py       # Central configuration facade
-├── ingestor.py      # Ingestion pipeline
-├── retriever.py     # Query pipeline with LLM synthesis
-├── cli.py           # Typer CLI (isotope init/ingest/query/inspect/questions/delete/config)
-├── settings.py      # Settings (Pydantic BaseModel; library does not read env vars)
-└── _optional.py     # Optional dependency handling
+├── [Core Library]
+│   ├── isotope.py          # Main Isotope class
+│   ├── ingestor.py         # Ingestion pipeline
+│   ├── retriever.py        # Query pipeline
+│   ├── settings.py         # Behavioral settings
+│   ├── stores/             # Storage layer (Chroma, SQLite)
+│   ├── atomizer/           # Chunk → Atoms
+│   ├── embedder/           # Text → Embeddings
+│   ├── question_generator/ # Atoms → Questions
+│   ├── loaders/            # File → Chunks
+│   └── models/             # Data models (Chunk, Atom, Question, etc.)
+│
+├── config.py               # Shared configuration utilities
+│
+├── commands/               # UI-agnostic command layer
+│   ├── base.py            # Result types, callbacks
+│   ├── ingest.py          # Ingest command logic
+│   ├── query.py           # Query command logic
+│   ├── status.py          # Status command logic
+│   ├── list.py            # List command logic
+│   ├── delete.py          # Delete command logic
+│   ├── config_cmd.py      # Config command logic
+│   └── init.py            # Init command logic
+│
+└── cli/                    # Typer CLI (thin wrapper)
+    ├── __init__.py
+    ├── __main__.py        # python -m isotope.cli
+    └── app.py             # Typer commands → Rich rendering
 ```
 
 **Data flow**: Document → Chunks → Atoms → Questions → Embeddings → Index
 
 **Pipeline classes**: `Isotope` is the facade; it creates `Ingestor` (for ingestion) and `Retriever` (for querying).
+
+## Commands Layer
+
+The `commands/` layer contains UI-agnostic business logic. Commands return structured result objects; UIs render them.
+
+```python
+# commands/status.py - Returns data
+def status(data_dir=None, detailed=False) -> StatusResult:
+    stores = get_stores(data_dir)
+    return StatusResult(
+        success=True,
+        total_sources=len(stores["chunk_store"].list_sources()),
+        total_chunks=stores["chunk_store"].count_chunks(),
+    )
+
+# cli/app.py - Renders with Rich
+result = status.status(data_dir=data_dir, detailed=detailed)
+table = Table(title="Database Status")
+table.add_row("Sources", str(result.total_sources))
+console.print(table)
+```
+
+Long-running operations use callbacks for progress updates (`ProgressCallback` in `commands/base.py`).
+
+### Result Types
+
+All commands return dataclass results from `commands/base.py`:
+
+| Command | Result Type | Key Fields |
+|---------|-------------|------------|
+| `ingest` | `IngestResult` | `files_processed`, `total_questions`, `file_results` |
+| `query` | `QueryResult` | `answer`, `results`, `query` |
+| `status` | `StatusResult` | `total_sources`, `total_chunks`, `total_questions` |
+| `list` | `ListResult` | `sources` (list of `SourceInfo`) |
+| `delete` | `DeleteResult` | `chunks_deleted`, `source` |
+| `config` | `ConfigResult` | `settings`, `provider`, `config_path` |
+| `init` | `InitResult` | `config_path`, `llm_model`, `embedding_model` |
+
+All results have `success: bool` and `error: str | None`.
+
+### Adding a New Command
+
+1. **Create result type** in `commands/base.py`:
+   ```python
+   @dataclass
+   class MyCommandResult(CommandResult):
+       my_field: str = ""
+   ```
+
+2. **Implement command** in `commands/my_cmd.py`:
+   ```python
+   def my_command(arg1, arg2=None) -> MyCommandResult:
+       return MyCommandResult(success=True, my_field="value")
+   ```
+
+3. **Export** from `commands/__init__.py`
+
+4. **Add CLI command** in `cli/app.py`:
+   ```python
+   @app.command()
+   def my_cmd_cli(arg1: str, arg2: str = None):
+       result = my_cmd.my_command(arg1, arg2)
+       # Render with Rich
+   ```
+
+5. **Add tests** in `tests/commands/test_my_cmd.py`
+
+### File Locations Quick Reference
+
+| What | Where |
+|------|-------|
+| Command result types | `src/isotope/commands/base.py` |
+| Command implementations | `src/isotope/commands/*.py` |
+| CLI commands | `src/isotope/cli/app.py` |
+| Config utilities | `src/isotope/config.py` |
+| CLI tests | `tests/test_cli.py` |
+| Command tests | `tests/commands/test_*.py` |
 
 ## Code Patterns
 

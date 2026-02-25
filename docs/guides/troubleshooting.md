@@ -158,6 +158,13 @@ If queries return no results:
 
 Low scores (< 0.7) indicate weak semantic matches.
 
+| Score | Interpretation |
+|-------|----------------|
+| > 0.9 | High confidence match |
+| 0.7-0.9 | Good match |
+| 0.5-0.7 | Weak match, review results |
+| < 0.5 | Poor match |
+
 **Solutions:**
 
 1. **Increase questions per atom** during ingestion to create more entry points
@@ -310,9 +317,7 @@ If these solutions don't work:
    isotope --verbose ingest ./docs
    ```
 
-2. **Check the [FAQ](../faq.md)** for common questions
-
-3. **Open an issue** at [GitHub Issues](https://github.com/sreejithraman/isotope/issues) with:
+2. **Open an issue** at [GitHub Issues](https://github.com/sreejithraman/isotope/issues) with:
    - Isotope version (`pip show isotope-rag`)
    - Python version (`python --version`)
    - Full error message
