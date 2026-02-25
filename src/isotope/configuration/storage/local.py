@@ -6,16 +6,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from isotope.stores import (
-        AtomStore,
-        ChunkEmbeddingStore,
-        ChunkStore,
-        EmbeddedQuestionStore,
-        SourceRegistry,
-    )
+from isotope.configuration.base import StorageBundle
 
 
 @dataclass(frozen=True)
@@ -23,7 +15,7 @@ class LocalStorage:
     """Local filesystem storage using Chroma and SQLite.
 
     All data is persisted to the specified directory:
-    - chroma/: Embedded questions (ChromaDB)
+    - chroma/: Embedded questions and chunk embeddings (ChromaDB, separate collections)
     - chunks.db: Original text chunks (SQLite)
     - atoms.db: Atomic statements (SQLite)
     - sources.db: Source content hashes (SQLite)
@@ -49,27 +41,13 @@ class LocalStorage:
 
     data_dir: str
 
-    def build_stores(
-        self,
-    ) -> tuple[
-        EmbeddedQuestionStore,
-        ChunkEmbeddingStore,
-        ChunkStore,
-        AtomStore,
-        SourceRegistry,
-    ]:
+    def build_stores(self) -> StorageBundle:
         """Build all five storage components.
 
         Creates the data directory if it doesn't exist.
 
         Returns:
-            Tuple of (
-                embedded_question_store,
-                chunk_embedding_store,
-                chunk_store,
-                atom_store,
-                source_registry,
-            )
+            StorageBundle with named store fields.
         """
         from isotope.stores import (
             ChromaChunkEmbeddingStore,
@@ -89,10 +67,10 @@ class LocalStorage:
         atom_store = SQLiteAtomStore(os.path.join(self.data_dir, "atoms.db"))
         source_registry = SQLiteSourceRegistry(os.path.join(self.data_dir, "sources.db"))
 
-        return (
-            embedded_question_store,
-            chunk_embedding_store,
-            chunk_store,
-            atom_store,
-            source_registry,
+        return StorageBundle(
+            embedded_question_store=embedded_question_store,
+            chunk_embedding_store=chunk_embedding_store,
+            chunk_store=chunk_store,
+            atom_store=atom_store,
+            source_registry=source_registry,
         )

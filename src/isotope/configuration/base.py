@@ -17,7 +17,7 @@ Design Note: Why Protocols here vs ABCs in stores/base.py?
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from isotope.atomizer import Atomizer
@@ -32,6 +32,16 @@ if TYPE_CHECKING:
         EmbeddedQuestionStore,
         SourceRegistry,
     )
+
+
+class StorageBundle(NamedTuple):
+    """Named bundle of stores returned by StorageConfig.build_stores()."""
+
+    embedded_question_store: EmbeddedQuestionStore
+    chunk_embedding_store: ChunkEmbeddingStore
+    chunk_store: ChunkStore
+    atom_store: AtomStore
+    source_registry: SourceRegistry
 
 
 @runtime_checkable
@@ -109,33 +119,13 @@ class StorageConfig(Protocol):
 
             def build_stores(
                 self,
-            ) -> tuple[
-                EmbeddedQuestionStore,
-                ChunkEmbeddingStore,
-                ChunkStore,
-                AtomStore,
-                SourceRegistry,
-            ]: ...
+            ) -> StorageBundle: ...
     """
 
-    def build_stores(
-        self,
-    ) -> tuple[
-        EmbeddedQuestionStore,
-        ChunkEmbeddingStore,
-        ChunkStore,
-        AtomStore,
-        SourceRegistry,
-    ]:
+    def build_stores(self) -> StorageBundle:
         """Build all five storage components.
 
         Returns:
-            Tuple of (
-                embedded_question_store,
-                chunk_embedding_store,
-                chunk_store,
-                atom_store,
-                source_registry,
-            )
+            StorageBundle with named store fields.
         """
         ...

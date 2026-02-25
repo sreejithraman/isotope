@@ -19,19 +19,13 @@ class TestLocalStorage:
         )
 
         storage = LocalStorage(temp_dir)
-        (
-            embedded_question_store,
-            chunk_embedding_store,
-            chunk_store,
-            atom_store,
-            source_registry,
-        ) = storage.build_stores()
+        stores = storage.build_stores()
 
-        assert isinstance(embedded_question_store, ChromaEmbeddedQuestionStore)
-        assert isinstance(chunk_embedding_store, ChromaChunkEmbeddingStore)
-        assert isinstance(chunk_store, SQLiteChunkStore)
-        assert isinstance(atom_store, SQLiteAtomStore)
-        assert isinstance(source_registry, SQLiteSourceRegistry)
+        assert isinstance(stores.embedded_question_store, ChromaEmbeddedQuestionStore)
+        assert isinstance(stores.chunk_embedding_store, ChromaChunkEmbeddingStore)
+        assert isinstance(stores.chunk_store, SQLiteChunkStore)
+        assert isinstance(stores.atom_store, SQLiteAtomStore)
+        assert isinstance(stores.source_registry, SQLiteSourceRegistry)
 
     def test_build_stores_creates_directory(self, temp_dir):
         """Test that LocalStorage creates directory if it doesn't exist."""

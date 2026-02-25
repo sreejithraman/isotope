@@ -23,12 +23,13 @@ Example:
     )
 """
 
-from isotope.configuration.base import ProviderConfig, StorageConfig
+from isotope.configuration.base import ProviderConfig, StorageBundle, StorageConfig
 from isotope.configuration.providers import LiteLLMProvider
 from isotope.configuration.storage import LocalStorage
 
 __all__ = [
     "ProviderConfig",
+    "StorageBundle",
     "StorageConfig",
     "LiteLLMProvider",
     "LocalStorage",
