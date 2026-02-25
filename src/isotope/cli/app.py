@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 try:
@@ -169,7 +170,7 @@ def _ingest_with_progress(
 
 
 @contextmanager
-def _file_logging_context(data_dir: str | None, config_file: str | None):
+def _file_logging_context(data_dir: str | None, config_file: str | None) -> Iterator[None]:
     """Set up file logging for CLI commands that need persistent logs."""
     from isotope.config import (
         DEFAULT_DATA_DIR,
