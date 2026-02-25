@@ -256,9 +256,9 @@ Isotope is in active development and we welcome contributions!
 ```bash
 git clone https://github.com/sreejithraman/isotope.git
 cd isotope
-pip install -e ".[dev]"
-pre-commit install
-pytest  # Run tests
+uv sync --extra dev --extra all
+uv run pre-commit install
+uv run pytest  # Run tests
 ```
 
 See `CONTRIBUTING.md` for guidelines.

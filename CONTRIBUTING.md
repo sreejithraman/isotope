@@ -34,7 +34,7 @@ These commands auto-install dependencies and skip reinstall when `pyproject.toml
 Tests require all dependencies:
 
 ```bash
-pip install -e ".[dev,all]"
+uv sync --extra dev --extra all
 make test
 ```
 

@@ -8,25 +8,25 @@ Isotope is a **Reverse RAG** library that indexes *questions*, not chunks. Inste
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run a single test file
-pytest tests/test_retriever.py
+uv run pytest tests/test_retriever.py
 
 # Run a specific test
-pytest tests/test_retriever.py::TestRetrieverGetAnswer::test_get_answer_returns_response_with_synthesis -v
+uv run pytest tests/test_retriever.py::TestRetrieverGetAnswer::test_get_answer_returns_response_with_synthesis -v
 
 # Format code
-ruff format src tests
+uv run ruff format src tests
 
 # Linting (auto-fix)
-ruff check --fix src tests
+uv run ruff check --fix src tests
 
 # Type checking
-mypy src
+uv run mypy src
 
 # Skip integration tests that mock LLM APIs
-pytest -m 'not mock_integration'
+uv run pytest -m 'not mock_integration'
 ```
 
 ## Codebase Structure
@@ -88,13 +88,13 @@ src/isotope/
 ## CLI Commands
 
 ```bash
-isotope config              # Show current configuration
-isotope ingest <path>       # Ingest file or directory
-isotope query "<question>"  # Query with LLM synthesis (--raw for no synthesis)
-isotope list                # List indexed sources
-isotope status              # Show database statistics
-isotope delete <source>     # Delete a source from the database
-isotope init                # Create an isotope.yaml config file
+uv run isotope config              # Show current configuration
+uv run isotope ingest <path>       # Ingest file or directory
+uv run isotope query "<question>"  # Query with LLM synthesis (--raw for no synthesis)
+uv run isotope list                # List indexed sources
+uv run isotope status              # Show database statistics
+uv run isotope delete <source>     # Delete a source from the database
+uv run isotope init                # Create an isotope.yaml config file
 ```
 
 ## Key Files to Read First
@@ -112,8 +112,7 @@ isotope init                # Create an isotope.yaml config file
 Set up once, runs ruff format + lint on every commit:
 
 ```bash
-pip install pre-commit
-pre-commit install
+make dev-setup   # or: uv sync --extra dev --extra all
 ```
 
 ### CI checks (automatic)
@@ -122,15 +121,15 @@ GitHub Actions runs on every PR:
 - `ruff format --check` - code formatting
 - `ruff check` - linting
 - `mypy src` - type checking
-- `pytest` - tests on Python 3.11 and 3.12
+- `pytest` - tests on Python 3.11, 3.12, and 3.13
 
 ### Manual checks
 
 ```bash
-ruff format src tests       # Format code
-ruff check --fix src tests  # Auto-fix import sorting, etc.
-mypy src                    # Must pass with no errors
-pytest                      # All tests must pass
+uv run ruff format src tests       # Format code
+uv run ruff check --fix src tests  # Auto-fix import sorting, etc.
+uv run mypy src                    # Must pass with no errors
+uv run pytest                      # All tests must pass
 ```
 
 ## Common Tasks

@@ -1,7 +1,7 @@
 # See https://pre-commit.com for more information
-# Install: pip install pre-commit && pre-commit install --hook-type pre-commit --hook-type pre-push
-# Run manually: pre-commit run --all-files
-# Run pre-push hooks: pre-commit run --hook-stage pre-push --all-files
+# Install: uv run pre-commit install --hook-type pre-commit --hook-type pre-push
+# Run manually: uv run pre-commit run --all-files
+# Run pre-push hooks: uv run pre-commit run --hook-stage pre-push --all-files
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -18,7 +18,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy type checking
-        entry: mypy src
+        entry: uv run mypy src
         language: system
         types: [python]
         pass_filenames: false
@@ -26,7 +26,7 @@ repos:
 
       - id: pytest
         name: pytest
-        entry: pytest --tb=short -q
+        entry: uv run pytest --tb=short -q
         language: system
         types: [python]
         pass_filenames: false
